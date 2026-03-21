@@ -1,0 +1,19 @@
+server:
+  port: 8083
+
+spring:
+  application:
+    name: product-service
+  data:
+    mongodb:
+      uri: mongodb://admin:password@mongodb:27017/gtstore_catalog?authSource=admin
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8180/realms/gt-store
+          jwk-set-uri: http://keycloak:8080/realms/gt-store/protocol/openid-connect/certs
+
+logging:
+  level:
+    org.springframework.data.mongodb.core.MongoTemplate: DEBUG

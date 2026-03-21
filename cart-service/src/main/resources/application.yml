@@ -1,0 +1,14 @@
+server:
+  port: 8084
+
+spring:
+  application:
+    name: cart-service
+  data:
+    redis:
+      host: redis
+      port: 6379
+
+logging:
+  level:
+    org.springframework.data.redis: DEBUG

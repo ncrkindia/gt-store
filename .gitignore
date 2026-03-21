@@ -1,4 +1,16 @@
+# ============================================================
+# GT-Store — Root .gitignore
+# ============================================================
+
+# -------------------------------------------------------
+# Maven / Java Builds
+# -------------------------------------------------------
 target/
+*.class
+*.jar
+*.war
+*.ear
+*.nar
 pom.xml.tag
 pom.xml.releaseBackup
 pom.xml.versionsBackup
@@ -7,11 +19,92 @@ release.properties
 dependency-reduced-pom.xml
 buildNumber.properties
 .mvn/timing.properties
-# https://maven.apache.org/wrapper/#usage-without-binary-jar
 .mvn/wrapper/maven-wrapper.jar
 
-# Eclipse m2e generated files
-# Eclipse Core
+# -------------------------------------------------------
+# IDE — IntelliJ IDEA
+# -------------------------------------------------------
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# IDE — Eclipse / Spring Tool Suite
 .project
-# JDT-specific (Eclipse Java Development Tools)
 .classpath
+.settings/
+.factorypath
+
+# IDE — VS Code
+.vscode/
+
+# -------------------------------------------------------
+# Node.js / React Frontend
+# -------------------------------------------------------
+gt-store-web/node_modules/
+gt-store-web/dist/
+gt-store-web/.parcel-cache/
+gt-store-web/.vite/
+gt-store-web/coverage/
+gt-store-web/build/
+
+# Seed / temp scripts
+gt-store-web/seed.js
+gt-store-web/seed.cjs
+gt-store-web/seed_out.txt
+
+# -------------------------------------------------------
+# Docker
+# -------------------------------------------------------
+.docker/
+
+# -------------------------------------------------------
+# Logs & Diagnostics
+# -------------------------------------------------------
+*.log
+*.log.*
+prod_logs.txt
+gt-err.log
+gt-api.log
+gt-user.log
+logs/
+log/
+
+# -------------------------------------------------------
+# Environment & Secrets — NEVER COMMIT
+# -------------------------------------------------------
+.env
+.env.local
+.env.*.local
+*.env
+application-local.yml
+application-local.properties
+application-secret*.yml
+secrets/
+
+# -------------------------------------------------------
+# OS / System
+# -------------------------------------------------------
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+ehthumbs.db
+
+# Linux
+*~
+.nfs*
+
+# -------------------------------------------------------
+# Misc
+# -------------------------------------------------------
+*.tmp
+*.swp
+*.bak
+*.orig
