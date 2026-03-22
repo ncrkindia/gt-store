@@ -159,8 +159,11 @@ services:
     build:
       context: ./order-service
     container_name: gt-store-order-service
+    ports:
+      - "8085:8085"
     depends_on:
       - postgres
+      - kafka
     networks:
       - gt-store-network
 
@@ -175,6 +178,40 @@ services:
       - "3000:80"
     depends_on:
       - api-gateway
+    networks:
+      - gt-store-network
+
+  inventory-service:
+    build:
+      context: ./inventory-service
+    container_name: gt-store-inventory-service
+    ports:
+      - "8086:8086"
+    depends_on:
+      - postgres
+      - kafka
+    networks:
+      - gt-store-network
+
+  payment-service:
+    build:
+      context: ./payment-service
+    container_name: gt-store-payment-service
+    ports:
+      - "8087:8087"
+    depends_on:
+      - postgres
+      - kafka
+    networks:
+      - gt-store-network
+
+  notification-service:
+    build:
+      context: ./notification-service
+    container_name: gt-store-notification-service
+    depends_on:
+      - kafka
+      - mailhog
     networks:
       - gt-store-network
 

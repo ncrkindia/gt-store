@@ -64,6 +64,7 @@ gt-store-web/seed_out.txt
 # -------------------------------------------------------
 *.log
 *.log.*
+*logs*.txt
 prod_logs.txt
 gt-err.log
 gt-api.log

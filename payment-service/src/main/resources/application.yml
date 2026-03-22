@@ -1,9 +1,9 @@
 server:
-  port: 8085
+  port: 8087
 
 spring:
   application:
-    name: order-service
+    name: payment-service
   datasource:
     url: jdbc:postgresql://postgres:5432/gtstore_db
     username: gtstore
@@ -22,14 +22,6 @@ spring:
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
-    consumer:
-      group-id: order-group-v2
-      auto-offset-reset: latest
-      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
-      properties:
-        spring.json.trusted.packages: "*"
-        spring.json.use.type.headers: false
 
 logging:
   level:
