@@ -15,6 +15,9 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.JsonProcessingException;
+
 @Component
 public class PaymentEventListener {
 
@@ -27,9 +30,13 @@ public class PaymentEventListener {
         this.kafkaTemplate = kafkaTemplate;
     }
 
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
     @KafkaListener(topics = "payment.succeeded", groupId = "order-group")
-    public void handlePaymentSucceeded(PaymentEvent event) {
-        log.info("Received payment.succeeded event for orderId: {}", event.getOrderId());
+    public void handlePaymentSucceeded(String eventJson) {
+        try {
+            PaymentEvent event = objectMapper.readValue(eventJson, PaymentEvent.class);
+            log.info("Received payment.succeeded event for orderId: {}", event.getOrderId());
         Optional<Order> orderOpt = orderRepository.findById(UUID.fromString(event.getOrderId()));
         if (orderOpt.isPresent()) {
             Order order = orderOpt.get();
@@ -43,11 +50,16 @@ public class PaymentEventListener {
             
             kafkaTemplate.send("order.paid", orderEvent.getOrderId(), orderEvent);
         }
+        } catch (JsonProcessingException e) {
+            log.error("Failed to parse payment.succeeded event", e);
+        }
     }
     
     @KafkaListener(topics = "payment.failed", groupId = "order-group")
-    public void handlePaymentFailed(PaymentEvent event) {
-        log.info("Received payment.failed event for orderId: {}", event.getOrderId());
+    public void handlePaymentFailed(String eventJson) {
+        try {
+            PaymentEvent event = objectMapper.readValue(eventJson, PaymentEvent.class);
+            log.info("Received payment.failed event for orderId: {}", event.getOrderId());
         Optional<Order> orderOpt = orderRepository.findById(UUID.fromString(event.getOrderId()));
         if (orderOpt.isPresent()) {
             Order order = orderOpt.get();
@@ -70,6 +82,9 @@ public class PaymentEventListener {
             }
 
             kafkaTemplate.send("order.cancelled", orderEvent.getOrderId(), orderEvent);
+        }
+        } catch (JsonProcessingException e) {
+            log.error("Failed to parse payment.failed event", e);
         }
     }
 }
