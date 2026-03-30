@@ -1,70 +1,96 @@
-{
-  "id": "gt-store",
-  "realm": "gt-store",
-  "displayName": "GT Store",
-  "enabled": true,
-  "sslRequired": "external",
-  "registrationAllowed": true,
-  "loginWithEmailAllowed": true,
-  "duplicateEmailsAllowed": false,
-  "resetPasswordAllowed": true,
-  "editUsernameAllowed": false,
-  "bruteForceProtected": true,
-  "users": [
-    {
-      "username": "user1",
-      "email": "user1@example.com",
-      "firstName": "John",
-      "lastName": "Doe",
-      "enabled": true,
-      "credentials": [
+﻿{
+    "id": "gt-store",
+    "realm": "gt-store",
+    "displayName": "GT Store",
+    "enabled": true,
+    "sslRequired": "external",
+    "registrationAllowed": true,
+    "loginWithEmailAllowed": true,
+    "duplicateEmailsAllowed": false,
+    "resetPasswordAllowed": true,
+    "editUsernameAllowed": false,
+    "bruteForceProtected": true,
+    "users": [
         {
-          "type": "password",
-          "value": "password",
-          "temporary": false
+            "username": "user1",
+            "email": "user1@example.com",
+            "firstName": "John",
+            "lastName": "Doe",
+            "enabled": true,
+            "credentials": [
+                {
+                    "type": "password",
+                    "value": "password",
+                    "temporary": false
+                }
+            ],
+            "realmRoles": [
+                "user"
+            ]
+        },
+        {
+            "credentials": [
+                {
+                    "value": "password",
+                    "type": "password",
+                    "temporary": false
+                }
+            ],
+            "realmRoles": [
+                "admin",
+                "user"
+            ],
+            "lastName": "User",
+            "username": "admin1",
+            "email": "admin1@example.com",
+            "firstName": "Admin",
+            "enabled": true
         }
-      ],
-      "realmRoles": [ "user" ]
-    }
-  ],
-  "roles": {
-    "realm": [
-      {
-        "name": "user",
-        "description": "Standard User Role"
-      },
-      {
-        "name": "admin",
-        "description": "Admin Role"
-      }
-    ]
-  },
-  "clients": [
-    {
-      "clientId": "gt-store-web",
-      "name": "GT Store Web Frontend",
-      "enabled": true,
-      "clientAuthenticatorType": "client-secret",
-      "redirectUris": [
-        "http://localhost:3000/*",
-        "http://localhost:5173/*"
-      ],
-      "webOrigins": [
-        "http://localhost:3000",
-        "http://localhost:5173"
-      ],
-      "publicClient": true,
-      "protocol": "openid-connect",
-      "fullScopeAllowed": true
+    ],
+    "roles": {
+        "realm": [
+            {
+                "name": "user",
+                "description": "Standard User Role"
+            },
+            {
+                "name": "admin",
+                "description": "Admin Role"
+            }
+        ]
     },
-    {
-      "clientId": "gt-store-gateway",
-      "name": "GT Store API Gateway",
-      "enabled": true,
-      "clientAuthenticatorType": "client-secret",
-      "bearerOnly": true,
-      "protocol": "openid-connect",
-      "fullScopeAllowed": true
-    }
-  ]
+    "clients": [
+        {
+            "clientId": "gt-store-web",
+            "name": "GT Store Web Frontend",
+            "enabled": true,
+            "clientAuthenticatorType": "client-secret",
+            "redirectUris": [
+                "http://localhost:3000/*",
+                "http://localhost:5173/*",
+                "https://localhost/admin/*",
+                "http://localhost:3002/*",
+                "https://localhost/*",
+                "http://localhost/*"
+            ],
+            "webOrigins": [
+                "http://localhost:3000",
+                "http://localhost:5173",
+                "https://localhost",
+                "http://localhost:3002"
+            ],
+            "publicClient": true,
+            "protocol": "openid-connect",
+            "fullScopeAllowed": true
+        },
+        {
+            "clientId": "gt-store-gateway",
+            "name": "GT Store API Gateway",
+            "enabled": true,
+            "clientAuthenticatorType": "client-secret",
+            "bearerOnly": true,
+            "protocol": "openid-connect",
+            "fullScopeAllowed": true
+        }
+    ]
 }
