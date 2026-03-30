@@ -8,6 +8,14 @@ import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.oauth2.server.resource.authentication.ReactiveJwtAuthenticationConverter;
 import org.springframework.security.web.server.SecurityWebFilterChain;
 
+/**
+ * Security Configuration for the GT Store API Gateway.
+ * Configures the resource server, JWT validation, and Role-Based Access Control (RBAC).
+ * 
+ * - Public routes: /api/products/ (GET), /api/categories/ (GET)
+ * - Admin routes: POST/PUT/DELETE on products/categories, global order views.
+ * - Authenticated routes: All other /api/** endpoints.
+ */
 @Configuration
 @EnableWebFluxSecurity
 public class SecurityConfig {

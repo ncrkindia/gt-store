@@ -10,6 +10,13 @@ import java.util.Map;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * Custom converter to extract Keycloak realm roles from a JWT and map them to Spring Security Authorities.
+ * It specifically looks for the 'realm_access.roles' claim in the token.
+ * 
+ * Each role found is prefixed with 'ROLE_' to stay compatible with Spring Security's
+ * role-based authorization (e.g., .hasRole("admin") checks for "ROLE_admin").
+ */
 public class KeycloakRoleConverter implements Converter<Jwt, Flux<GrantedAuthority>> {
 
     @Override

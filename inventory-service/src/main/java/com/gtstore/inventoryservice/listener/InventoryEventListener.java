@@ -11,6 +11,11 @@ import org.springframework.stereotype.Component;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 
+/**
+ * Kafka Listener for inventory-related events.
+ * Specifically listens for 'order.cancelled' to release previously reserved stock
+ * back into the inventory when a checkout flow fails (e.g., payment failure).
+ */
 @Component
 public class InventoryEventListener {
 

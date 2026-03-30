@@ -18,6 +18,13 @@ import java.util.stream.Collectors;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 
+/**
+ * Kafka Listener for payment-related events.
+ * Listens for 'payment.succeeded' and 'payment.failed' to finalize or cancel orders.
+ * 
+ * - Succeeded: Marks order as PAID and publishes 'order.paid'.
+ * - Failed: Marks order as CANCELLED and publishes 'order.cancelled' (to release stock).
+ */
 @Component
 public class PaymentEventListener {
 

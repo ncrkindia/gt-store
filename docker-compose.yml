@@ -1,5 +1,5 @@
-# Removed obsolete version tag
-
+# GT Store Microservices Platform - Docker Compose
+# Defines the full-stack infrastructure including databases, auth, messaging, and application services.
 services:
   # ----------------------------------------------------------------------------
   # Centralized Identity & Access Management

@@ -1,3 +1,7 @@
+/**
+ * Dashboard Overview for the Admin Portal.
+ * Displays high-level KPIs and operational status.
+ */
 const Dashboard = () => {
     return (
         <div className="dashboard-container">

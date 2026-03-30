@@ -8,6 +8,11 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Product document representing an item in the GT Store catalog.
+ * Stored in MongoDB to allow for flexible attributes and metadata.
+ * Features text indexing on 'name' and 'description' for efficient search.
+ */
 @Document(collection = "products")
 public class Product {
 

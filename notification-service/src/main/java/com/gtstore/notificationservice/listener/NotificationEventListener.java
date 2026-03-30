@@ -11,6 +11,14 @@ import org.springframework.stereotype.Component;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 
+/**
+ * Kafka Listener for the Notification Service.
+ * Listens for system-wide events to trigger customer communications (emails).
+ * 
+ * - order.created: Notifies user that order is received.
+ * - order.paid: Confirms payment and start of processing.
+ * - payment.failed: Logs payment failures for manual follow-up (MVP).
+ */
 @Component
 public class NotificationEventListener {
 

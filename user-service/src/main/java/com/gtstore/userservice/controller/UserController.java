@@ -13,6 +13,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+/**
+ * REST Controller for the User Service.
+ * Manages user profiles and addresses, synchronized with Keycloak identities.
+ * 
+ * Uses 'X-User-Email' and 'X-User-Name' headers (propagated by the API Gateway)
+ * to identify and upsert users in the local PostgreSQL database.
+ */
 @RestController
 @RequestMapping("/api/users")
 public class UserController {

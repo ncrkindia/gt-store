@@ -16,6 +16,15 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+/**
+ * REST Controller for the Order Service.
+ * Manages the order lifecycle: creation, status tracking, and history.
+ * 
+ * Flow:
+ * 1. Synchronously validates and reserves stock via Inventory Service.
+ * 2. Synchronously initiates payment via Payment Service.
+ * 3. Asynchronously publishes events for notification and finalization.
+ */
 @RestController
 @RequestMapping("/api/orders")
 public class OrderController {

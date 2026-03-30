@@ -11,6 +11,13 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+/**
+ * REST Controller for the Product Service.
+ * Provides endpoints for browsing, searching, and managing the product catalog.
+ * 
+ * Public: GET /api/products (Listing & Search)
+ * Admin: POST/PUT/DELETE (Catalog Management)
+ */
 @RestController
 @RequestMapping("/api/products")
 public class ProductController {

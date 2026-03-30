@@ -11,6 +11,13 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDateTime;
 import java.util.Optional;
 
+/**
+ * REST Controller for the Cart Service.
+ * Manages user-specific shopping carts stored in Redis.
+ * 
+ * Uses 'X-User-Email' as the primary key (partition key) for the Redis store.
+ * Supports adding/updating items, removing items, and clearing the entire cart.
+ */
 @RestController
 @RequestMapping("/api/cart")
 public class CartController {

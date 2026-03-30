@@ -2,6 +2,10 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { useKeycloak } from '@react-keycloak/web';
 
+/**
+ * Global Header component for the GT Store storefront.
+ * Handles user authentication states via Keycloak and provides navigation links.
+ */
 const Header = () => {
   const { keycloak, initialized } = useKeycloak();
 

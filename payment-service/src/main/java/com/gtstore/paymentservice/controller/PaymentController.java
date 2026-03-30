@@ -9,6 +9,15 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
+/**
+ * REST Controller for the Payment Service.
+ * Orchestrates payment initialization and callback processing.
+ * 
+ * Flow:
+ * 1. Order Service calls /initiate during checkout.
+ * 2. External gateway (or simulator) calls /callback with transaction status.
+ * 3. Payment Service updates DB and publishes 'payment.succeeded/failed' to Kafka.
+ */
 @RestController
 @RequestMapping("/api/payments")
 public class PaymentController {

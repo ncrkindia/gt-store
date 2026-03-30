@@ -1,3 +1,5 @@
+# GT Store Metrics Configuration (Prometheus)
+# Aggregates metrics from all microservices via their Spring Boot Actuator endpoints.
 global:
   scrape_interval: 10s
   evaluation_interval: 10s

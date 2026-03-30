@@ -6,6 +6,13 @@ import com.gtstore.inventoryservice.service.InventoryService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+/**
+ * REST Controller for the Inventory Service.
+ * Manages product stock levels and reservations.
+ * 
+ * Provides synchronous endpoints for the Order Service to verify and reserve stock
+ * during the initial phase of the checkout flow.
+ */
 @RestController
 @RequestMapping("/api/inventory")
 public class InventoryController {
