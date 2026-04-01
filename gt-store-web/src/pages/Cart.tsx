@@ -2,77 +2,172 @@ import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '../api/axios';
 import { useKeycloak } from '@react-keycloak/web';
+import { useNotification } from '../context/NotificationContext';
 
 const fetchCart = async () => {
-  const res = await apiClient.get('/cart');
+  const res = await apiClient.get('/api/cart');
+  return res.data;
+};
+
+const fetchProductsBulk = async (ids: string[]) => {
+  if (!ids || ids.length === 0) return [];
+  const res = await apiClient.post('/api/products/bulk', ids);
   return res.data;
 };
 
 const Cart = () => {
   const { keycloak } = useKeycloak();
   const queryClient = useQueryClient();
+  const { showNotification } = useNotification();
 
-  const { data: cart, isLoading } = useQuery({
+  const { data: cart, isLoading: isCartLoading } = useQuery({
     queryKey: ['cart'],
     queryFn: fetchCart,
     enabled: !!keycloak.authenticated
   });
 
-  const removeItemMutation = useMutation({
+  const cartItems = cart?.items || [];
+  const productIds = cartItems.map((item: any) => item.productId);
+
+  const { data: products, isLoading: isProductsLoading } = useQuery({
+    queryKey: ['products-bulk', productIds],
+    queryFn: () => fetchProductsBulk(productIds),
+    enabled: productIds.length > 0
+  });
+
+  const updateQuantityMutation = useMutation({
+    mutationFn: ({ productId, delta }: { productId: string, delta: number }) =>
+      apiClient.post('/cart/items', { productId, quantity: delta }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['cart'] })
+  });
+
+  const removeMutation = useMutation({
     mutationFn: (productId: string) => apiClient.delete(`/cart/items/${productId}`),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['cart'] })
   });
 
   const checkoutMutation = useMutation({
-    mutationFn: (cartData: any) => apiClient.post('/orders', {
-      shippingAddressId: 1, // hardcoded for MVP
-      items: cartData.items.map((i: any) => ({
-        productId: i.productId,
-        quantity: i.quantity,
-        price: 99.99 // Should come from Product service in full app
-      }))
-    }),
+    mutationFn: (cartData: any) => {
+      const itemsWithPrice = cartData.items.map((i: any) => {
+        const p = products?.find((prod: any) => prod.id === i.productId);
+        return {
+          productId: i.productId,
+          quantity: i.quantity,
+          price: p?.price || 0
+        };
+      });
+      return apiClient.post('/api/orders', {
+        shippingAddressId: 1,
+        items: itemsWithPrice
+      });
+    },
     onSuccess: async () => {
-      await apiClient.delete('/cart'); // Clear cart after order
+      await apiClient.delete('/api/cart');
       queryClient.invalidateQueries({ queryKey: ['cart'] });
-      alert('Order Placed Successfully!');
+      showNotification('Order Placed Successfully!', 'success');
     }
   });
 
   if (!keycloak.authenticated) {
     return (
-      <div className="page-container">
-        <h2>Please Login to view your Cart</h2>
+      <div className="page-container theme-bg">
+        <h2 className="title-bold">Please Login to view your Cart</h2>
       </div>
     );
   }
 
-  if (isLoading) return <div className="page-container">Loading cart...</div>;
+  if (isCartLoading || (productIds.length > 0 && isProductsLoading)) {
+    return <div className="page-container theme-bg">Loading your treasures...</div>;
+  }
 
-  const items = cart?.items || [];
+  // Calculate totals
+  const enrichedItems = cartItems.map((item: any) => {
+    const product = products?.find((p: any) => p.id === item.productId);
+    return {
+      ...item,
+      name: product?.name || 'Unknown Product',
+      price: product?.price || 0,
+      image: product?.imageUrl || 'https://via.placeholder.com/80'
+    };
+  });
+
+  const grandTotal = enrichedItems.reduce((acc: number, item: any) => acc + (item.price * item.quantity), 0);
 
   return (
-    <div className="page-container">
-      <h1>Your Cart</h1>
-      {items.length === 0 ? (
-        <p>Your cart is empty.</p>
+    <div className="page-container theme-bg">
+      <h1 className="title-bold" style={{ marginBottom: '2rem' }}>Your Shopping Bag</h1>
+
+      {enrichedItems.length === 0 ? (
+        <div className="empty-cart card-mochi">
+          <p>Your bag is empty. Time to go shopping!</p>
+        </div>
       ) : (
-        <div className="cart-list">
-          {items.map((item: any, idx: number) => (
-            <div key={idx} className="cart-item">
-              <span>Product ID: {item.productId}</span>
-              <span>Qty: {item.quantity}</span>
-              <button 
-                className="secondary-btn" 
-                onClick={() => removeItemMutation.mutate(item.productId)}
-              >
-                Remove
-              </button>
+        <div className="cart-content">
+          <div className="cart-items-list">
+            {enrichedItems.map((item: any) => (
+              <div key={item.productId} className="cart-item-card card-mochi">
+                <div className="item-info">
+                  <div className="item-details">
+                    <h3 className="item-name">{item.name}</h3>
+                    <p className="item-price-unit">${item.price.toFixed(2)} per item</p>
+                  </div>
+                </div>
+
+                <div className="item-actions">
+                  <div className="quantity-control">
+                    <button
+                      className="qty-btn"
+                      onClick={() => updateQuantityMutation.mutate({ productId: item.productId, delta: -1 })}
+                    >
+                      −
+                    </button>
+                    <span className="qty-value">{item.quantity}</span>
+                    <button
+                      className="qty-btn"
+                      onClick={() => updateQuantityMutation.mutate({ productId: item.productId, delta: 1 })}
+                    >
+                      +
+                    </button>
+                  </div>
+
+                  <div className="item-total">
+                    <p className="total-label">Subtotal</p>
+                    <p className="total-value">${(item.price * item.quantity).toFixed(2)}</p>
+                  </div>
+
+                  <button
+                    className="remove-btn-mochi"
+                    onClick={() => removeMutation.mutate(item.productId)}
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="cart-summary card-mochi">
+            <h2 className="summary-title">Summary</h2>
+            <div className="summary-row">
+              <span>Items Total:</span>
+              <span>${grandTotal.toFixed(2)}</span>
             </div>
-          ))}
-          <div style={{ marginTop: '2rem' }}>
-            <button className="primary-btn" onClick={() => checkoutMutation.mutate(cart)}>
-              Checkout & Place Order
+            <div className="summary-row">
+              <span>Shipping:</span>
+              <span className="free-label">FREE</span>
+            </div>
+            <hr className="summary-divider" />
+            <div className="summary-row total-row">
+              <span>Grand Total:</span>
+              <span>${grandTotal.toFixed(2)}</span>
+            </div>
+
+            <button
+              className="checkout-btn-mochi primary-btn"
+              disabled={checkoutMutation.isPending}
+              onClick={() => checkoutMutation.mutate(cart)}
+            >
+              {checkoutMutation.isPending ? 'Processing...' : 'Checkout Now'}
             </button>
           </div>
         </div>

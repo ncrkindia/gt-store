@@ -2,9 +2,12 @@ package com.gtstore.inventoryservice.controller;
 
 import com.gtstore.inventoryservice.dto.StockReservationRequest;
 import com.gtstore.inventoryservice.dto.StockReservationResponse;
+import com.gtstore.inventoryservice.entity.Inventory;
 import com.gtstore.inventoryservice.service.InventoryService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 /**
  * REST Controller for the Inventory Service.
@@ -42,5 +45,15 @@ public class InventoryController {
     public ResponseEntity<StockReservationResponse> releaseStock(@RequestBody StockReservationRequest request) {
         inventoryService.releaseStock(request);
         return ResponseEntity.ok(new StockReservationResponse(true, "Stock released successfully"));
+    }
+
+    @GetMapping("/all")
+    public ResponseEntity<List<Inventory>> getAllInventory() {
+        return ResponseEntity.ok(inventoryService.getAllInventory());
+    }
+
+    @PutMapping("/{productId}/stock")
+    public ResponseEntity<Inventory> updateStock(@PathVariable String productId, @RequestParam Integer quantity) {
+        return ResponseEntity.ok(inventoryService.updateStock(productId, quantity));
     }
 }

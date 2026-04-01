@@ -1,14 +1,22 @@
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap');
+
 :root {
-  --bg-color: #f1f5f9;  /* slate-100 */
-  --text-color: #0f172a; /* slate-900 */
-  --primary-color: #2563eb; /* blue-600 */
-  --primary-hover: #1d4ed8; /* blue-700 */
-  --secondary-color: #64748b; /* slate-500 */
-  --secondary-hover: #475569; /* slate-600 */
-  --glass-bg: rgba(255, 255, 255, 0.85);
-  --glass-border: rgba(0, 0, 0, 0.05);
-  --radius: 12px;
-  --font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  --bg-color: #F5F3E7;
+  --text-color: #000000;
+  --primary-color: #000000;
+  --primary-hover: #333333;
+  --secondary-color: #A0D995;
+  --secondary-hover: #8DBC83;
+  --glass-bg: #FFFFFF;
+  --glass-border: #000000;
+  --radius: 24px;
+  --font-family: 'Nunito', 'Inter', system-ui, -apple-system, sans-serif;
+  
+  --color-green: #A0D995;
+  --color-blue: #7BB3D5;
+  --color-orange: #F4A460;
+  --color-pink: #EF9A9A;
+  --border-width: 4px;
 }
 
 body {
@@ -30,23 +38,19 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 1.25rem 2rem;
-  background: var(--glass-bg);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--glass-border);
+  background: var(--bg-color);
+  border-bottom: var(--border-width) solid var(--text-color);
   position: sticky;
   top: 0;
   z-index: 1000;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
 }
 
 .header-brand .brand-link {
-  font-size: 1.5rem;
-  font-weight: 800;
+  font-size: 1.8rem;
+  font-weight: 900;
   text-decoration: none;
-  background: linear-gradient(90deg, #2563eb, #7c3aed);
-  background-clip: text;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--text-color);
+  letter-spacing: -0.05em;
 }
 
 .header-nav {
@@ -55,14 +59,14 @@ body {
 }
 
 .nav-link {
-  color: #475569; /* slate-600 */
+  color: var(--text-color);
   text-decoration: none;
-  font-weight: 600;
-  transition: color 0.2s ease;
+  font-weight: 700;
+  transition: opacity 0.2s ease;
 }
 
 .nav-link:hover {
-  color: #0f172a; /* slate-900 */
+  opacity: 0.7;
 }
 
 .header-actions {
@@ -84,27 +88,26 @@ body {
 
 button {
   cursor: pointer;
-  border: none;
-  border-radius: var(--radius);
-  padding: 0.6rem 1.2rem;
-  font-weight: 600;
+  border: var(--border-width) solid var(--text-color);
+  border-radius: 50px;
+  padding: 0.8rem 1.8rem;
+  font-weight: 800;
   font-family: var(--font-family);
-  transition: background-color 0.2s ease, transform 0.1s ease, box-shadow 0.2s ease;
+  font-size: 1rem;
+  transition: transform 0.1s ease, background-color 0.2s ease;
 }
 
 button:active {
-  transform: scale(0.98);
+  transform: scale(0.95);
 }
 
 .primary-btn {
-  background-color: var(--primary-color);
+  background-color: var(--text-color);
   color: white;
-  box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);
 }
 
 .primary-btn:hover {
   background-color: var(--primary-hover);
-  box-shadow: 0 6px 8px -1px rgba(37, 99, 235, 0.3);
 }
 
 .secondary-btn {

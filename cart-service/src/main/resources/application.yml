@@ -6,7 +6,7 @@ spring:
     name: cart-service
   data:
     redis:
-      host: redis
+      host: host.docker.internal
       port: 6379
 
 logging:

@@ -18,6 +18,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(authz -> authz
                 // Public GET endpoints for catalog
                 .requestMatchers(HttpMethod.GET, "/api/products/**").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/products/bulk").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/categories/**").permitAll()
                 // Require auth for mutating endpoints
                 .anyRequest().authenticated()

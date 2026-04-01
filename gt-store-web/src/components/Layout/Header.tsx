@@ -25,6 +25,16 @@ const Header = () => {
         </Link>
       </div>
 
+      <div className="header-search">
+        <form onSubmit={(e) => {
+          e.preventDefault();
+          const q = (e.target as any).search.value;
+          if (q) window.location.href = `/search?q=${q}`;
+        }}>
+          <input type="text" name="search" placeholder="Search products (fuzziness included)..." className="search-input" />
+        </form>
+      </div>
+
       <nav className="header-nav">
         <Link to="/products" className="nav-link">Catalog</Link>
         <Link to="/cart" className="nav-link">Cart</Link>

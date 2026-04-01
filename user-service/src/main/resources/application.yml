@@ -1,5 +1,6 @@
 server:
   port: 8082
+  forward-headers-strategy: native
 
 spring:
   application:
@@ -18,6 +19,12 @@ spring:
       hibernate:
         format_sql: true
         dialect: org.hibernate.dialect.PostgreSQLDialect
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: https://pahchaan.slpro.in/realms/e-pahchaan
+          jwk-set-uri: https://pahchaan.slpro.in/realms/e-pahchaan/protocol/openid-connect/certs
 
 logging:
   level:

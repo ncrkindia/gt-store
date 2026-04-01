@@ -6,6 +6,7 @@ import com.gtstore.inventoryservice.repository.InventoryRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -51,5 +52,22 @@ public class InventoryService {
             inv.setStock(inv.getStock() + request.getQuantity());
             inventoryRepository.save(inv);
         }
+    }
+
+    public List<Inventory> getAllInventory() {
+        return inventoryRepository.findAll();
+    }
+
+    @Transactional
+    public Inventory updateStock(String productId, Integer quantity) {
+        Inventory inventory = inventoryRepository.findByProductId(productId)
+                .orElse(new Inventory());
+        
+        if (inventory.getProductId() == null) {
+            inventory.setProductId(productId);
+        }
+        
+        inventory.setStock(quantity);
+        return inventoryRepository.save(inventory);
     }
 }

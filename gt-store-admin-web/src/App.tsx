@@ -1,6 +1,9 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useKeycloak } from '@react-keycloak/web';
 import Dashboard from './pages/Dashboard';
+import ProductsPage from './pages/ProductsPage';
+import OrdersPage from './pages/OrdersPage';
+import InventoryPage from './pages/InventoryPage';
 import Sidebar from './components/Sidebar';
 
 function App() {
@@ -35,6 +38,9 @@ function App() {
           <Routes>
             <Route path="/" element={<Navigate to="/dashboard" />} />
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/products" element={<ProductsPage />} />
+            <Route path="/inventory" element={<InventoryPage />} />
+            <Route path="/orders" element={<OrdersPage />} />
           </Routes>
         </main>
       </div>

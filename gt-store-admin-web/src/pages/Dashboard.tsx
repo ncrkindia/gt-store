@@ -1,26 +1,94 @@
+import { useState, useEffect } from 'react';
+import axios from 'axios';
+import { useKeycloak } from '@react-keycloak/web';
+
 /**
- * Dashboard Overview for the Admin Portal.
- * Displays high-level KPIs and operational status.
+ * Admin Dashboard Component.
+ * Visualizes business health through key performance indicators (KPIs).
  */
 const Dashboard = () => {
+    const { keycloak } = useKeycloak();
+    const [stats, setStats] = useState({
+        totalRevenue: 0,
+        orderCount: 0,
+        lowStockItems: 0
+    });
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchStats = async () => {
+            try {
+                const [ordersRes, inventoryRes] = await Promise.all([
+                    axios.get('/api/orders/all', { headers: { Authorization: `Bearer ${keycloak.token}` } }),
+                    axios.get('/api/inventory/all', { headers: { Authorization: `Bearer ${keycloak.token}` } })
+                ]);
+
+                const ordersData = Array.isArray(ordersRes.data) ? ordersRes.data : [];
+                const inventoryData = Array.isArray(inventoryRes.data) ? inventoryRes.data : [];
+
+                const totalRevenue = ordersData.reduce((sum: number, o: any) => sum + o.totalAmount, 0);
+                const lowStockItems = inventoryData.filter((i: any) => i.stock < 10).length;
+
+                setStats({
+                    totalRevenue,
+                    orderCount: ordersData.length,
+                    lowStockItems
+                });
+                setLoading(false);
+            } catch (error) {
+                console.error('Error fetching dashboard stats:', error);
+                setLoading(false);
+            }
+        };
+
+        fetchStats();
+    }, [keycloak.token]);
+
+    if (loading) return <div className="loading">Loading Dashboard Analytics...</div>;
+
     return (
         <div className="dashboard-container">
-            <header className="page-header">
+            <header className="dashboard-header">
                 <h1>Overview</h1>
-                <p>Monitor your e-commerce operations</p>
+                <p>Real-time system health and sales performance.</p>
             </header>
+
             <div className="stats-grid">
-                <div className="stat-card">
-                    <h3>Total Orders</h3>
-                    <p className="stat-value">256</p>
+                <div className="stats-card glass-card">
+                    <div className="stats-info">
+                        <span className="stats-label">Total Revenue</span>
+                        <h2 className="stats-value highlight-text">${stats.totalRevenue.toLocaleString()}</h2>
+                    </div>
                 </div>
-                <div className="stat-card">
-                    <h3>Active Products</h3>
-                    <p className="stat-value">1,402</p>
+                <div className="stats-card glass-card">
+                    <div className="stats-info">
+                        <span className="stats-label">Total Orders</span>
+                        <h2 className="stats-value">{stats.orderCount}</h2>
+                    </div>
                 </div>
-                <div className="stat-card">
-                    <h3>Pending Shipments</h3>
-                    <p className="stat-value text-warning">14</p>
+                <div className="stats-card glass-card alert-card">
+                    <div className="stats-info">
+                        <span className="stats-label">Low Stock Alerts</span>
+                        <h2 className="stats-value">{stats.lowStockItems}</h2>
+                    </div>
+                </div>
+            </div>
+
+            <div className="dashboard-body glass-card">
+                <h3>System Status</h3>
+                <div className="status-list">
+                    <div className="status-item">
+                        <span className="status-dot online"></span>
+                        <span>API Gateway: Online</span>
+                    </div>
+                    <div className="status-item">
+                        <span className="status-dot online"></span>
+                        <span>Inventory Service: Online</span>
+                    </div>
+                    <div className="status-item">
+                        <span className="status-dot online"></span>
+                        <span>Payment Service: Online</span>
+                    </div>
                 </div>
             </div>
         </div>

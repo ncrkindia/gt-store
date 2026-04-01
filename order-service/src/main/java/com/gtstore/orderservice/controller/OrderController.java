@@ -160,4 +160,12 @@ public class OrderController {
                 })
                 .orElse(ResponseEntity.notFound().build());
     }
+
+    /**
+     * Admin-only endpoint to retrieve all platform orders.
+     */
+    @GetMapping("/all")
+    public ResponseEntity<List<Order>> getAllOrders() {
+        return ResponseEntity.ok(orderRepository.findAllByOrderByCreatedAtDesc());
+    }
 }

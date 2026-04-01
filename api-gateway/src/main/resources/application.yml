@@ -1,5 +1,6 @@
 server:
   port: 8081
+  forward-headers-strategy: native
 
 spring:
   application:
@@ -36,12 +37,16 @@ spring:
           uri: http://payment-service:8087
           predicates:
             - Path=/api/payments/**
+        - id: search-service
+          uri: http://search-service:8088
+          predicates:
+            - Path=/api/search/**
   security:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: http://localhost:8180/realms/gt-store
-          jwk-set-uri: http://keycloak:8080/realms/gt-store/protocol/openid-connect/certs
+          issuer-uri: https://pahchaan.slpro.in/realms/e-pahchaan
+          jwk-set-uri: https://pahchaan.slpro.in/realms/e-pahchaan/protocol/openid-connect/certs
 
 logging:
   level:

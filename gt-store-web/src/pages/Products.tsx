@@ -2,6 +2,7 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import apiClient from '../api/axios';
 import { useKeycloak } from '@react-keycloak/web';
+import { useNotification } from '../context/NotificationContext';
 
 const fetchProducts = async () => {
   // Directly calling the API Gateway -> Product Service
@@ -10,6 +11,7 @@ const fetchProducts = async () => {
 };
 
 const Products = () => {
+  const { showNotification } = useNotification();
   const { data: products, isLoading, error } = useQuery({
     queryKey: ['products'], 
     queryFn: fetchProducts
@@ -28,10 +30,10 @@ const Products = () => {
         productId,
         quantity: 1
       });
-      alert('Added to cart!');
+      showNotification('Added to cart!', 'success');
     } catch (err) {
       console.error(err);
-      alert('Failed to add to cart.');
+      showNotification('Failed to add to cart.', 'error');
     }
   };
 

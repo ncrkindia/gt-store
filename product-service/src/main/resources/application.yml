@@ -6,13 +6,20 @@ spring:
     name: product-service
   data:
     mongodb:
-      uri: mongodb://admin:password@mongodb:27017/gtstore_catalog?authSource=admin
+      uri: mongodb://admin:password@host.docker.internal:27018/gtstore_catalog?authSource=admin
   security:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: http://localhost:8180/realms/gt-store
-          jwk-set-uri: http://keycloak:8080/realms/gt-store/protocol/openid-connect/certs
+          issuer-uri: https://pahchaan.slpro.in/realms/e-pahchaan
+          jwk-set-uri: https://pahchaan.slpro.in/realms/e-pahchaan/protocol/openid-connect/certs
+
+  kafka:
+    bootstrap-servers: kafka:29092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
 
 logging:
   level:

@@ -10,6 +10,8 @@ import org.springframework.data.mongodb.core.query.TextCriteria;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import java.util.List;
+
 
 /**
  * REST Controller for the Product Service.
@@ -24,6 +26,12 @@ public class ProductController {
 
     @Autowired
     private ProductRepository productRepository;
+
+    @Autowired
+    private org.springframework.kafka.core.KafkaTemplate<String, Object> kafkaTemplate;
+
+    private static final String TOPIC_UPSERT = "product.upserted";
+    private static final String TOPIC_DELETE = "product.deleted";
 
     @GetMapping
     public Page<Product> getAllProducts(
@@ -51,10 +59,16 @@ public class ProductController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @PostMapping("/bulk")
+    public List<Product> getProductsBulk(@RequestBody List<String> ids) {
+        return (List<Product>) productRepository.findAllById(ids);
+    }
+
     // Secured endpoints (requires Keycloak JWT token with write roles ideally)
     @PostMapping
     public ResponseEntity<Product> createProduct(@RequestBody Product product) {
         Product saved = productRepository.save(product);
+        kafkaTemplate.send(TOPIC_UPSERT, saved.getId(), saved);
         return ResponseEntity.status(HttpStatus.CREATED).body(saved);
     }
 
@@ -64,7 +78,9 @@ public class ProductController {
             return ResponseEntity.notFound().build();
         }
         product.setId(id);
-        return ResponseEntity.ok(productRepository.save(product));
+        Product updated = productRepository.save(product);
+        kafkaTemplate.send(TOPIC_UPSERT, updated.getId(), updated);
+        return ResponseEntity.ok(updated);
     }
 
     @DeleteMapping("/{id}")
@@ -73,6 +89,14 @@ public class ProductController {
             return ResponseEntity.notFound().build();
         }
         productRepository.deleteById(id);
+        kafkaTemplate.send(TOPIC_DELETE, id, id);
         return ResponseEntity.noContent().build();
     }
+    @PostMapping("/sync")
+    public ResponseEntity<String> syncAllProducts() {
+        List<Product> products = productRepository.findAll();
+        products.forEach(product -> kafkaTemplate.send(TOPIC_UPSERT, product.getId(), product));
+        return ResponseEntity.ok("Synced " + products.size() + " products to Search service.");
+    }
 }
+

@@ -13,11 +13,11 @@ const Home = () => {
       </section>
 
       <section className="featured-section">
-        <h2>Featured Categories</h2>
+        <h2 className="section-header">Shop by Category</h2>
         <div className="category-grid">
-          <div className="category-card">Electronics</div>
-          <div className="category-card">Clothing</div>
-          <div className="category-card">Home & Kitchen</div>
+          <div className="category-card cat-green">Electronics</div>
+          <div className="category-card cat-blue">Clothing</div>
+          <div className="category-card cat-orange">Home & Kitchen</div>
         </div>
       </section>
     </div>

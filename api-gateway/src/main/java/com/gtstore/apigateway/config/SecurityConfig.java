@@ -27,7 +27,9 @@ public class SecurityConfig {
             .authorizeExchange(exchanges -> exchanges
                 // Public endpoints
                 .pathMatchers(HttpMethod.GET, "/api/products/**").permitAll()
+                .pathMatchers(HttpMethod.POST, "/api/products/bulk").permitAll()
                 .pathMatchers(HttpMethod.GET, "/api/categories/**").permitAll()
+                .pathMatchers(HttpMethod.GET, "/api/search/**").permitAll()
                 
                 // Admin endpoints
                 .pathMatchers(HttpMethod.POST, "/api/products/**").hasRole("admin")
@@ -40,6 +42,9 @@ public class SecurityConfig {
                 
                 .pathMatchers(HttpMethod.GET, "/api/orders/all").hasRole("admin")
                 .pathMatchers(HttpMethod.PUT, "/api/orders/*/status").hasRole("admin")
+                
+                .pathMatchers(HttpMethod.GET, "/api/inventory/all").hasRole("admin")
+                .pathMatchers(HttpMethod.PUT, "/api/inventory/**").hasRole("admin")
                 
                 // All other endpoints require authentication
                 .pathMatchers("/api/**").authenticated()

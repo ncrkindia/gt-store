@@ -6,6 +6,9 @@ import Home from './pages/Home';
 import Products from './pages/Products';
 import Cart from './pages/Cart';
 import Profile from './pages/Profile';
+import SearchResults from './pages/SearchResults';
+import { NotificationProvider } from './context/NotificationContext';
+import { ToastContainer } from './components/Common/Toast';
 
 const Layout = () => (
   <div className="app-layout">
@@ -18,16 +21,20 @@ const Layout = () => (
 
 const App = () => {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Layout />}>
-          <Route index element={<Home />} />
-          <Route path="products" element={<Products />} />
-          <Route path="cart" element={<Cart />} />
-          <Route path="profile" element={<Profile />} />
-        </Route>
-      </Routes>
-    </BrowserRouter>
+    <NotificationProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<Layout />}>
+            <Route index element={<Home />} />
+            <Route path="products" element={<Products />} />
+            <Route path="cart" element={<Cart />} />
+            <Route path="search" element={<SearchResults />} />
+            <Route path="profile" element={<Profile />} />
+          </Route>
+        </Routes>
+      </BrowserRouter>
+      <ToastContainer />
+    </NotificationProvider>
   );
 };
 
