@@ -25,7 +25,7 @@ function App() {
     );
   }
 
-  const isAdmin = keycloak.realmAccess?.roles.includes('admin');
+  const isAdmin = keycloak.realmAccess?.roles.includes('GTS_ADMIN');
   if (!isAdmin) {
     return <div className="error-screen"><h2>403 Forbidden</h2><p>You lack administrative privileges.</p></div>;
   }

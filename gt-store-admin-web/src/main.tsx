@@ -7,7 +7,7 @@ import keycloak from './keycloak'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <ReactKeycloakProvider authClient={keycloak} initOptions={{ onLoad: 'check-sso', checkLoginIframe: false }}>
+    <ReactKeycloakProvider authClient={keycloak} initOptions={{ onLoad: 'check-sso' as const, checkLoginIframe: false }}>
       <App />
     </ReactKeycloakProvider>
   </React.StrictMode>

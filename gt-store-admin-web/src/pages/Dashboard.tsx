@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+import apiClient from '../api/axios';
 import { useKeycloak } from '@react-keycloak/web';
 
 /**
@@ -19,8 +19,8 @@ const Dashboard = () => {
         const fetchStats = async () => {
             try {
                 const [ordersRes, inventoryRes] = await Promise.all([
-                    axios.get('/api/orders/all', { headers: { Authorization: `Bearer ${keycloak.token}` } }),
-                    axios.get('/api/inventory/all', { headers: { Authorization: `Bearer ${keycloak.token}` } })
+                    apiClient.get('/api/orders/all'),
+                    apiClient.get('/api/inventory/all')
                 ]);
 
                 const ordersData = Array.isArray(ordersRes.data) ? ordersRes.data : [];

@@ -1,5 +1,5 @@
 import { useState, useEffect, Fragment } from 'react';
-import axios from 'axios';
+import apiClient from '../api/axios';
 import { useKeycloak } from '@react-keycloak/web';
 
 interface OrderItem {
@@ -24,7 +24,7 @@ const OrdersPage = () => {
     const [orders, setOrders] = useState<Order[]>([]);
     const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
-    
+
     // Filtering State
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('ALL');
@@ -32,9 +32,7 @@ const OrdersPage = () => {
 
     const fetchOrders = async () => {
         try {
-            const response = await axios.get('/api/orders/all', {
-                headers: { Authorization: `Bearer ${keycloak.token}` }
-            });
+            const response = await apiClient.get('/api/orders/all');
             const data = Array.isArray(response.data) ? response.data : [];
             setOrders(data);
             setFilteredOrders(data);
@@ -52,26 +50,24 @@ const OrdersPage = () => {
     // Handle Filtering Logic
     useEffect(() => {
         let result = orders;
-        
+
         if (statusFilter !== 'ALL') {
             result = result.filter(o => o.status === statusFilter);
         }
-        
+
         if (searchTerm) {
-            result = result.filter(o => 
+            result = result.filter(o =>
                 o.userId.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 o.id.toLowerCase().includes(searchTerm.toLowerCase())
             );
         }
-        
+
         setFilteredOrders(result);
     }, [searchTerm, statusFilter, orders]);
 
     const handleStatusUpdate = async (id: string, status: string) => {
         try {
-            await axios.put(`/api/orders/${id}/status?status=${status}`, {}, {
-                headers: { Authorization: `Bearer ${keycloak.token}` }
-            });
+            await apiClient.put(`/api/orders/${id}/status?status=${status}`);
             fetchOrders();
         } catch (error) {
             alert('Error updating order status');
@@ -89,15 +85,15 @@ const OrdersPage = () => {
             <header className="page-header">
                 <h1>Platform Orders</h1>
                 <div className="filter-bar">
-                    <input 
-                        type="text" 
-                        placeholder="Search by Email or ID..." 
+                    <input
+                        type="text"
+                        placeholder="Search by Email or ID..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="filter-input"
                     />
-                    <select 
-                        value={statusFilter} 
+                    <select
+                        value={statusFilter}
                         onChange={(e) => setStatusFilter(e.target.value)}
                         className="filter-select"
                     >
@@ -142,9 +138,9 @@ const OrdersPage = () => {
                                 </td>
                                 <td>{new Date(o.createdAt).toLocaleDateString()}</td>
                                 <td>
-                                    <select 
+                                    <select
                                         className="status-select-sm"
-                                        value={o.status} 
+                                        value={o.status}
                                         onChange={(e) => handleStatusUpdate(o.id, e.target.value)}
                                     >
                                         <option value="PENDING">PENDING</option>

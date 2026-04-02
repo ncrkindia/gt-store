@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+import apiClient from '../api/axios';
 import { useKeycloak } from '@react-keycloak/web';
 
 interface InventoryItem {
@@ -24,25 +24,23 @@ const InventoryPage = () => {
         if (!initialized || !keycloak.authenticated) return;
         try {
             const [invRes, prodRes] = await Promise.all([
-                axios.get('/api/inventory/all', {
-                    headers: { Authorization: `Bearer ${keycloak.token}` }
-                }),
-                axios.get('/api/products')
+                apiClient.get('/api/inventory/all'),
+                apiClient.get('/api/products')
             ]);
-            
+
             const invData = Array.isArray(invRes.data) ? invRes.data : [];
             const prodData = Array.isArray(prodRes.data) ? prodRes.data : [];
-            
+
             const invMap = new Map<string, number>();
             invData.forEach((item: InventoryItem) => invMap.set(item.productId, item.stock));
-            
+
             const enrichedInv = prodData.map((product: Product) => ({
                 id: product.id,
                 productId: product.id,
                 productName: product.name,
                 stock: invMap.get(product.id) ?? 0
             }));
-            
+
             setInventory(enrichedInv);
             setLoading(false);
         } catch (error) {
@@ -65,11 +63,9 @@ const InventoryPage = () => {
     const submitUpdate = async (productId: string) => {
         const newStock = updateValues[productId];
         if (newStock === undefined || isNaN(newStock) || newStock < 0) return;
-        
+
         try {
-            await axios.put(`/api/inventory/${productId}/stock?quantity=${newStock}`, null, {
-                headers: { Authorization: `Bearer ${keycloak.token}` }
-            });
+            await apiClient.put(`/api/inventory/${productId}/stock?quantity=${newStock}`);
             await fetchData();
             // Clear input
             setUpdateValues(prev => {
@@ -107,7 +103,7 @@ const InventoryPage = () => {
                         </tr>
                     ) : (
                         inventory.map(item => (
-                            <tr key={item.productId || Math.random()}>
+                            <tr key={item.productId}>
                                 <td>{item.productId ? `${item.productId.substring(0, 8)}...` : 'N/A'}</td>
                                 <td>{item.productName}</td>
                                 <td>
@@ -128,15 +124,15 @@ const InventoryPage = () => {
                                             type="number"
                                             min="0"
                                             placeholder={item.stock.toString()}
-                                            value={isNaN(updateValues[item.productId]) ? '' : updateValues[item.productId] ?? ''}
-                                            onChange={(e) => handleStockChange(item.productId, e.target.value)}
+                                            value={isNaN(updateValues[item.productId!]) ? '' : updateValues[item.productId!] ?? ''}
+                                            onChange={(e) => handleStockChange(item.productId!, e.target.value)}
                                             style={{ width: '80px', padding: '8px', borderRadius: '4px', border: '1px solid var(--glass-border)', background: 'rgba(255, 255, 255, 0.1)', color: 'white' }}
                                         />
                                         <button
-                                            onClick={() => submitUpdate(item.productId)}
+                                            onClick={() => submitUpdate(item.productId!)}
                                             className="btn-primary"
                                             style={{ padding: '8px 16px', fontSize: '0.9em' }}
-                                            disabled={updateValues[item.productId] === undefined || isNaN(updateValues[item.productId])}
+                                            disabled={updateValues[item.productId!] === undefined || isNaN(updateValues[item.productId!])}
                                         >
                                             Update
                                         </button>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+import apiClient from '../api/axios';
 import { useKeycloak } from '@react-keycloak/web';
 
 interface Product {
@@ -16,7 +16,7 @@ const ProductsPage = () => {
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [newProduct, setNewProduct] = useState({
+    const [newProduct, setNewProduct] = useState<Omit<Product, 'id'>>({
         name: '',
         description: '',
         price: 0,
@@ -26,7 +26,7 @@ const ProductsPage = () => {
 
     const fetchProducts = async () => {
         try {
-            const response = await axios.get('/api/products');
+            const response = await apiClient.get('/api/products');
             const data = Array.isArray(response.data) ? response.data : [];
             setProducts(data);
             setLoading(false);
@@ -43,9 +43,7 @@ const ProductsPage = () => {
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            await axios.post('/api/products', newProduct, {
-                headers: { Authorization: `Bearer ${keycloak.token}` }
-            });
+            await apiClient.post('/api/products', newProduct);
             setIsModalOpen(false);
             fetchProducts();
         } catch (error) {
@@ -56,9 +54,7 @@ const ProductsPage = () => {
     const handleDelete = async (id: string) => {
         if (!window.confirm('Are you sure you want to delete this product?')) return;
         try {
-            await axios.delete(`/api/products/${id}`, {
-                headers: { Authorization: `Bearer ${keycloak.token}` }
-            });
+            await apiClient.delete(`/api/products/${id}`);
             fetchProducts();
         } catch (error) {
             alert('Error deleting product');
@@ -111,15 +107,15 @@ const ProductsPage = () => {
                         <form onSubmit={handleCreate}>
                             <div className="form-group">
                                 <label>Name</label>
-                                <input required value={newProduct.name} onChange={e => setNewProduct({...newProduct, name: e.target.value})} />
+                                <input required value={newProduct.name} onChange={e => setNewProduct({ ...newProduct, name: e.target.value })} />
                             </div>
                             <div className="form-group">
                                 <label>Price</label>
-                                <input type="number" step="0.01" required value={newProduct.price} onChange={e => setNewProduct({...newProduct, price: parseFloat(e.target.value)})} />
+                                <input type="number" step="0.01" required value={newProduct.price} onChange={e => setNewProduct({ ...newProduct, price: parseFloat(e.target.value) })} />
                             </div>
                             <div className="form-group">
                                 <label>Description</label>
-                                <textarea required value={newProduct.description} onChange={e => setNewProduct({...newProduct, description: e.target.value})} />
+                                <textarea required value={newProduct.description} onChange={e => setNewProduct({ ...newProduct, description: e.target.value })} />
                             </div>
                             <div className="form-buttons">
                                 <button type="button" onClick={() => setIsModalOpen(false)} className="btn-secondary">Cancel</button>
