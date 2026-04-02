@@ -2,7 +2,7 @@ import axios from 'axios';
 import keycloak from '../keycloak';
 
 const apiClient = axios.create({
-  baseURL: '',
+  baseURL: 'https://gts-api.slpro.in/api',
   headers: {
     'Content-Type': 'application/json',
   },

@@ -5,13 +5,13 @@ import { useKeycloak } from '@react-keycloak/web';
 import { useNotification } from '../context/NotificationContext';
 
 const fetchCart = async () => {
-  const res = await apiClient.get('/api/cart');
+  const res = await apiClient.get('/cart');
   return res.data;
 };
 
 const fetchProductsBulk = async (ids: string[]) => {
   if (!ids || ids.length === 0) return [];
-  const res = await apiClient.post('/api/products/bulk', ids);
+  const res = await apiClient.post('/products/bulk', ids);
   return res.data;
 };
 
@@ -56,13 +56,13 @@ const Cart = () => {
           price: p?.price || 0
         };
       });
-      return apiClient.post('/api/orders', {
+      return apiClient.post('/orders', {
         shippingAddressId: 1,
         items: itemsWithPrice
       });
     },
     onSuccess: async () => {
-      await apiClient.delete('/api/cart');
+      await apiClient.delete('/cart');
       queryClient.invalidateQueries({ queryKey: ['cart'] });
       showNotification('Order Placed Successfully!', 'success');
     }

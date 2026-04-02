@@ -1,5 +1,5 @@
 server:
-  port: 8085
+  port: 4007
 
 spring:
   application:
@@ -50,4 +50,4 @@ management:
       probability: 1.0
   zipkin:
     tracing:
-      endpoint: http://zipkin:9411/api/v2/spans
+      endpoint: http://zipkin:4012/api/v2/spans

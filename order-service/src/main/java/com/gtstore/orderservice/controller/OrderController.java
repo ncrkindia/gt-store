@@ -36,15 +36,15 @@ public class OrderController {
     private KafkaTemplate<String, Object> kafkaTemplate;
 
     private final RestTemplate restTemplate = new RestTemplate();
-    private final String INVENTORY_URL = "http://inventory-service:8086/api/inventory/reserve";
-    private final String PAYMENT_URL = "http://payment-service:8087/api/payments/initiate";
+    private final String INVENTORY_URL = "http://inventory-service:4008/api/inventory/reserve";
+    private final String PAYMENT_URL = "http://payment-service:4009/api/payments/initiate";
 
     @PostMapping
     public ResponseEntity<?> createOrder(
             @RequestHeader(value = "X-User-Email", required = false) String email,
             @RequestHeader(value = "X-User-Name", required = false) String name,
             @RequestBody Order orderRequest) {
-        
+
         if (email == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized");
         }
@@ -58,12 +58,15 @@ public class OrderController {
                 stockReq.setQuantity(itemReq.getQuantity());
 
                 try {
-                    ResponseEntity<StockReservationResponse> stockRes = restTemplate.postForEntity(INVENTORY_URL, stockReq, StockReservationResponse.class);
+                    ResponseEntity<StockReservationResponse> stockRes = restTemplate.postForEntity(INVENTORY_URL,
+                            stockReq, StockReservationResponse.class);
                     if (!stockRes.getStatusCode().is2xxSuccessful() || !stockRes.getBody().isSuccess()) {
-                        return ResponseEntity.badRequest().body("Failed to reserve stock for product " + itemReq.getProductId());
+                        return ResponseEntity.badRequest()
+                                .body("Failed to reserve stock for product " + itemReq.getProductId());
                     }
                 } catch (Exception e) {
-                    return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body("Inventory service unavailable or out of stock: " + e.getMessage());
+                    return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                            .body("Inventory service unavailable or out of stock: " + e.getMessage());
                 }
             }
         }
@@ -73,9 +76,9 @@ public class OrderController {
         order.setUserId(email);
         order.setStatus("PENDING");
         order.setShippingAddressId(orderRequest.getShippingAddressId());
-        
+
         BigDecimal totalAmount = BigDecimal.ZERO;
-        
+
         if (orderRequest.getItems() != null) {
             for (OrderItem itemReq : orderRequest.getItems()) {
                 OrderItem item = new OrderItem();
@@ -83,7 +86,7 @@ public class OrderController {
                 item.setVariantId(itemReq.getVariantId());
                 item.setQuantity(itemReq.getQuantity());
                 item.setPrice(itemReq.getPrice());
-                
+
                 totalAmount = totalAmount.add(item.getPrice().multiply(BigDecimal.valueOf(item.getQuantity())));
                 order.addItem(item);
             }
@@ -109,7 +112,7 @@ public class OrderController {
         event.setStatus("PENDING");
         event.setEmail(email);
         event.setFullName(name);
-        
+
         if (saved.getItems() != null) {
             event.setItems(saved.getItems().stream().map(i -> {
                 OrderItemDto dto = new OrderItemDto();
@@ -119,7 +122,7 @@ public class OrderController {
                 return dto;
             }).collect(Collectors.toList()));
         }
-        
+
         kafkaTemplate.send("order.created", event.getOrderId(), event);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(saved);
@@ -138,11 +141,11 @@ public class OrderController {
     public ResponseEntity<?> getOrder(
             @RequestHeader(value = "X-User-Email", required = false) String email,
             @PathVariable UUID id) {
-        
+
         if (email == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized");
         }
-        
+
         return orderRepository.findById(id)
                 .filter(o -> o.getUserId().equals(email))
                 .map(ResponseEntity::ok)

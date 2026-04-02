@@ -35,7 +35,7 @@ public class CartController {
         if (cart.getUserId() == null) {
             cart.setUserId(email);
         }
-        
+
         return ResponseEntity.ok(cart);
     }
 
@@ -43,7 +43,7 @@ public class CartController {
     public ResponseEntity<?> addOrUpdateItem(
             @RequestHeader(value = "X-User-Email", required = false) String email,
             @RequestBody CartItem newItem) {
-        
+
         if (email == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized");
         }
@@ -54,7 +54,8 @@ public class CartController {
 
         Optional<CartItem> existingItemMatch = cart.getItems().stream()
                 .filter(i -> i.getProductId().equals(newItem.getProductId())
-                        && (i.getVariantId() == null ? newItem.getVariantId() == null : i.getVariantId().equals(newItem.getVariantId())))
+                        && (i.getVariantId() == null ? newItem.getVariantId() == null
+                                : i.getVariantId().equals(newItem.getVariantId())))
                 .findFirst();
 
         if (existingItemMatch.isPresent()) {
@@ -77,7 +78,7 @@ public class CartController {
     public ResponseEntity<?> removeItem(
             @RequestHeader(value = "X-User-Email", required = false) String email,
             @PathVariable String productId) {
-        
+
         if (email == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized");
         }

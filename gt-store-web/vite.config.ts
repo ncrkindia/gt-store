@@ -8,7 +8,7 @@ export default defineConfig({
     port: 3000,
     proxy: {
       '/api': {
-        target: 'http://localhost:8081',
+        target: 'https://gtstore-api.slpro.in',
         changeOrigin: true,
         secure: false,
       },
