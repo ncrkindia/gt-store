@@ -12,7 +12,7 @@ interface Product {
 }
 
 const ProductsPage = () => {
-    const { keycloak } = useKeycloak();
+    const { initialized } = useKeycloak();
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -25,6 +25,7 @@ const ProductsPage = () => {
     });
 
     const fetchProducts = async () => {
+        if (!initialized) return;
         try {
             const response = await apiClient.get('/api/products');
             const data = Array.isArray(response.data) ? response.data : [];
@@ -38,7 +39,7 @@ const ProductsPage = () => {
 
     useEffect(() => {
         fetchProducts();
-    }, []);
+    }, [initialized]);
 
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();

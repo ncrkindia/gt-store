@@ -20,7 +20,7 @@ interface Order {
 }
 
 const OrdersPage = () => {
-    const { keycloak } = useKeycloak();
+    const { keycloak, initialized } = useKeycloak();
     const [orders, setOrders] = useState<Order[]>([]);
     const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
@@ -31,6 +31,7 @@ const OrdersPage = () => {
     const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
 
     const fetchOrders = async () => {
+        if (!keycloak.authenticated) return;
         try {
             const response = await apiClient.get('/api/orders/all');
             const data = Array.isArray(response.data) ? response.data : [];
@@ -44,8 +45,10 @@ const OrdersPage = () => {
     };
 
     useEffect(() => {
-        fetchOrders();
-    }, []);
+        if (initialized) {
+            fetchOrders();
+        }
+    }, [initialized, keycloak.authenticated]);
 
     // Handle Filtering Logic
     useEffect(() => {

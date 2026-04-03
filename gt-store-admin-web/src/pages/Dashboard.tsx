@@ -7,7 +7,7 @@ import { useKeycloak } from '@react-keycloak/web';
  * Visualizes business health through key performance indicators (KPIs).
  */
 const Dashboard = () => {
-    const { keycloak } = useKeycloak();
+    const { keycloak, initialized } = useKeycloak();
     const [stats, setStats] = useState({
         totalRevenue: 0,
         orderCount: 0,
@@ -17,6 +17,7 @@ const Dashboard = () => {
 
     useEffect(() => {
         const fetchStats = async () => {
+            if (!keycloak.authenticated) return;
             try {
                 const [ordersRes, inventoryRes] = await Promise.all([
                     apiClient.get('/api/orders/all'),
@@ -26,7 +27,7 @@ const Dashboard = () => {
                 const ordersData = Array.isArray(ordersRes.data) ? ordersRes.data : [];
                 const inventoryData = Array.isArray(inventoryRes.data) ? inventoryRes.data : [];
 
-                const totalRevenue = ordersData.reduce((sum: number, o: any) => sum + o.totalAmount, 0);
+                const totalRevenue = ordersData.reduce((sum: number, o: any) => sum + (o.totalAmount || 0), 0);
                 const lowStockItems = inventoryData.filter((i: any) => i.stock < 10).length;
 
                 setStats({
@@ -41,8 +42,10 @@ const Dashboard = () => {
             }
         };
 
-        fetchStats();
-    }, [keycloak.token]);
+        if (initialized) {
+            fetchStats();
+        }
+    }, [initialized, keycloak.authenticated]);
 
     if (loading) return <div className="loading">Loading Dashboard Analytics...</div>;
 
