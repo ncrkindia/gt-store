@@ -36,13 +36,21 @@ public class PaymentService {
         return paymentRepository.save(payment);
     }
 
+    @Transactional(readOnly = true)
+    public Payment getPaymentByOrderId(String orderId) {
+        return paymentRepository.findByOrderId(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("Payment not found for order: " + orderId));
+    }
+
     @Transactional
     public Payment processCallback(String orderId, String status) {
         Optional<Payment> paymentOpt = paymentRepository.findByOrderId(orderId);
         if (paymentOpt.isPresent()) {
             Payment payment = paymentOpt.get();
             payment.setStatus(status);
-            payment.setTransactionRef(UUID.randomUUID().toString());
+            if (payment.getTransactionRef() == null) {
+                payment.setTransactionRef(UUID.randomUUID().toString());
+            }
             paymentRepository.save(payment);
 
             // Publish event
@@ -57,3 +65,4 @@ public class PaymentService {
         throw new IllegalArgumentException("Payment not found for order: " + orderId);
     }
 }
+

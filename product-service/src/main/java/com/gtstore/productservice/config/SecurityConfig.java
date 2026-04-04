@@ -20,9 +20,12 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/products/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/products/bulk").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/categories/**").permitAll()
+                // Swagger/OpenAPI endpoints
+                .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/api/products/v3/api-docs/**").permitAll()
                 // Require auth for mutating endpoints
                 .anyRequest().authenticated()
             )
+
             .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> {}));
         
         return http.build();

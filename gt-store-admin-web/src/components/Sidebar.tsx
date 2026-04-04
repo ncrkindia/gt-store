@@ -16,7 +16,10 @@ const Sidebar = () => {
                     <li><Link to="/products">Manage Products</Link></li>
                     <li><Link to="/inventory">Manage Inventory</Link></li>
                     <li><Link to="/orders">Manage Orders</Link></li>
+                    <li><hr style={{ opacity: 0.2, margin: '15px 0' }} /></li>
+                    <li><Link to="/documentation" className="sidebar-doc-link">API Documentation</Link></li>
                 </ul>
+
             </nav>
             <div className="sidebar-footer">
                 <p>User: {keycloak.tokenParsed?.name || keycloak.tokenParsed?.preferred_username}</p>

@@ -4,7 +4,9 @@ import Dashboard from './pages/Dashboard';
 import ProductsPage from './pages/ProductsPage';
 import OrdersPage from './pages/OrdersPage';
 import InventoryPage from './pages/InventoryPage';
+import Documentation from './pages/Documentation';
 import Sidebar from './components/Sidebar';
+
 
 function App() {
   const { keycloak, initialized } = useKeycloak();
@@ -41,7 +43,9 @@ function App() {
             <Route path="/products" element={<ProductsPage />} />
             <Route path="/inventory" element={<InventoryPage />} />
             <Route path="/orders" element={<OrdersPage />} />
+            <Route path="/documentation" element={<Documentation />} />
           </Routes>
+
         </main>
       </div>
     </BrowserRouter>

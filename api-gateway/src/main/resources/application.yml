@@ -67,3 +67,23 @@ management:
   zipkin:
     tracing:
       endpoint: http://zipkin:4012/api/v2/spans
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    urls:
+      - name: User Service
+        url: /api/users/v3/api-docs
+      - name: Product Service
+        url: /api/products/v3/api-docs
+      - name: Cart Service
+        url: /api/cart/v3/api-docs
+      - name: Order Service
+        url: /api/orders/v3/api-docs
+      - name: Inventory Service
+        url: /api/inventory/v3/api-docs
+      - name: Payment Service
+        url: /api/payments/v3/api-docs
+      - name: Search Service
+        url: /api/search/v3/api-docs
+

@@ -4,6 +4,8 @@ import apiClient from '../api/axios';
 import { useKeycloak } from '@react-keycloak/web';
 import { useNotification } from '../context/NotificationContext';
 
+import { PayPalButtons } from '@paypal/react-paypal-js';
+
 const fetchCart = async () => {
   const res = await apiClient.get('/cart');
   return res.data;
@@ -46,9 +48,10 @@ const Cart = () => {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['cart'] })
   });
 
-  const checkoutMutation = useMutation({
-    mutationFn: (cartData: any) => {
-      const itemsWithPrice = cartData.items.map((i: any) => {
+  const handleCreatePayPalOrder = async () => {
+    try {
+      // 1. Create Internal Order
+      const itemsWithPrice = cart.items.map((i: any) => {
         const p = products?.find((prod: any) => prod.id === i.productId);
         return {
           productId: i.productId,
@@ -56,17 +59,37 @@ const Cart = () => {
           price: p?.price || 0
         };
       });
-      return apiClient.post('/orders', {
+
+      const orderRes = await apiClient.post('/orders', {
         shippingAddressId: 1,
         items: itemsWithPrice
       });
-    },
-    onSuccess: async () => {
+
+      const orderId = orderRes.data.id;
+
+      // 2. Create PayPal Order via Payment Service
+      const paypalRes = await apiClient.post(`/payments/paypal/create/${orderId}`);
+      return paypalRes.data.paypalOrderId;
+    } catch (error: any) {
+      showNotification('Failed to initiate checkout: ' + (error.response?.data || error.message), 'error');
+      throw error;
+    }
+  };
+
+  const handleOnApprove = async (data: any) => {
+    try {
+      // Capture PayPal payment
+      await apiClient.post(`/payments/paypal/capture/${data.orderID}`);
+      
+      // Cleanup cart
       await apiClient.delete('/cart');
       queryClient.invalidateQueries({ queryKey: ['cart'] });
-      showNotification('Order Placed Successfully!', 'success');
+      
+      showNotification('Payment Successful! Order Placed.', 'success');
+    } catch (error: any) {
+      showNotification('Payment verification failed: ' + (error.response?.data || error.message), 'error');
     }
-  });
+  };
 
   if (!keycloak.authenticated) {
     return (
@@ -162,18 +185,19 @@ const Cart = () => {
               <span>${grandTotal.toFixed(2)}</span>
             </div>
 
-            <button
-              className="checkout-btn-mochi primary-btn"
-              disabled={checkoutMutation.isPending}
-              onClick={() => checkoutMutation.mutate(cart)}
-            >
-              {checkoutMutation.isPending ? 'Processing...' : 'Checkout Now'}
-            </button>
+            <div style={{ marginTop: '1.5rem' }}>
+              <PayPalButtons 
+                style={{ layout: "vertical", color: "gold", shape: "rect", label: "checkout" }}
+                createOrder={handleCreatePayPalOrder}
+                onApprove={handleOnApprove}
+              />
+            </div>
           </div>
         </div>
       )}
     </div>
   );
 };
+
 
 export default Cart;
