@@ -84,6 +84,7 @@ public class SecurityConfig {
                                                 .pathMatchers("/api/*/v3/api-docs").permitAll()
 
 
+
                                                 // Admin endpoints - role matches Keycloak role assigned to admin users
                                                 .pathMatchers(HttpMethod.POST, "/api/products/**").hasRole("GTS_ADMIN")
                                                 .pathMatchers(HttpMethod.PUT, "/api/products/**").hasRole("GTS_ADMIN")

@@ -1,5 +1,7 @@
 server:
   port: 4008
+  forward-headers-strategy: native
+
 
 spring:
   application:
@@ -50,5 +52,12 @@ management:
 springdoc:
   api-docs:
     path: /api/inventory/v3/api-docs
+    servers:
+      - url: https://gts-api.slpro.in
+        description: GT Store API Gateway
+  swagger-ui:
+    enabled: true
+
+
 
 
