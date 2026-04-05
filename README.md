@@ -15,6 +15,7 @@ docker compose up -d --build
 | :--- | :--- | :--- |
 | **Storefront** | [https://localhost](https://localhost) | `user1@example.com` / `password` |
 | **Admin Console** | [https://localhost/admin](https://localhost/admin) | `admin1@example.com` / `password` |
+| **API Docs (Swagger)** | [https://localhost/api/swagger-ui.html](https://localhost/api/swagger-ui.html) | N/A |
 | **Keycloak Admin** | [http://localhost:8180](http://localhost:8180) | `admin` / `admin` |
 | **Grafana** | [http://localhost:3001](http://localhost:3001) | `admin` / `admin` |
 | **Zipkin** | [http://localhost:9411](http://localhost:9411) | N/A |
@@ -42,6 +43,7 @@ flowchart TD
     subgraph Microservices
         Gateway --> User[User Service]
         Gateway --> Product[Product Service]
+        Gateway --> Search[Search Service]
         Gateway --> Cart[Cart Service]
         Gateway --> Order[Order Service]
         Order --> IS[Inventory Service]
@@ -51,6 +53,11 @@ flowchart TD
     subgraph Messaging
         Order -.-> Kafka[Kafka Broker]
         Kafka -.-> NS[Notification Service]
+        Kafka -.-> Search
+    end
+    
+    subgraph Data
+        Search -.-> ES[Elasticsearch]
     end
     
     subgraph Auth
@@ -69,6 +76,7 @@ flowchart TD
 - **Data Persistence**:
     - **PostgreSQL**: Relational data (Orders, Users, Payments, Inventory).
     - **MongoDB**: Flexible product catalog.
+    - **Elasticsearch**: Full-text product search indexing.
     - **Redis**: High-speed user carts.
 - **Observability**: Prometheus, Grafana, Micrometer, Zipkin.
 - **Infrastructure**: Docker Compose, Nginx (SSL/TLS).
@@ -86,7 +94,7 @@ Established the core architecture: API Gateway, User Service, Product Catalog wi
 Implemented the complex asynchronous checkout flow using Kafka, integrating Inventory reservation, Payment processing, and Email notifications.
 
 ### [Phase 3: Production Readiness & Admin](file:///d:/project%20slpro/gt-store/phase3.md)
-Added Nginx reverse proxy with SSL, Role-Based Access Control (RBAC), more deep observability (metrics & tracing), and the Administrator Management UI.
+Added Nginx reverse proxy with SSL, Role-Based Access Control (RBAC), deep observability (metrics & tracing), **Search Service (Elasticsearch)**, and **PayPal** integration.
 
 ---
 

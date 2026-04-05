@@ -42,7 +42,28 @@ A full-stack monitoring suite is integrated to track system health and request l
 | **Prometheus** | [http://localhost:9090](http://localhost:9090) | Metrics Querying |
 | **Zipkin** | [http://localhost:9411](http://localhost:9411) | Distributed Tracing |
 
-## 4. System Architecture (Current)
+## 4. Search & Recommendations
+The platform now features a high-performance **Search Service** powered by **Elasticsearch**, enabling advanced discovery for shoppers.
+
+- **Full-Text Search**: Supports fuzzy matching and faceted filtering.
+- **Asynchronous Indexing**: Microservices (Product, Order) emit events to **Kafka**, which are consumed by the Search Service to update the Elasticsearch index in real-time.
+- **Improved UX**: Significantly faster lookup times compared to traditional database queries.
+
+## 5. Unified API Documentation
+To simplify developer onboarding, all microservice APIs are now aggregated into a single developer portal.
+
+- **Swagger UI**: Accessible via the API Gateway at `https://localhost/api/swagger-ui.html`.
+- **Automatic Aggregation**: The Gateway dynamically discovers services and merges their OpenAPI definitions into a unified interface.
+- **Try-It-Out**: Developers can test authenticated and public endpoints directly from the browser.
+
+## 6. Payment Gateway Enhancements
+The **Payment Service** has been expanded to support professional third-party payment providers.
+
+- **PayPal Integration**: Standard checkout now supports PayPal's secure payment flow.
+- **Modular Design**: The service uses the Strategy Pattern to easily add more providers (e.g., Stripe, Razorpay) in the future.
+- **Webhooks**: Handles asynchronous payment completion notifications to ensure order status consistency.
+
+## 7. System Architecture (Final)
 
 ```mermaid
 flowchart TD
@@ -63,13 +84,18 @@ flowchart TD
     
     subgraph Microservices
         Gateway --> Services[Order, Product, User, etc.]
+        Gateway --> Search[Search Service]
+    end
+    
+    subgraph Events
+        Kafka[Kafka Broker]
+        Services -.-> Kafka
+        Kafka -.-> Search
+    end
+    
+    subgraph Data
+        Search -.-> ES[Elasticsearch]
     end
     
     Gateway --> KC[Keycloak Auth]
 ```
-
-## Next Steps: Search & Recommendations
-The final piece of the Phase 3 roadmap is the integration of an **Elasticsearch/OpenSearch** engine to provide:
-- Full-text search with fuzzy matching.
-- Real-time product indexing via Kafka listeners.
-- "People also viewed" recommendation logic.
