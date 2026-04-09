@@ -2,10 +2,9 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { ReactKeycloakProvider } from '@react-keycloak/web';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import App from './App';
+import App from './app/App';
 import keycloak from './keycloak';
-import './index.css';
-import './pages.css';
+import './styles/index.css';
 
 import { PayPalScriptProvider } from '@paypal/react-paypal-js';
 
@@ -30,4 +29,3 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     </PayPalScriptProvider>
   </React.StrictMode>,
 );
-

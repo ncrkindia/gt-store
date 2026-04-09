@@ -1,0 +1,239 @@
+import { Link } from "react-router";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ProductCard } from "../components/ProductCard";
+import { categories } from "../data/mockData";
+import { useState } from "react";
+import { useQuery } from '@tanstack/react-query';
+import apiClient from '../../api/axios';
+import type { Product } from '../types';
+
+const fetchProducts = async () => {
+  const res = await apiClient.get('/products');
+  return (res.data.content || []).map((p: any) => ({
+    id: p.id,
+    name: p.name,
+    description: p.description || p.name,
+    price: p.price,
+    rating: p.rating || 0,
+    reviews: p.reviewCount || 0,
+    image: (p.images && p.images.length > 0) ? p.images[0] : '',
+    images: p.images || [],
+    brand: p.brand || 'Generic',
+    category: p.category || 'all',
+    inStock: true,
+    features: []
+  }));
+};
+
+export function Home() {
+  const [currentBanner, setCurrentBanner] = useState(0);
+
+  const banners = [
+    {
+      title: "iPhone 15 Series",
+      subtitle: "Big Screen. Big Deal.",
+      discount: "Up to 13% OFF",
+      bg: "bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500",
+      image: "https://images.unsplash.com/photo-1678652197950-92a74c4f5efd?w=800&h=400&fit=crop"
+    },
+    {
+      title: "Smart TVs",
+      subtitle: "Entertainment Unlimited",
+      discount: "Up to 40% OFF",
+      bg: "bg-gradient-to-br from-violet-600 via-purple-500 to-indigo-600",
+      image: "https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?w=800&h=400&fit=crop"
+    },
+    {
+      title: "Fashion Sale",
+      subtitle: "Style Meets Savings",
+      discount: "Min 50% OFF",
+      bg: "bg-gradient-to-br from-rose-500 via-pink-500 to-purple-600",
+      image: "https://images.unsplash.com/photo-1445205170230-053b83016050?w=800&h=400&fit=crop"
+    }
+  ];
+
+  const nextBanner = () => {
+    setCurrentBanner((prev) => (prev + 1) % banners.length);
+  };
+
+  const prevBanner = () => {
+    setCurrentBanner((prev) => (prev - 1 + banners.length) % banners.length);
+  };
+
+  const { data: products = [] } = useQuery<Product[]>({
+    queryKey: ['products'],
+    queryFn: fetchProducts
+  });
+
+  const trendingProducts = products.slice(0, 6);
+  // Just arbitrary filters for deals since we don't have discount natively
+  const bestDeals = products.slice(0, 6);
+  const topRated = products.filter(p => p.rating >= 4.0).slice(0, 6);
+
+  return (
+    <div>
+      {/* Hero Banner Carousel */}
+      <section className="relative bg-gray-900 overflow-hidden">
+        <div className="max-w-screen-xl mx-auto">
+          <div className="relative h-[400px] md:h-[450px]">
+            {banners.map((banner, index) => (
+              <div
+                key={index}
+                className={`absolute inset-0 transition-opacity duration-500 ${
+                  index === currentBanner ? "opacity-100" : "opacity-0"
+                }`}
+              >
+                <div className={`${banner.bg} h-full flex items-center`}>
+                  <div className="max-w-screen-xl mx-auto px-4 w-full">
+                    <div className="grid md:grid-cols-2 gap-8 items-center">
+                      <div className="text-white space-y-6">
+                        <div className="inline-block bg-gradient-to-r from-amber-400 to-yellow-300 text-gray-900 px-5 py-2 rounded-full text-sm font-bold shadow-lg">
+                          {banner.discount}
+                        </div>
+                        <h1 className="text-5xl md:text-7xl font-bold leading-tight">{banner.title}</h1>
+                        <p className="text-2xl text-white/90">{banner.subtitle}</p>
+                        <Link
+                          to="/category/electronics"
+                          className="inline-block bg-white text-indigo-600 px-10 py-4 rounded-2xl hover:bg-gray-100 transition transform hover:scale-105 shadow-2xl font-semibold"
+                        >
+                          Shop Now
+                        </Link>
+                      </div>
+                      <div className="hidden md:block">
+                        <img
+                          src={banner.image}
+                          alt={banner.title}
+                          className="w-full h-[350px] object-cover rounded-3xl shadow-2xl ring-4 ring-white/20"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            <button
+              onClick={prevBanner}
+              className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/20 backdrop-blur-sm hover:bg-white/30 p-2 rounded-full transition"
+            >
+              <ChevronLeft className="w-6 h-6 text-white" />
+            </button>
+            <button
+              onClick={nextBanner}
+              className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/20 backdrop-blur-sm hover:bg-white/30 p-2 rounded-full transition"
+            >
+              <ChevronRight className="w-6 h-6 text-white" />
+            </button>
+
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2">
+              {banners.map((_, index) => (
+                <button
+                  key={index}
+                  onClick={() => setCurrentBanner(index)}
+                  className={`w-2 h-2 rounded-full transition-all ${
+                    index === currentBanner ? "bg-white w-8" : "bg-white/50"
+                  }`}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="max-w-screen-xl mx-auto px-4 py-10">
+        <div className="bg-white rounded-3xl shadow-xl p-8 border border-gray-100">
+          <h2 className="text-3xl font-bold mb-8 bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Shop by Category</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8 gap-6">
+            {categories.map((category) => (
+              <Link
+                key={category.id}
+                to={`/category/${category.id}`}
+                className="flex flex-col items-center gap-3 p-4 rounded-2xl hover:bg-gradient-to-br hover:from-indigo-50 hover:to-purple-50 transition-all duration-300 group"
+              >
+                <div className="w-20 h-20 rounded-2xl overflow-hidden border-2 border-gray-200 group-hover:border-indigo-500 group-hover:shadow-lg transition-all duration-300 group-hover:scale-110">
+                  <img
+                    src={category.image}
+                    alt={category.name}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <span className="text-xs text-center font-medium group-hover:text-indigo-600 transition">
+                  {category.name}
+                </span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="max-w-screen-xl mx-auto px-4 py-10">
+        <div className="bg-gradient-to-br from-white to-indigo-50/50 rounded-3xl shadow-xl p-8 border border-indigo-100">
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h2 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Best Deals</h2>
+              <p className="text-sm text-gray-600 mt-1">Up to 40% off on selected items</p>
+            </div>
+            <Link
+              to="/category/deals"
+              className="text-indigo-600 hover:text-purple-600 font-semibold text-sm flex items-center gap-1 group"
+            >
+              View All
+              <span className="group-hover:translate-x-1 transition-transform">→</span>
+            </Link>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+            {bestDeals.map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="max-w-screen-xl mx-auto px-4 py-10">
+        <div className="bg-gradient-to-br from-white to-purple-50/50 rounded-3xl shadow-xl p-8 border border-purple-100">
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h2 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Trending Now</h2>
+              <p className="text-sm text-gray-600 mt-1">Most popular products this week</p>
+            </div>
+            <Link
+              to="/category/trending"
+              className="text-purple-600 hover:text-pink-600 font-semibold text-sm flex items-center gap-1 group"
+            >
+              View All
+              <span className="group-hover:translate-x-1 transition-transform">→</span>
+            </Link>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+            {trendingProducts.map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="max-w-screen-xl mx-auto px-4 py-10">
+        <div className="bg-gradient-to-br from-white to-amber-50/50 rounded-3xl shadow-xl p-8 border border-amber-100">
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h2 className="text-3xl font-bold bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent">Top Rated Products</h2>
+              <p className="text-sm text-gray-600 mt-1">Highly rated by customers</p>
+            </div>
+            <Link
+              to="/category/top-rated"
+              className="text-amber-600 hover:text-orange-600 font-semibold text-sm flex items-center gap-1 group"
+            >
+              View All
+              <span className="group-hover:translate-x-1 transition-transform">→</span>
+            </Link>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+            {topRated.map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
