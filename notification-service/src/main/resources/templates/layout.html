@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:fragment="layout(content)">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background-color: #f8fafc; color: #1e293b; margin: 0; padding: 0; }
+        .container { max-width: 600px; margin: 20px auto; background: #ffffff; border-radius: 20px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); border: 1px solid #e2e8f0; }
+        .header { background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); padding: 32px 20px; text-align: center; }
+        .header h1 { margin: 0; color: white; font-size: 24px; font-weight: 800; letter-spacing: -0.025em; }
+        .content { padding: 32px; line-height: 1.6; }
+        .footer { background-color: #f1f5f9; padding: 24px; text-align: center; font-size: 13px; color: #64748b; border-top: 1px solid #e2e8f0; }
+        .btn { display: inline-block; background: #4f46e5; color: #ffffff !important; padding: 12px 28px; border-radius: 12px; text-decoration: none; font-weight: 600; margin-top: 20px; }
+        .order-badge { background: #e0e7ff; color: #4338ca; padding: 4px 12px; border-radius: 99px; font-weight: 700; font-size: 12px; display: inline-block; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 0.05em; }
+        .status-pill { padding: 6px 14px; border-radius: 99px; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.025em; }
+        .status-success { background: #dcfce7; color: #166534; }
+        .status-info { background: #e0f2fe; color: #075985; }
+        .status-warning { background: #fef3c7; color: #92400e; }
+        .status-danger { background: #fee2e2; color: #991b1b; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>GT Store</h1>
+        </div>
+        <div class="content">
+            <div th:replace="${content}"></div>
+        </div>
+        <div class="footer">
+            <strong>GT Store</strong> | Premium Shopping Experience
+            <br>
+            <span style="font-size: 12px; margin-top: 8px; display: block;">support@slpro.in | © 2026 GT Store. All rights reserved.</span>
+        </div>
+    </div>
+</body>
+</html>

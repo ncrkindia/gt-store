@@ -2,6 +2,9 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useKeycloak } from '@react-keycloak/web';
 import Dashboard from './pages/Dashboard';
 import ProductsPage from './pages/ProductsPage';
+import CategoriesPage from './pages/CategoriesPage';
+import BrandsPage from './pages/BrandsPage';
+import BannersPage from './pages/BannersPage';
 import OrdersPage from './pages/OrdersPage';
 import InventoryPage from './pages/InventoryPage';
 import Documentation from './pages/Documentation';
@@ -41,6 +44,9 @@ function App() {
             <Route path="/" element={<Navigate to="/dashboard" />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/products" element={<ProductsPage />} />
+            <Route path="/categories" element={<CategoriesPage />} />
+            <Route path="/brands" element={<BrandsPage />} />
+            <Route path="/banners" element={<BannersPage />} />
             <Route path="/inventory" element={<InventoryPage />} />
             <Route path="/orders" element={<OrdersPage />} />
             <Route path="/documentation" element={<Documentation />} />

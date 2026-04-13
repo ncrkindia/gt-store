@@ -15,17 +15,18 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-            .csrf(csrf -> csrf.disable())
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/actuator/**", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/api/users/v3/api-docs/**").permitAll()
-                .anyRequest().authenticated()
-            )
+                .csrf(csrf -> csrf.disable())
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/actuator/**", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html",
+                                "/api/users/v3/api-docs/**", "/api/users/support")
+                        .permitAll()
+                        .anyRequest().authenticated())
 
-            .oauth2ResourceServer(oauth2 -> oauth2
-                .jwt(jwt -> {})
-                .authenticationEntryPoint(restAuthenticationEntryPoint())
-            );
-        
+                .oauth2ResourceServer(oauth2 -> oauth2
+                        .jwt(jwt -> {
+                        })
+                        .authenticationEntryPoint(restAuthenticationEntryPoint()));
+
         return http.build();
     }
 
@@ -34,7 +35,8 @@ public class SecurityConfig {
         return (request, response, authException) -> {
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.setContentType("application/json");
-            response.getWriter().write("{\"error\": \"Unauthorized\", \"message\": \"" + authException.getMessage() + "\"}");
+            response.getWriter()
+                    .write("{\"error\": \"Unauthorized\", \"message\": \"" + authException.getMessage() + "\"}");
         };
     }
 }

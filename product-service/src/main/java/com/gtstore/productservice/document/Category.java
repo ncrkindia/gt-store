@@ -12,6 +12,7 @@ public class Category {
     private String name;
     private String slug;
     private String icon;
+    private String imageUrl;
     private String parentId;
 
     public String getId() { return id; }
@@ -22,6 +23,8 @@ public class Category {
     public void setSlug(String slug) { this.slug = slug; }
     public String getIcon() { return icon; }
     public void setIcon(String icon) { this.icon = icon; }
+    public String getImageUrl() { return imageUrl; }
+    public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
     public String getParentId() { return parentId; }
     public void setParentId(String parentId) { this.parentId = parentId; }
 }

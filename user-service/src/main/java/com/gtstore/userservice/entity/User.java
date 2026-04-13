@@ -20,6 +20,13 @@ public class User {
 
     private String phone;
 
+    @Column(name = "secondary_phone")
+    private String secondaryPhone;
+
+    private String gender;
+
+    private String birthday;
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
@@ -45,6 +52,12 @@ public class User {
     public void setName(String name) { this.name = name; }
     public String getPhone() { return phone; }
     public void setPhone(String phone) { this.phone = phone; }
+    public String getSecondaryPhone() { return secondaryPhone; }
+    public void setSecondaryPhone(String secondaryPhone) { this.secondaryPhone = secondaryPhone; }
+    public String getGender() { return gender; }
+    public void setGender(String gender) { this.gender = gender; }
+    public String getBirthday() { return birthday; }
+    public void setBirthday(String birthday) { this.birthday = birthday; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }

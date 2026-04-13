@@ -5,23 +5,37 @@ import { useState } from "react";
 import { useQuery } from '@tanstack/react-query';
 import apiClient from '../../api/axios';
 import type { Product } from '../types';
+import { formatPrice } from '../../lib/formatPrice';
 
 const fetchProducts = async () => {
   const res = await apiClient.get('/products');
-  return (res.data.content || []).map((p: any) => ({
-    id: p.id,
-    name: p.name,
-    description: p.description || p.name,
-    price: p.price,
-    rating: p.rating || 0,
-    reviews: p.reviewCount || 0,
-    image: (p.images && p.images.length > 0) ? p.images[0] : '',
-    images: p.images || [],
-    brand: p.brand || 'Generic',
-    category: p.category || 'all',
-    inStock: true,
-    features: []
-  }));
+  return (res.data.content || []).map((p: any) => {
+    let originalPrice = undefined;
+    let price = p.price;
+    let discount = undefined;
+    if (p.salePrice && p.salePrice < p.price) {
+      originalPrice = p.price;
+      price = p.salePrice;
+      discount = Math.round(((p.price - p.salePrice) / p.price) * 100);
+    }
+
+    return {
+      id: p.id,
+      name: p.name,
+      description: p.description || p.name,
+      price: price,
+      originalPrice: originalPrice,
+      discount: discount,
+      rating: p.rating || 0,
+      reviews: p.reviewCount || 0,
+      image: (p.images && p.images.length > 0) ? p.images[0] : '',
+      images: p.images || [],
+      brand: p.brand || 'Generic',
+      category: (p.categoryIds && p.categoryIds.length > 0) ? p.categoryIds[0] : 'all',
+      inStock: p.inStock !== undefined ? p.inStock : true,
+      features: p.features || []
+    };
+  });
 };
 
 export function CategoryPage() {
@@ -127,8 +141,8 @@ export function CategoryPage() {
                   className="w-full"
                 />
                 <div className="flex items-center justify-between text-sm text-gray-600">
-                  <span>${priceRange[0]}</span>
-                  <span>${priceRange[1]}</span>
+                  <span>{formatPrice(priceRange[0])}</span>
+                  <span>{formatPrice(priceRange[1])}</span>
                 </div>
               </div>
             </div>

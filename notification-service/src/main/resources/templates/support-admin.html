@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: layout(~{::div})}">
+<body>
+    <div>
+        <div class="order-badge">URGENT: SUPPORT REQUEST</div>
+        <h2 style="font-weight: 800; margin-top: 0; color: #1e293b;">New Support Request</h2>
+        <p style="color: #475569;">A new inquiry has been submitted through the GT Store support page.</p>
+
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; padding: 24px; margin: 24px 0;">
+            <p style="margin: 0; font-size: 13px; color: #64748b; font-weight: 600; text-transform: uppercase;">Customer Details</p>
+            <div style="margin-top: 12px; font-size: 15px; color: #1e293b;">
+                <p><strong>Name:</strong> <span th:text="${name}">Customer Name</span></p>
+                <p><strong>Email:</strong> <span th:text="${email}">customer@example.com</span></p>
+                <p><strong>Subject:</strong> <span th:text="${subject}">Issue Subject</span></p>
+            </div>
+            
+            <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;">
+            
+            <p style="margin: 0; font-size: 13px; color: #64748b; font-weight: 600; text-transform: uppercase;">Message</p>
+            <div style="margin-top: 12px; font-size: 15px; color: #334155; line-height: 1.6; background: white; padding: 15px; border-radius: 10px; border: 1px solid #f1f5f9;">
+                <span th:text="${message}">Detailed message from the customer...</span>
+            </div>
+        </div>
+
+        <p style="font-size: 14px; color: #64748b; text-align: center;">Please respond to the customer via their provided email address above.</p>
+    </div>
+</body>
+</html>

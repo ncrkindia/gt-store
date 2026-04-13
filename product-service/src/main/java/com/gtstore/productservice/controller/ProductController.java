@@ -83,6 +83,16 @@ public class ProductController {
         return ResponseEntity.ok(updated);
     }
 
+    @PostMapping("/{id}/images")
+    public ResponseEntity<Product> linkProductImages(@PathVariable String id, @RequestBody List<String> imageUrls) {
+        return productRepository.findById(id).map(product -> {
+            product.setImages(imageUrls);
+            Product updated = productRepository.save(product);
+            kafkaTemplate.send(TOPIC_UPSERT, updated.getId(), updated);
+            return ResponseEntity.ok(updated);
+        }).orElse(ResponseEntity.notFound().build());
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteProduct(@PathVariable String id) {
         if (!productRepository.existsById(id)) {
@@ -91,6 +101,39 @@ public class ProductController {
         productRepository.deleteById(id);
         kafkaTemplate.send(TOPIC_DELETE, id, id);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}/reviews")
+    public ResponseEntity<?> addReview(
+            @PathVariable String id,
+            @RequestHeader(value = "X-User-Email", required = false) String email,
+            @RequestHeader(value = "X-User-Name", required = false) String name,
+            @RequestBody com.gtstore.productservice.document.Review review) {
+        
+        if (email == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        
+        return productRepository.findById(id).map(product -> {
+            review.setDate(java.time.LocalDateTime.now());
+            review.setUserName(name != null ? name : email);
+            if (product.getReviews() == null) {
+                product.setReviews(new java.util.ArrayList<>());
+            }
+            product.getReviews().add(review);
+            
+            int totalRatings = product.getReviews().stream().mapToInt(com.gtstore.productservice.document.Review::getRating).sum();
+            product.setReviewCount(product.getReviews().size());
+            product.setRating((double) totalRatings / product.getReviews().size());
+            
+            java.util.Map<Integer, Integer> breakdown = new java.util.HashMap<>();
+            for (com.gtstore.productservice.document.Review r : product.getReviews()) {
+                breakdown.put(r.getRating(), breakdown.getOrDefault(r.getRating(), 0) + 1);
+            }
+            product.setRatingBreakdown(breakdown);
+
+            Product updated = productRepository.save(product);
+            kafkaTemplate.send(TOPIC_UPSERT, updated.getId(), updated);
+            return ResponseEntity.ok(updated);
+        }).orElse(ResponseEntity.notFound().build());
     }
     @PostMapping("/sync")
     public ResponseEntity<String> syncAllProducts() {

@@ -10,14 +10,22 @@ const apiClient = axios.create({
 
 apiClient.interceptors.request.use(
   async (config) => {
-    if (keycloak.authenticated && keycloak.token) {
-      // Ensure token is somewhat fresh before sending (e.g. 5 seconds min)
+    // If we're authenticated, ensure we have a fresh token
+    if (keycloak.authenticated) {
       try {
+        // updateToken(5) ensures token is valid for at least another 5s
+        // If it's already expired or about to, it will refresh it.
         await keycloak.updateToken(5);
-        config.headers.Authorization = `Bearer ${keycloak.token}`;
+        if (keycloak.token) {
+          config.headers.Authorization = `Bearer ${keycloak.token}`;
+        }
       } catch (err) {
-        console.error('Failed to refresh Keycloak token', err);
-        keycloak.login();
+        console.error('Failed to refresh or retrieve Keycloak token', err);
+        // If refresh fails and it's a cold start, we might need to re-login
+        // But only do this if it's not a public GET request.
+        if (config.method !== 'get') {
+           keycloak.login();
+        }
       }
     }
     return config;

@@ -20,7 +20,7 @@ spring:
         - id: product-service
           uri: http://product-service:4005
           predicates:
-            - Path=/api/products/**,/api/categories/**
+            - Path=/api/products/**,/api/categories/**,/api/brands/**,/api/banners/**
         - id: cart-service
           uri: http://cart-service:4006
           predicates:
@@ -41,6 +41,10 @@ spring:
           uri: http://search-service:4011
           predicates:
             - Path=/api/search/**
+        - id: media-service
+          uri: http://media-service:4010
+          predicates:
+            - Path=/api/media/**
   security:
     oauth2:
       resourceserver:

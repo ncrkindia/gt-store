@@ -1,44 +1,155 @@
+import { useState, useEffect } from "react";
 import { Link } from "react-router";
 import { Package, Truck, CheckCircle, XCircle } from "lucide-react";
-import { mockOrders } from "../../data/mockData";
+import apiClient from "../../../api/axios";
+import { useKeycloak } from "@react-keycloak/web";
+import { formatPrice } from "../../../lib/formatPrice";
+import { toast } from "sonner";
+
+const API_BASE = "https://gts-api.slpro.in";
+const resolveImg = (img?: string): string => {
+  if (!img) return '';
+  if (img.startsWith('http')) return img;
+  const cleanPath = img.startsWith('/') ? img : '/' + img;
+  if (cleanPath.startsWith('/api/media/files/')) {
+    return `${API_BASE}${cleanPath}`;
+  }
+  return `${API_BASE}/api/media/files/${img}`;
+};
 
 export function Orders() {
+  const { keycloak, initialized } = useKeycloak();
+  const [orders, setOrders] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Review Modal State
+  const [reviewOrderVisible, setReviewOrderVisible] = useState<string | null>(null);
+  const [reviewProductId, setReviewProductId] = useState<string>("");
+  const [reviewRating, setReviewRating] = useState<number>(5);
+  const [reviewComment, setReviewComment] = useState("");
+
+  const fetchOrders = async () => {
+    try {
+      const { data } = await apiClient.get('/orders');
+      
+      // we need to fetch product metadata for order items since OrderItem only stores productId, variantId, quantity, price.
+      // Gather unique products
+      const productIds = Array.from(new Set(data.flatMap((o:any) => o.items?.map((i:any) => i.productId))));
+      if (productIds.length > 0) {
+        const pMapResp = await apiClient.post('/products/bulk', productIds);
+        const map = new Map(pMapResp.data.map((p:any) => [p.id, p]));
+        
+        data.forEach((o:any) => {
+            o.items.forEach((item:any) => {
+                item.productData = map.get(item.productId);
+            });
+        });
+      }
+      setOrders(data);
+    } catch (e) {
+      console.error("Failed to fetch orders", e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!initialized) return;
+    if (!keycloak.authenticated) { keycloak.login(); return; }
+    fetchOrders();
+  }, [initialized, keycloak.authenticated]);
+
+  const handleCancelOrder = async (orderId: string) => {
+    if(!confirm("Are you sure you want to cancel this order?")) return;
+    try {
+      await apiClient.post(`/orders/${orderId}/cancel`);
+      fetchOrders();
+    } catch (e) {
+      console.error(e);
+      toast.error("Unable to cancel the order.");
+    }
+  };
+
+  const submitReview = async () => {
+    try {
+        await apiClient.post(`/products/${reviewProductId}/reviews`, {
+            rating: reviewRating,
+            comment: reviewComment
+        });
+        toast.success("Review submitted successfully!");
+        setReviewOrderVisible(null);
+        setReviewComment("");
+        setReviewRating(5);
+    } catch (e) {
+        console.error(e);
+        toast.error("Failed to submit review.");
+    }
+  }
+
+  const getStatusLabel = (status: string) => {
+    switch (status.toUpperCase()) {
+      case "PENDING_PAYMENT": return "Waiting for Payment";
+      case "PAID": return "Payment Received";
+      case "AWAITING_FULFILLMENT": return "Processing Order";
+      case "ORDER_CONFIRMED": return "Confirmed";
+      case "SHIPPED": return "Out for Delivery";
+      case "DELIVERED": return "Delivered";
+      case "CANCELLED":
+      case "CANCELLED_BY_CUSTOMER": return "Cancelled";
+      case "PAYMENT_FAILED": return "Payment Failed";
+      case "FULFILLMENT_FAILED": return "Processing Error";
+      case "LOCATION_NOT_SERVICABLE": return "Unservicable Area";
+      default: return status;
+    }
+  };
+
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case "delivered":
-        return "text-green-600 bg-green-50";
-      case "shipped":
-        return "text-blue-600 bg-blue-50";
-      case "processing":
-        return "text-yellow-600 bg-yellow-50";
-      case "cancelled":
-        return "text-red-600 bg-red-50";
-      default:
-        return "text-gray-600 bg-gray-50";
+    switch (status.toUpperCase()) {
+      case "DELIVERED": return "text-emerald-600 bg-emerald-50";
+      case "SHIPPED": return "text-blue-600 bg-blue-50";
+      case "ORDER_CONFIRMED":
+      case "PAID": return "text-indigo-600 bg-indigo-50";
+      case "AWAITING_FULFILLMENT":
+      case "PENDING_PAYMENT": return "text-amber-600 bg-amber-50";
+      case "CANCELLED":
+      case "CANCELLED_BY_CUSTOMER":
+      case "PAYMENT_FAILED":
+      case "FULFILLMENT_FAILED":
+      case "LOCATION_NOT_SERVICABLE": return "text-rose-600 bg-rose-50";
+      default: return "text-gray-600 bg-gray-50";
     }
   };
 
   const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "delivered":
-        return <CheckCircle className="w-5 h-5" />;
-      case "shipped":
-        return <Truck className="w-5 h-5" />;
-      case "processing":
-        return <Package className="w-5 h-5" />;
-      case "cancelled":
-        return <XCircle className="w-5 h-5" />;
-      default:
-        return <Package className="w-5 h-5" />;
+    switch (status.toUpperCase()) {
+      case "DELIVERED": return <CheckCircle className="w-5 h-5" />;
+      case "SHIPPED": return <Truck className="w-5 h-5" />;
+      case "ORDER_CONFIRMED":
+      case "PAID":
+      case "AWAITING_FULFILLMENT":
+      case "PENDING_PAYMENT": return <Package className="w-5 h-5" />;
+      case "CANCELLED":
+      case "CANCELLED_BY_CUSTOMER":
+      case "PAYMENT_FAILED":
+      case "FULFILLMENT_FAILED":
+      case "LOCATION_NOT_SERVICABLE": return <XCircle className="w-5 h-5" />;
+      default: return <Package className="w-5 h-5" />;
     }
   };
+
+  if (!initialized || loading) return (
+    <div className="bg-white rounded-lg p-12 text-center">
+      <div className="animate-spin w-8 h-8 border-4 border-[#2874f0] border-t-transparent rounded-full mx-auto mb-4" />
+      <p className="text-gray-500">Loading Orders...</p>
+    </div>
+  );
 
   return (
     <div className="space-y-4">
       <div className="bg-white rounded-lg p-6">
         <h2 className="text-xl mb-6">My Orders</h2>
 
-        {mockOrders.length === 0 ? (
+        {orders.length === 0 ? (
           <div className="text-center py-12">
             <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <p className="text-gray-600 mb-4">You haven't placed any orders yet</p>
@@ -51,25 +162,25 @@ export function Orders() {
           </div>
         ) : (
           <div className="space-y-4">
-            {mockOrders.map((order) => (
+            {orders.map((order) => (
               <div
                 key={order.id}
                 className="border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition"
               >
                 {/* Order Header */}
-                <div className="bg-gray-50 px-6 py-4 flex items-center justify-between">
+                <div className="bg-gray-50 px-6 py-4 flex items-center justify-between flex-wrap gap-4">
                   <div className="flex items-center gap-6">
                     <div>
                       <p className="text-sm text-gray-600">Order ID</p>
-                      <p className="font-medium">{order.id}</p>
+                      <p className="font-medium">{order.id.slice(0,8)}...</p>
                     </div>
                     <div>
                       <p className="text-sm text-gray-600">Order Date</p>
-                      <p className="font-medium">{new Date(order.date).toLocaleDateString()}</p>
+                      <p className="font-medium">{new Date(order.createdAt).toLocaleDateString()}</p>
                     </div>
                     <div>
                       <p className="text-sm text-gray-600">Total</p>
-                      <p className="font-medium">${order.total}</p>
+                      <p className="font-medium">{formatPrice(order.totalAmount)}</p>
                     </div>
                   </div>
 
@@ -79,47 +190,61 @@ export function Orders() {
                     )}`}
                   >
                     {getStatusIcon(order.status)}
-                    <span>{order.status}</span>
+                    <span>{getStatusLabel(order.status)}</span>
                   </div>
                 </div>
 
                 {/* Order Items */}
                 <div className="p-6">
                   <div className="space-y-4">
-                    {order.items.map((item, index) => (
+                    {order.items?.map((item:any, index:number) => (
                       <div key={index} className="flex gap-4">
                         <img
-                          src={item.product.image}
-                          alt={item.product.name}
+                          src={resolveImg(item.productData?.images?.[0])  || 'https://placehold.co/80x80?text=IMG'}
+                          alt={item.productData?.name || 'Product'}
                           className="w-20 h-20 object-cover rounded border border-gray-200"
                         />
                         <div className="flex-1">
                           <Link
-                            to={`/product/${item.product.id}`}
+                            to={`/product/${item.productId}`}
                             className="hover:text-[#2874f0] transition"
                           >
-                            <h4 className="mb-1">{item.product.name}</h4>
+                            <h4 className="mb-1">{item.productData?.name || 'Loading Product Name...'}</h4>
                           </Link>
                           <p className="text-sm text-gray-600">Quantity: {item.quantity}</p>
-                          <p className="text-sm mt-1">${item.product.price}</p>
+                          <p className="text-sm mt-1">{formatPrice(item.price)}</p>
                         </div>
+                         {order.status.toUpperCase() === "DELIVERED" && <div>
+                             <button onClick={() => { setReviewOrderVisible(order.id); setReviewProductId(item.productId); }} className="px-3 py-1 border border-gray-300 text-sm hover:bg-gray-50 rounded">Review Product</button>
+                         </div>}
                       </div>
                     ))}
                   </div>
 
+                  {/* Shipping Info Snapshot */}
+                  <div className="mt-6 pt-6 border-t border-gray-100 flex gap-8 flex-wrap">
+                    <div className="min-w-[200px]">
+                      <h5 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Delivery Address</h5>
+                      <div className="text-sm text-gray-700">
+                        <p className="font-semibold">{order.shippingLine1}</p>
+                        {order.shippingLine2 && <p>{order.shippingLine2}</p>}
+                        <p>{order.shippingCity}, {order.shippingState}</p>
+                        <p>{order.shippingPincode}, {order.shippingCountry}</p>
+                      </div>
+                    </div>
+                    <div>
+                      <h5 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Contact Details</h5>
+                      <p className="text-sm text-gray-700 font-semibold">{order.customerPhone || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <h5 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Payment</h5>
+                      <p className="text-sm text-gray-700 font-semibold">{order.paymentMethod === 'COD' ? 'Cash on Delivery' : 'Online Payment'}</p>
+                    </div>
+                  </div>
+
                   <div className="mt-4 pt-4 border-t border-gray-200 flex gap-3">
-                    {order.status === "delivered" && (
-                      <button className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50 transition text-sm">
-                        Review Product
-                      </button>
-                    )}
-                    {order.status === "shipped" && (
-                      <button className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50 transition text-sm">
-                        Track Order
-                      </button>
-                    )}
-                    {order.status === "processing" && (
-                      <button className="px-4 py-2 border border-red-300 text-red-600 rounded hover:bg-red-50 transition text-sm">
+                    {!(["SHIPPED", "DELIVERED", "CANCELLED", "CANCELLED_BY_CUSTOMER"].includes(order.status.toUpperCase())) && (
+                      <button onClick={() => handleCancelOrder(order.id)} className="px-4 py-2 border border-red-300 text-red-600 rounded hover:bg-red-50 transition text-sm">
                         Cancel Order
                       </button>
                     )}
@@ -130,6 +255,27 @@ export function Orders() {
           </div>
         )}
       </div>
+
+       {/* Review Modal */}
+       {reviewOrderVisible && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+            <h3 className="text-xl font-bold mb-4">Write a Review</h3>
+            <div className="mb-4">
+                <label className="block text-sm font-medium mb-1">Rating (1-5)</label>
+                <input type="number" min="1" max="5" value={reviewRating} onChange={e => setReviewRating(Number(e.target.value))} className="w-full px-3 py-2 border border-gray-300 rounded"/>
+            </div>
+            <div className="mb-6">
+                <label className="block text-sm font-medium mb-1">Comment</label>
+                <textarea rows={4} value={reviewComment} onChange={e => setReviewComment(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded" placeholder="What did you think of this product?"></textarea>
+            </div>
+            <div className="flex gap-3 justify-end">
+                <button onClick={() => setReviewOrderVisible(null)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">Cancel</button>
+                <button onClick={submitReview} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Submit Review</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

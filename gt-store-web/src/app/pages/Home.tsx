@@ -8,62 +8,79 @@ import apiClient from '../../api/axios';
 import type { Product } from '../types';
 
 const fetchProducts = async () => {
-  const res = await apiClient.get('/products');
-  return (res.data.content || []).map((p: any) => ({
-    id: p.id,
-    name: p.name,
-    description: p.description || p.name,
-    price: p.price,
-    rating: p.rating || 0,
-    reviews: p.reviewCount || 0,
-    image: (p.images && p.images.length > 0) ? p.images[0] : '',
-    images: p.images || [],
-    brand: p.brand || 'Generic',
-    category: p.category || 'all',
-    inStock: true,
-    features: []
-  }));
+  const res = await apiClient.get('products');
+  return (res.data.content || []).map((p: any) => {
+    let originalPrice = undefined;
+    let price = p.price;
+    let discount = undefined;
+    if (p.salePrice && p.salePrice < p.price) {
+      originalPrice = p.price;
+      price = p.salePrice;
+      discount = Math.round(((p.price - p.salePrice) / p.price) * 100);
+    }
+
+    return {
+      id: p.id,
+      name: p.name,
+      description: p.description || p.name,
+      price: price,
+      originalPrice: originalPrice,
+      discount: discount,
+      rating: p.rating || 0,
+      reviews: p.reviewCount || 0,
+      image: (p.images && p.images.length > 0) ? p.images[0] : '',
+      images: p.images || [],
+      brand: p.brand || 'Generic',
+      category: (p.categoryIds && p.categoryIds.length > 0) ? p.categoryIds[0] : 'all',
+      inStock: p.inStock !== undefined ? p.inStock : true,
+      features: p.features || []
+    };
+  });
+};
+
+const fetchActiveBanners = async () => {
+  try {
+    const res = await apiClient.get('banners/active');
+    return res.data;
+  } catch (err) {
+    console.error('Failed to fetch banners', err);
+    return [];
+  }
 };
 
 export function Home() {
   const [currentBanner, setCurrentBanner] = useState(0);
 
-  const banners = [
-    {
-      title: "iPhone 15 Series",
-      subtitle: "Big Screen. Big Deal.",
-      discount: "Up to 13% OFF",
-      bg: "bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500",
-      image: "https://images.unsplash.com/photo-1678652197950-92a74c4f5efd?w=800&h=400&fit=crop"
-    },
-    {
-      title: "Smart TVs",
-      subtitle: "Entertainment Unlimited",
-      discount: "Up to 40% OFF",
-      bg: "bg-gradient-to-br from-violet-600 via-purple-500 to-indigo-600",
-      image: "https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?w=800&h=400&fit=crop"
-    },
-    {
-      title: "Fashion Sale",
-      subtitle: "Style Meets Savings",
-      discount: "Min 50% OFF",
-      bg: "bg-gradient-to-br from-rose-500 via-pink-500 to-purple-600",
-      image: "https://images.unsplash.com/photo-1445205170230-053b83016050?w=800&h=400&fit=crop"
-    }
-  ];
-
-  const nextBanner = () => {
-    setCurrentBanner((prev) => (prev + 1) % banners.length);
-  };
-
-  const prevBanner = () => {
-    setCurrentBanner((prev) => (prev - 1 + banners.length) % banners.length);
-  };
+  const { data: banners = [] } = useQuery({
+    queryKey: ['banners', 'active'],
+    queryFn: fetchActiveBanners
+  });
 
   const { data: products = [] } = useQuery<Product[]>({
     queryKey: ['products'],
     queryFn: fetchProducts
   });
+
+  const nextBanner = () => {
+    if (banners.length === 0) return;
+    setCurrentBanner((prev) => (prev + 1) % banners.length);
+  };
+
+  const prevBanner = () => {
+    if (banners.length === 0) return;
+    setCurrentBanner((prev) => (prev - 1 + banners.length) % banners.length);
+  };
+
+  const defaultBanner = {
+    imageUrl: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&q=80&w=1200",
+    linkUrl: "/category/all",
+    headline: "GT Store Specials",
+    description: "Premium Products, Best Prices",
+    discount: "Upto 50% Off",
+    bg: "bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500"
+  };
+
+  const activeBanners = banners.length > 0 ? banners : [defaultBanner];
 
   const trendingProducts = products.slice(0, 6);
   // Just arbitrary filters for deals since we don't have discount natively
@@ -76,24 +93,26 @@ export function Home() {
       <section className="relative bg-gray-900 overflow-hidden">
         <div className="max-w-screen-xl mx-auto">
           <div className="relative h-[400px] md:h-[450px]">
-            {banners.map((banner, index) => (
+            {activeBanners.map((banner: any, index: number) => (
               <div
                 key={index}
                 className={`absolute inset-0 transition-opacity duration-500 ${
                   index === currentBanner ? "opacity-100" : "opacity-0"
                 }`}
               >
-                <div className={`${banner.bg} h-full flex items-center`}>
+                <div className={`${banner.bg || 'bg-gray-800'} h-full flex items-center`}>
                   <div className="max-w-screen-xl mx-auto px-4 w-full">
                     <div className="grid md:grid-cols-2 gap-8 items-center">
                       <div className="text-white space-y-6">
-                        <div className="inline-block bg-gradient-to-r from-amber-400 to-yellow-300 text-gray-900 px-5 py-2 rounded-full text-sm font-bold shadow-lg">
-                          {banner.discount}
-                        </div>
-                        <h1 className="text-5xl md:text-7xl font-bold leading-tight">{banner.title}</h1>
-                        <p className="text-2xl text-white/90">{banner.subtitle}</p>
+                        {banner.discount && (
+                            <div className="inline-block bg-gradient-to-r from-amber-400 to-yellow-300 text-gray-900 px-5 py-2 rounded-full text-sm font-bold shadow-lg">
+                            {banner.discount}
+                            </div>
+                        )}
+                        <h1 className="text-5xl md:text-7xl font-bold leading-tight">{banner.headline || 'Special Offer'}</h1>
+                        <p className="text-2xl text-white/90">{banner.description || `Shop our latest collections`}</p>
                         <Link
-                          to="/category/electronics"
+                          to={banner.linkUrl || "/category/all"}
                           className="inline-block bg-white text-indigo-600 px-10 py-4 rounded-2xl hover:bg-gray-100 transition transform hover:scale-105 shadow-2xl font-semibold"
                         >
                           Shop Now
@@ -101,7 +120,7 @@ export function Home() {
                       </div>
                       <div className="hidden md:block">
                         <img
-                          src={banner.image}
+                          src={banner.imageUrl.startsWith('/') ? `https://gts-api.slpro.in${banner.imageUrl}` : banner.imageUrl}
                           alt={banner.title}
                           className="w-full h-[350px] object-cover rounded-3xl shadow-2xl ring-4 ring-white/20"
                         />
@@ -112,30 +131,34 @@ export function Home() {
               </div>
             ))}
 
-            <button
-              onClick={prevBanner}
-              className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/20 backdrop-blur-sm hover:bg-white/30 p-2 rounded-full transition"
-            >
-              <ChevronLeft className="w-6 h-6 text-white" />
-            </button>
-            <button
-              onClick={nextBanner}
-              className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/20 backdrop-blur-sm hover:bg-white/30 p-2 rounded-full transition"
-            >
-              <ChevronRight className="w-6 h-6 text-white" />
-            </button>
-
-            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2">
-              {banners.map((_, index) => (
+            {activeBanners.length > 1 && (
+                <>
                 <button
-                  key={index}
-                  onClick={() => setCurrentBanner(index)}
-                  className={`w-2 h-2 rounded-full transition-all ${
-                    index === currentBanner ? "bg-white w-8" : "bg-white/50"
-                  }`}
-                />
-              ))}
-            </div>
+                onClick={prevBanner}
+                className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/20 backdrop-blur-sm hover:bg-white/30 p-2 rounded-full transition"
+                >
+                <ChevronLeft className="w-6 h-6 text-white" />
+                </button>
+                <button
+                onClick={nextBanner}
+                className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/20 backdrop-blur-sm hover:bg-white/30 p-2 rounded-full transition"
+                >
+                <ChevronRight className="w-6 h-6 text-white" />
+                </button>
+
+                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2">
+                {activeBanners.map((_: any, index: number) => (
+                    <button
+                    key={index}
+                    onClick={() => setCurrentBanner(index)}
+                    className={`w-2 h-2 rounded-full transition-all ${
+                        index === currentBanner ? "bg-white w-8" : "bg-white/50"
+                    }`}
+                    />
+                ))}
+                </div>
+                </>
+            )}
           </div>
         </div>
       </section>

@@ -1,6 +1,9 @@
 import { Link } from "react-router";
 import { Star, Heart } from "lucide-react";
 import type { Product } from "../types";
+import apiClient from "../../api/axios";
+import { formatPrice } from "../../lib/formatPrice";
+import { toast } from "sonner";
 
 interface ProductCardProps {
   product: Product;
@@ -25,9 +28,15 @@ export function ProductCard({ product }: ProductCardProps) {
         )}
         <button
           className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm rounded-full p-2 shadow-lg opacity-0 group-hover:opacity-100 transition-all duration-300 hover:bg-white hover:scale-110"
-          onClick={(e) => {
+          onClick={async (e) => {
             e.preventDefault();
-            // Add to wishlist logic
+            try {
+              await apiClient.post('/users/me/wishlist', { productId: product.id });
+              toast.success('Added to wishlist!');
+            } catch (err) {
+              console.error(err);
+              toast.error('Failed to add to wishlist');
+            }
           }}
         >
           <Heart className="w-4 h-4 text-rose-500" />
@@ -48,10 +57,10 @@ export function ProductCard({ product }: ProductCardProps) {
         </div>
 
         <div className="flex items-baseline gap-2 mb-2">
-          <span className="text-xl text-gray-900 font-bold">${product.price}</span>
+          <span className="text-xl text-gray-900 font-bold">{formatPrice(product.price)}</span>
           {product.originalPrice && (
             <>
-              <span className="text-sm text-gray-400 line-through">${product.originalPrice}</span>
+              <span className="text-sm text-gray-400 line-through">{formatPrice(product.originalPrice)}</span>
               <span className="text-xs text-emerald-600 font-semibold">{product.discount}% off</span>
             </>
           )}

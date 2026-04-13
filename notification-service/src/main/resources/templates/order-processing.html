@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: layout(~{::div})}">
+<body>
+    <div>
+        <div class="order-badge" th:text="'ORDER #' + ${orderId}">ORDER #12345</div>
+        <h2 style="font-weight: 800; margin-top: 0; color: #1e293b;">Processing Your Order</h2>
+        <p>Hello <span th:text="${fullName != null ? fullName : 'Customer'}" style="font-weight: 700;">Customer</span>,</p>
+        <p style="color: #475569;">Great news! Your payment has been confirmed, and we are now busy preparing your order for shipment. Our fulfillment team is picking and quality-checking your items.</p>
+        
+        <div style="background: #f0f9ff; border: 1px solid #e0f2fe; border-radius: 16px; padding: 24px; margin: 24px 0;">
+            <p style="margin: 0; font-size: 13px; color: #075985; font-weight: 600; text-transform: uppercase;">Current Progress</p>
+            <div style="margin-top: 8px;">
+                <span class="status-pill status-info">Awaiting Fulfillment</span>
+            </div>
+        </div>
+
+        <p style="color: #64748b; font-size: 14px;">We'll notify you as soon as your package is dispatched. You can track your order status anytime on your dashboard.</p>
+        
+        <a href="https://gtstore.slpro.in/account/orders" class="btn">View Order Status</a>
+    </div>
+</body>
+</html>

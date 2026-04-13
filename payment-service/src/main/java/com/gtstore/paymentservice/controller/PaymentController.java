@@ -5,6 +5,7 @@ import com.gtstore.paymentservice.dto.PaymentResponse;
 import com.gtstore.paymentservice.entity.Payment;
 import com.gtstore.paymentservice.service.PaymentService;
 import com.gtstore.paymentservice.service.PaypalService;
+import com.gtstore.paymentservice.service.RazorpayService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -28,10 +29,12 @@ public class PaymentController {
 
     private final PaymentService paymentService;
     private final PaypalService paypalService;
+    private final RazorpayService razorpayService;
 
-    public PaymentController(PaymentService paymentService, PaypalService paypalService) {
+    public PaymentController(PaymentService paymentService, PaypalService paypalService, RazorpayService razorpayService) {
         this.paymentService = paymentService;
         this.paypalService = paypalService;
+        this.razorpayService = razorpayService;
     }
 
     @PostMapping("/initiate")
@@ -63,6 +66,29 @@ public class PaymentController {
         String internalStatus = "COMPLETED".equals(status) ? "SUCCESS" : "FAILED";
 
         Payment payment = paymentService.processCallback(orderId, internalStatus);
+        
+        return ResponseEntity.ok(new PaymentResponse(payment.getOrderId(), payment.getStatus(), payment.getTransactionRef()));
+    }
+
+    @PostMapping("/razorpay/create/{orderId}")
+    public ResponseEntity<Map<String, String>> createRazorpayOrder(@PathVariable String orderId) throws Exception {
+        Payment payment = paymentService.getPaymentByOrderId(orderId);
+        // Razorpay expects INR for Indian accounts, but we'll use a 1:1 conversion for now as discussed
+        String razorpayOrderId = razorpayService.createOrder(payment.getAmount().doubleValue(), "INR", orderId);
+        
+        Map<String, String> response = new HashMap<>();
+        response.put("razorpayOrderId", razorpayOrderId);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/razorpay/verify")
+    public ResponseEntity<PaymentResponse> verifyRazorpayPayment(@RequestBody Map<String, String> payload) {
+        boolean isValid = razorpayService.verifyPaymentSignature(payload);
+        String orderId = payload.get("orderId");
+        String razorpayPaymentId = payload.get("razorpay_payment_id");
+        
+        String internalStatus = isValid ? "SUCCESS" : "FAILED";
+        Payment payment = paymentService.processCallback(orderId, internalStatus, razorpayPaymentId);
         
         return ResponseEntity.ok(new PaymentResponse(payment.getOrderId(), payment.getStatus(), payment.getTransactionRef()));
     }

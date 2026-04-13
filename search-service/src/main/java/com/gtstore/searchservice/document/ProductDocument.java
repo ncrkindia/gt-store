@@ -23,6 +23,9 @@ public class ProductDocument {
     @Field(type = FieldType.Double)
     private BigDecimal price;
 
+    @Field(type = FieldType.Double)
+    private BigDecimal salePrice;
+
     @Field(type = FieldType.Keyword)
     private String brand;
 
@@ -33,8 +36,16 @@ public class ProductDocument {
     private String imageUrl;
 
     @Field(type = FieldType.Double)
-
     private Double rating;
+
+    @Field(type = FieldType.Integer)
+    private Integer reviewCount;
+
+    @Field(type = FieldType.Text, analyzer = "standard")
+    private List<String> features;
+
+    @Field(type = FieldType.Boolean)
+    private Boolean inStock;
 
     // Getters and Setters
     public String getId() { return id; }
@@ -45,6 +56,8 @@ public class ProductDocument {
     public void setDescription(String description) { this.description = description; }
     public BigDecimal getPrice() { return price; }
     public void setPrice(BigDecimal price) { this.price = price; }
+    public BigDecimal getSalePrice() { return salePrice; }
+    public void setSalePrice(BigDecimal salePrice) { this.salePrice = salePrice; }
     public String getBrand() { return brand; }
     public void setBrand(String brand) { this.brand = brand; }
     public List<String> getCategoryIds() { return categoryIds; }
@@ -52,6 +65,11 @@ public class ProductDocument {
     public String getImageUrl() { return imageUrl; }
     public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
     public Double getRating() { return rating; }
-
     public void setRating(Double rating) { this.rating = rating; }
+    public Integer getReviewCount() { return reviewCount; }
+    public void setReviewCount(Integer reviewCount) { this.reviewCount = reviewCount; }
+    public List<String> getFeatures() { return features; }
+    public void setFeatures(List<String> features) { this.features = features; }
+    public Boolean getInStock() { return inStock; }
+    public void setInStock(Boolean inStock) { this.inStock = inStock; }
 }

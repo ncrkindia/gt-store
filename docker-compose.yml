@@ -29,6 +29,7 @@ services:
   postgres:
     image: postgres:15-alpine
     container_name: gt-store-postgres
+    restart: unless-stopped
     environment:
       POSTGRES_USER: gtstore
       POSTGRES_PASSWORD: password
@@ -47,6 +48,7 @@ services:
   mongodb:
     image: mongo:6
     container_name: gt-store-mongo
+    restart: unless-stopped
     environment:
       MONGO_INITDB_ROOT_USERNAME: admin
       MONGO_INITDB_ROOT_PASSWORD: password
@@ -77,15 +79,20 @@ services:
   zookeeper:
     image: confluentinc/cp-zookeeper:7.4.0
     container_name: gt-store-zookeeper
+    restart: unless-stopped
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
+    volumes:
+      - gtstore_zookeeper_data:/var/lib/zookeeper/data
+      - gtstore_zookeeper_log:/var/lib/zookeeper/log
     networks:
       - gt-store-network
 
   kafka:
     image: confluentinc/cp-kafka:7.4.0
     container_name: gt-store-kafka
+    restart: unless-stopped
     depends_on:
       - zookeeper
     ports:
@@ -97,6 +104,8 @@ services:
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    volumes:
+      - gtstore_kafka_data:/var/lib/kafka/data
     networks:
       - gt-store-network
 
@@ -106,6 +115,7 @@ services:
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.12.0
     container_name: gt-store-elasticsearch
+    restart: unless-stopped
     environment:
       - discovery.type=single-node
       - xpack.security.enabled=false
@@ -114,18 +124,8 @@ services:
       - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
     ports:
       - "9200:9200"
-    networks:
-      - gt-store-network
-
-  # ----------------------------------------------------------------------------
-  # Local SMTP for Email Notifications
-  # ----------------------------------------------------------------------------
-  mailhog:
-    image: mailhog/mailhog:latest
-    container_name: gt-store-mailhog
-    ports:
-      - "1025:1025" # SMTP server
-      - "4001:8025" # Web UI
+    volumes:
+      - gtstore_elasticsearch_data:/usr/share/elasticsearch/data
     networks:
       - gt-store-network
 
@@ -136,6 +136,7 @@ services:
     build:
       context: ./api-gateway
     container_name: gt-store-api-gateway
+    restart: unless-stopped
     ports:
       - "4003:4003"
     # depends_on:
@@ -147,6 +148,7 @@ services:
     build:
       context: ./user-service
     container_name: gt-store-user-service
+    restart: unless-stopped
     depends_on:
       - postgres
       # - keycloak
@@ -157,6 +159,7 @@ services:
     build:
       context: ./product-service
     container_name: gt-store-product-service
+    restart: unless-stopped
     depends_on:
       - mongodb
       # - keycloak
@@ -167,6 +170,7 @@ services:
     build:
       context: ./cart-service
     container_name: gt-store-cart-service
+    restart: unless-stopped
     # depends_on:
     #   - redis
     networks:
@@ -180,6 +184,7 @@ services:
     build:
       context: ./order-service
     container_name: gt-store-order-service
+    restart: unless-stopped
     ports:
       - "4007:4007"
     depends_on:
@@ -195,6 +200,7 @@ services:
     build:
       context: ./gt-store-web
     container_name: gt-store-web
+    restart: unless-stopped
     ports:
       - "4000:80"
     depends_on:
@@ -206,6 +212,7 @@ services:
     build:
       context: ./gt-store-admin-web
     container_name: gt-store-admin-web
+    restart: unless-stopped
     ports:
       - "4002:80"
     depends_on:
@@ -217,6 +224,7 @@ services:
     build:
       context: ./inventory-service
     container_name: gt-store-inventory-service
+    restart: unless-stopped
     ports:
       - "4008:4008"
     depends_on:
@@ -229,6 +237,7 @@ services:
     build:
       context: ./payment-service
     container_name: gt-store-payment-service
+    restart: unless-stopped
     ports:
       - "4009:4009"
     depends_on:
@@ -236,14 +245,30 @@ services:
       - kafka
     networks:
       - gt-store-network
+    environment:
+      - RAZORPAY_KEY_ID=${RAZORPAY_KEY_ID:-rzp_test_placeholder}
+      - RAZORPAY_KEY_SECRET=${RAZORPAY_KEY_SECRET:-placeholder_secret}
 
   search-service:
     build:
       context: ./search-service
     container_name: gt-store-search-service
+    restart: unless-stopped
     depends_on:
       - elasticsearch
       - kafka
+    networks:
+      - gt-store-network
+
+  media-service:
+    build:
+      context: ./media-service
+    container_name: gt-store-media-service
+    restart: unless-stopped
+    ports:
+      - "4010:4010"
+    volumes:
+      - media_data:/app/media
     networks:
       - gt-store-network
 
@@ -251,9 +276,16 @@ services:
     build:
       context: ./notification-service
     container_name: gt-store-notification-service
+    restart: unless-stopped
     depends_on:
       - kafka
-      - mailhog
+    environment:
+      - SPRING_MAIL_HOST=${SMTP_HOST}
+      - SPRING_MAIL_PORT=${SMTP_PORT}
+      - SPRING_MAIL_USERNAME=${SMTP_USERNAME}
+      - SPRING_MAIL_PASSWORD=${SMTP_PASSWORD}
+      - SMTP_FROM=${SMTP_FROM}
+      - NOTIFICATION_CC=${NOTIFICATION_CC}
     networks:
       - gt-store-network
 
@@ -263,30 +295,71 @@ services:
   prometheus:
     image: prom/prometheus:latest
     container_name: gt-store-prometheus
+    restart: unless-stopped
     ports:
       - "9090:9090"
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - gtstore_prometheus_data:/prometheus
     networks:
       - gt-store-network
 
   zipkin:
     image: openzipkin/zipkin:latest
     container_name: gt-store-zipkin
+    restart: unless-stopped
     ports:
       - "4012:9411"
+    networks:
+      - gt-store-network
+
+  loki:
+    image: grafana/loki:latest
+    container_name: gt-store-loki
+    user: root
+    restart: unless-stopped
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./loki/loki-config.yml:/etc/loki/local-config.yaml
+      - gtstore_loki_data:/tmp/loki
+    networks:
+      - gt-store-network
+
+  promtail:
+    image: grafana/promtail:latest
+    container_name: gt-store-promtail
+    restart: unless-stopped
+    depends_on:
+      - kafka
+      - loki
+    volumes:
+      - ./promtail/promtail-config.yml:/etc/promtail/config.yml
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: -config.file=/etc/promtail/config.yml
     networks:
       - gt-store-network
 
   grafana:
     image: grafana/grafana:latest
     container_name: gt-store-grafana
+    restart: unless-stopped
     ports:
       - "4013:3000"
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SMTP_ENABLED=true
+      - GF_SMTP_HOST=${SMTP_HOST}:${SMTP_PORT}
+      - GF_SMTP_USER=${SMTP_USERNAME}
+      - GF_SMTP_PASSWORD=${SMTP_PASSWORD}
+      - GF_SMTP_FROM_ADDRESS=${SMTP_FROM}
+      - GF_SMTP_FROM_NAME=GT Store Observability
     depends_on:
       - prometheus
+      - loki
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - gtstore_grafana_data:/var/lib/grafana
     networks:
       - gt-store-network
   # ----------------------------------------------------------------------------
@@ -308,10 +381,34 @@ services:
   #   networks:
   #     - gt-store-network
 
+  # ----------------------------------------------------------------------------
+  # Load Testing (k6)
+  # ----------------------------------------------------------------------------
+  k6:
+    image: grafana/k6:latest
+    container_name: gt-store-k6
+    volumes:
+      - ./tests/load:/scripts
+    # For one-off runs: docker compose run --rm k6 run /scripts/load-test.js
+    command: run /scripts/load-test.js
+    networks:
+      - gt-store-network
+    depends_on:
+      - api-gateway
+
 networks:
   gt-store-network:
     driver: bridge
 
 volumes:
   postgres_data:
-  mongo_data: # redis_data:
+  mongo_data:
+  redis_data:
+  gtstore_zookeeper_data:
+  gtstore_zookeeper_log:
+  gtstore_kafka_data:
+  gtstore_elasticsearch_data:
+  media_data:
+  gtstore_prometheus_data:
+  gtstore_loki_data:
+  gtstore_grafana_data:

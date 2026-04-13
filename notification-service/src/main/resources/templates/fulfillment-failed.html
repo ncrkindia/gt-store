@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: layout(~{::div})}">
+<body>
+    <div>
+        <div class="order-badge" th:text="'ORDER #' + ${orderId}">ORDER #12345</div>
+        <h2 style="font-weight: 800; margin-top: 0; color: #1e293b;">Order Update: Processing Issue</h2>
+        <p>Hello <span th:text="${fullName != null ? fullName : 'Customer'}" style="font-weight: 700;">Customer</span>,</p>
+        <p style="color: #475569;">We've encountered a slight issue while fulfilling your order. Our team is working to resolve it as quickly as possible. We will notify you as soon as your order is back on track.</p>
+        
+        <div style="background: #fffbeb; border: 1px solid #fef3c7; border-radius: 16px; padding: 24px; margin: 24px 0;">
+            <p style="margin: 0; font-size: 13px; color: #92400e; font-weight: 600; text-transform: uppercase;">Status Update</p>
+            <div style="margin-top: 8px;">
+                <span class="status-pill status-warning">Processing Issue</span>
+            </div>
+        </div>
+
+        <p style="font-size: 14px; color: #64748b; text-align: center;">No action is required from your side. We apologize for the delay and appreciate your patience.</p>
+    </div>
+</body>
+</html>

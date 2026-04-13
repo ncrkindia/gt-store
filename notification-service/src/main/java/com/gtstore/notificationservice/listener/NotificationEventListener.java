@@ -1,8 +1,9 @@
 package com.gtstore.notificationservice.listener;
 
 import com.gtstore.notificationservice.dto.OrderEvent;
-import com.gtstore.notificationservice.dto.PaymentEvent;
+import com.gtstore.notificationservice.dto.SupportRequestEvent;
 import com.gtstore.notificationservice.service.EmailService;
+import com.gtstore.notificationservice.config.NotificationProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -11,68 +12,104 @@ import org.springframework.stereotype.Component;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 
-/**
- * Kafka Listener for the Notification Service.
- * Listens for system-wide events to trigger customer communications (emails).
- * 
- * - order.created: Notifies user that order is received.
- * - order.paid: Confirms payment and start of processing.
- * - payment.failed: Logs payment failures for manual follow-up (MVP).
- */
+import java.util.HashMap;
+import java.util.Map;
+
 @Component
 public class NotificationEventListener {
 
     private static final Logger log = LoggerFactory.getLogger(NotificationEventListener.class);
     private final EmailService emailService;
-
-    public NotificationEventListener(EmailService emailService) {
-        this.emailService = emailService;
-    }
-
+    private final NotificationProperties notificationProperties;
     private final ObjectMapper objectMapper = new ObjectMapper();
+
+    public NotificationEventListener(EmailService emailService, NotificationProperties notificationProperties) {
+        this.emailService = emailService;
+        this.notificationProperties = notificationProperties;
+    }
 
     @KafkaListener(topics = "order.created", groupId = "notification-group")
     public void handleOrderCreated(String eventJson) {
-        try {
-            OrderEvent event = objectMapper.readValue(eventJson, OrderEvent.class);
-            log.info("Received order.created event for orderId: {}", event.getOrderId());
-            String subject = "Your GT Store Order has been received! (" + event.getOrderId() + ")";
-            String text = "Hello " + (event.getFullName() != null ? event.getFullName() : "Customer") + ",\n\n" +
-                          "We have received your order " + event.getOrderId() + ".\n" +
-                          "We are currently waiting for payment confirmation. Once confirmed, we will process your order.\n\n" +
-                          "Thank you for shopping at GT Store!";
-            emailService.sendSimpleMessage(event.getEmail(), subject, text);
-        } catch (JsonProcessingException e) {
-            log.error("Failed to parse order.created event", e);
-        }
+        processEvent(eventJson, "ORDER_CONFIRMED", "Order Confirmed - GT Store");
     }
 
     @KafkaListener(topics = "order.paid", groupId = "notification-group")
     public void handleOrderPaid(String eventJson) {
+        processEvent(eventJson, "PAYMENT_SUCCESSFUL", "Payment Received - GT Store");
+    }
+
+    @KafkaListener(topics = "order.shipped", groupId = "notification-group")
+    public void handleOrderShipped(String eventJson) {
+        processEvent(eventJson, "ORDER_DISPATCHED", "Your order has been shipped! - GT Store");
+    }
+
+    @KafkaListener(topics = "order.cancelled", groupId = "notification-group")
+    public void handleOrderCancelled(String eventJson) {
+        processEvent(eventJson, "ORDER_CANCELLED", "Order Cancelled - GT Store");
+    }
+
+    @KafkaListener(topics = "order.failed", groupId = "notification-group")
+    public void handleOrderFailed(String eventJson) {
+        processEvent(eventJson, "FULFILLMENT_FAILED", "Update regarding your order - GT Store");
+    }
+
+    @KafkaListener(topics = "support.request", groupId = "notification-group")
+    public void handleSupportRequest(String eventJson) {
         try {
-            OrderEvent event = objectMapper.readValue(eventJson, OrderEvent.class);
-            log.info("Received order.paid event for orderId: {}", event.getOrderId());
-            String subject = "Payment Confirmed for GT Store Order (" + event.getOrderId() + ")";
-            String text = "Hello " + (event.getFullName() != null ? event.getFullName() : "Customer") + ",\n\n" +
-                          "Good news! We have received payment for your order " + event.getOrderId() + ".\n" +
-                          "We are now preparing to ship your items.\n\n" +
-                          "Thank you for your purchase!";
-            emailService.sendSimpleMessage(event.getEmail(), subject, text);
+            SupportRequestEvent event = objectMapper.readValue(eventJson, SupportRequestEvent.class);
+            log.info("Processing support request from: {}", event.getEmail());
+
+            Map<String, Object> model = new HashMap<>();
+            model.put("name", event.getName());
+            model.put("email", event.getEmail());
+            model.put("subject", event.getSubject());
+            model.put("message", event.getMessage());
+
+            // 1. Send detailed email to support team
+            String adminTemplate = notificationProperties.getTemplates().get("SUPPORT_ADMIN");
+            emailService.sendHtmlMessage(notificationProperties.getCcEmail(), "Support Request: " + event.getSubject(), adminTemplate, model);
+
+            // 2. Send acknowledgement to the customer
+            String ackTemplate = notificationProperties.getTemplates().get("SUPPORT_ACK");
+            emailService.sendHtmlMessage(event.getEmail(), "We've received your support request", ackTemplate, model);
+
         } catch (JsonProcessingException e) {
-            log.error("Failed to parse order.paid event", e);
+            log.error("Failed to parse support request social JSON", e);
         }
     }
 
-    @KafkaListener(topics = "payment.failed", groupId = "notification-group")
-    public void handlePaymentFailed(String eventJson) {
+    private void processEvent(String eventJson, String type, String subject) {
         try {
-            PaymentEvent event = objectMapper.readValue(eventJson, PaymentEvent.class);
-            log.info("Received payment.failed event for orderId: {}", event.getOrderId());
-            // In a real system we would look up the user email from order service or user service.
-            // For phase 2 MVP demo, we log it.
-            log.warn("Payment failed for order {}; Notification to user is pending explicit email lookup integration.", event.getOrderId());
+            OrderEvent event = objectMapper.readValue(eventJson, OrderEvent.class);
+            log.info("Processing {} event for orderId: {}", type, event.getOrderId());
+
+            Map<String, String> templates = notificationProperties.getTemplates();
+            String templateName = templates != null ? templates.get(type) : null;
+            
+            if (templateName == null) {
+                log.error("No template configured for notification type: {}", type);
+                return;
+            }
+
+            Map<String, Object> model = new HashMap<>();
+            model.put("orderId", event.getOrderId());
+            model.put("fullName", event.getFullName());
+            model.put("status", event.getStatus());
+            model.put("paymentMethod", event.getPaymentMethod());
+            model.put("items", event.getItems());
+            
+            // Add Address and Phone
+            model.put("shippingLine1", event.getShippingLine1());
+            model.put("shippingLine2", event.getShippingLine2());
+            model.put("shippingCity", event.getShippingCity());
+            model.put("shippingState", event.getShippingState());
+            model.put("shippingPincode", event.getShippingPincode());
+            model.put("shippingCountry", event.getShippingCountry());
+            model.put("customerPhone", event.getCustomerPhone());
+
+            emailService.sendHtmlMessage(event.getEmail(), subject, templateName, model);
         } catch (JsonProcessingException e) {
-            log.error("Failed to parse payment.failed event", e);
+            log.error("Failed to parse event JSON for type {}", type, e);
         }
     }
 }

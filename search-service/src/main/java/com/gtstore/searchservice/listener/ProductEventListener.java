@@ -7,6 +7,7 @@ import org.springframework.stereotype.Component;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
 
 @Component
 public class ProductEventListener {
@@ -23,14 +24,23 @@ public class ProductEventListener {
     @KafkaListener(topics = "product.upserted", groupId = "search-group")
     public void handleProductUpsert(String productJson) {
         try {
-            com.fasterxml.jackson.databind.JsonNode node = objectMapper.readTree(productJson);
+            JsonNode node = objectMapper.readTree(productJson);
             ProductDocument doc = new ProductDocument();
             doc.setId(node.get("id").asText());
-            doc.setName(node.get("name").asText());
-            doc.setDescription(node.get("description").asText());
-            doc.setPrice(new java.math.BigDecimal(node.get("price").asText()));
-            doc.setBrand(node.has("brand") ? node.get("brand").asText() : null);
-            
+            doc.setName(node.path("name").asText(null));
+            doc.setDescription(node.path("description").asText(null));
+            doc.setBrand(node.path("brand").asText(null));
+            doc.setInStock(node.path("inStock").asBoolean(true));
+            doc.setRating(node.path("rating").isNull() ? null : node.path("rating").asDouble());
+            doc.setReviewCount(node.path("reviewCount").isNull() ? null : node.path("reviewCount").asInt());
+
+            if (!node.path("price").isMissingNode() && !node.path("price").isNull()) {
+                doc.setPrice(new java.math.BigDecimal(node.get("price").asText()));
+            }
+            if (!node.path("salePrice").isMissingNode() && !node.path("salePrice").isNull()) {
+                doc.setSalePrice(new java.math.BigDecimal(node.get("salePrice").asText()));
+            }
+
             if (node.has("categoryIds")) {
                 java.util.List<String> categories = new java.util.ArrayList<>();
                 node.get("categoryIds").forEach(c -> categories.add(c.asText()));
@@ -41,6 +51,12 @@ public class ProductEventListener {
                 doc.setImageUrl(node.get("images").get(0).asText());
             }
 
+            if (node.has("features") && node.get("features").isArray()) {
+                java.util.List<String> features = new java.util.ArrayList<>();
+                node.get("features").forEach(f -> features.add(f.asText()));
+                doc.setFeatures(features);
+            }
+
             elasticsearchOperations.save(doc);
             log.info("Indexed product in Elasticsearch: {}", doc.getId());
         } catch (Exception e) {
@@ -48,11 +64,9 @@ public class ProductEventListener {
         }
     }
 
-
     @KafkaListener(topics = "product.deleted", groupId = "search-group")
     public void handleProductDelete(String productId) {
         try {
-            // Strip quotes if any from Kafka message
             String id = productId.replace("\"", "");
             elasticsearchOperations.delete(id, ProductDocument.class);
             log.info("Deleted product from Elasticsearch index: {}", id);

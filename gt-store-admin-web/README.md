@@ -1,73 +1,50 @@
-# React + TypeScript + Vite
+# GT Store Admin Panel
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+The **GT Store Admin Panel** is the command center for platform administrators. and it provides comprehensive tools for managing the catalog, monitoring orders, and controlling the visual appearance of the storefront.
 
-Currently, two official plugins are available:
+## 🛠️ Technical Design
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **Framework**: **React 19** with **Vite**.
+- **Styling**: **Tailwind CSS 4.0**.
+- **State Management**: **TanStack Query** (v5) for high-performance data fetching.
+- **Authentication**: **Keycloak (Pahchaan)** integration with role-based protection (Requires `GTS_ADMIN` role).
+- **Icons**: Lucide React for consistent iconography.
 
-## React Compiler
+## ⚙️ Configurational Design
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### Access Control
+- Access is restricted to users with the `GTS_ADMIN` role in Keycloak.
+- The UI dynamically hides or shows management modules based on verified permissions.
 
-## Expanding the ESLint configuration
+### Environment Variables
+| Variable | Description |
+| :--- | :--- |
+| `VITE_API_URL` | Base URL for the API Gateway |
+| `VITE_KEYCLOAK_URL` | URL of the Identity Provider (Pahchaan) |
+| `VITE_KEYCLOAK_REALM` | Keycloak realm name |
+| `VITE_KEYCLOAK_CLIENT_ID` | OAuth2 Client ID for Admin |
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## 🔄 Interaction Flow
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```mermaid
+graph TD
+    Admin([Administrator]) --> App[Admin Panel]
+    App -->|Check Role| Keycloak[Pahchaan]
+    Keycloak -- Admin Token --> App
+    App -->|Authenticated CRUD| Gateway[API Gateway]
+    Gateway --> Services[Microservices]
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## ✨ Key Features
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+- **Catalog Management**: Add, edit, or remove products and maintain the stock levels of variants.
+- **Order Oversight**: Visual dashboard to monitor order flows, update shipping statuses, and manage cancellations.
+- **Media Hub**: Centralized upload manager for product images and marketing banners.
+- **User Insights**: (Future) Capability to manage user tiers and support requests.
+- **Promotion Control**: Update homepage banners and featured categories in real-time.
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+## 📖 Use Cases
+
+- **Inventory Updates**: Keeping stock numbers accurate across all SKUs.
+- **Logistics Processing**: Transitioning orders from `AWAITING_FULFILLMENT` to `SHIPPED`.
+- **Global Search Refresh**: Managing products, which triggers automatic re-indexing in Elasticsearch.

@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: layout(~{::div})}">
+<body>
+    <div>
+        <div class="order-badge" th:text="'ORDER #' + ${orderId}">ORDER #12345</div>
+        <h2 style="font-weight: 800; margin-top: 0; color: #1e293b;">Order Dispatched!</h2>
+        <p>Hello <span th:text="${fullName != null ? fullName : 'Customer'}" style="font-weight: 700;">Customer</span>,</p>
+        <p style="color: #475569;">Your order is on the way! Our courier partner has picked up your package and it will be at your doorstep very soon.</p>
+        
+        <div style="background: #e0f2fe; border: 1px solid #bae6fd; border-radius: 16px; padding: 24px; margin: 24px 0;">
+            <p style="margin: 0; font-size: 13px; color: #075985; font-weight: 600; text-transform: uppercase;">Status</p>
+            <div style="margin-top: 8px;">
+                <span class="status-pill status-info">Shipped</span>
+            </div>
+        </div>
+
+        <a href="#" class="btn">Track Package</a>
+    </div>
+</body>
+</html>

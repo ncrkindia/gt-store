@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: layout(~{::div})}">
+<body>
+    <div>
+        <div class="order-badge" th:text="'ORDER #' + ${orderId}">ORDER #12345</div>
+        <h2 style="font-weight: 800; margin-top: 0; color: #1e293b;">Order Confirmed!</h2>
+        <p>Hello <span th:text="${fullName != null ? fullName : 'Customer'}" style="font-weight: 700;">Customer</span>,</p>
+        
+        <p th:if="${paymentMethod == 'COD'}" style="color: #475569;">
+            Your order has been successfully placed! We've received your request and our team is already preparing your items for fulfillment. You can pay the total amount in cash upon delivery.
+        </p>
+        <p th:if="${paymentMethod != 'COD'}" style="color: #475569;">
+            Your order has been successfully placed! We are currently waiting for payment confirmation to begin processing your items. Once confirmed, we'll notify you immediately.
+        </p>
+        
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; padding: 24px; margin: 24px 0;">
+            <div style="margin-bottom: 20px;">
+                <p style="margin: 0; font-size: 13px; color: #64748b; font-weight: 600; text-transform: uppercase;">Payment Method</p>
+                <div style="font-weight: 700; color: #4f46e5; margin-top: 4px; font-size: 16px;" 
+                     th:text="${paymentMethod == 'COD' ? 'Cash on Delivery (COD)' : 'Online Payment (Prepaid)'}">Cash on Delivery</div>
+            </div>
+            
+            <div>
+                <p style="margin: 0; font-size: 13px; color: #64748b; font-weight: 600; text-transform: uppercase;">Current Status</p>
+                <div style="margin-top: 8px;">
+                    <span th:class="${paymentMethod == 'COD' ? 'status-pill status-success' : 'status-pill status-warning'}" 
+                          th:text="${paymentMethod == 'COD' ? 'Order Confirmed' : 'Payment Pending'}">
+                        Order Received
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <div style="border: 1px solid #e2e8f0; border-radius: 16px; padding: 24px; margin: 24px 0;">
+            <p style="margin: 0 0 16px 0; font-size: 13px; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700;">Shipping Details</p>
+            <div style="color: #1e293b; font-size: 15px; line-height: 1.5;">
+                <div style="font-weight: 700; color: #0f172a;" th:text="${fullName}">Customer Name</div>
+                <div th:text="${shippingLine1}">Address Line 1</div>
+                <div th:if="${shippingLine2}" th:text="${shippingLine2}">Address Line 2</div>
+                <div th:text="${shippingCity + ', ' + shippingState + ' ' + shippingPincode}">City, State Pincode</div>
+                <div th:text="${shippingCountry}">Country</div>
+                
+                <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #f1f5f9; display: flex; align-items: center; gap: 8px;">
+                    <span style="color: #64748b; font-size: 14px;">Contact:</span>
+                    <span style="font-weight: 600; color: #0f172a;" th:text="${customerPhone}">+91 9876543210</span>
+                </div>
+            </div>
+        </div>
+
+        <a href="#" class="btn">View Order Details</a>
+        
+        <p style="margin-top: 30px; font-size: 14px; color: #94a3b8; text-align: center;">If you have any questions, reply to this email or contact <strong>support@slpro.in</strong>.</p>
+    </div>
+</body>
+</html>

@@ -58,8 +58,7 @@ springdoc:
 
 
 
-paypal:
-  client-id: ${PAYPAL_CLIENT_ID:AXPIq9_r6H9KlJoG9TTar8-A39U1VKyXLuMcccSTnOY7fWpKB3KK6mwWvFECuDI6ZMCWlX0AD8fTwjQ7}
-  client-secret: ${PAYPAL_CLIENT_SECRET:ECgpQe0kxytFB_NHCz2IHbRvVU2sNmJ-lokGIBsNWosDQ1m7lsI4lbiN4KV0Bb0gxugHoSPY9Q7kBCY-}
-  mode: ${PAYPAL_MODE:sandbox}
+razorpay:
+  key-id: ${RAZORPAY_KEY_ID}
+  key-secret: ${RAZORPAY_KEY_SECRET}
 

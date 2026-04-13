@@ -14,6 +14,9 @@ const Sidebar = () => {
                 <ul>
                     <li><Link to="/dashboard">Dashboard</Link></li>
                     <li><Link to="/products">Manage Products</Link></li>
+                    <li><Link to="/categories">Manage Categories</Link></li>
+                    <li><Link to="/brands">Manage Brands</Link></li>
+                    <li><Link to="/banners">Manage Banners</Link></li>
                     <li><Link to="/inventory">Manage Inventory</Link></li>
                     <li><Link to="/orders">Manage Orders</Link></li>
                     <li><hr style={{ opacity: 0.2, margin: '15px 0' }} /></li>

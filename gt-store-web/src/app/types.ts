@@ -13,4 +13,6 @@ export interface Product {
   category: string;
   inStock: boolean;
   features: string[];
+  ratingBreakdown?: Record<number, number>;
+  reviewsList?: { rating: number, comment: string, userName: string, date: string }[];
 }

@@ -4,6 +4,8 @@ import com.gtstore.orderservice.dto.*;
 import com.gtstore.orderservice.entity.Order;
 import com.gtstore.orderservice.entity.OrderItem;
 import com.gtstore.orderservice.repository.OrderRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -28,6 +30,8 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/orders")
 public class OrderController {
+
+    private static final Logger log = LoggerFactory.getLogger(OrderController.class);
 
     @Autowired
     private OrderRepository orderRepository;
@@ -74,8 +78,22 @@ public class OrderController {
         // 2. Create Order
         Order order = new Order();
         order.setUserId(email);
-        order.setStatus("PENDING");
+        
+        // Use granular initial states
+        boolean isCod = "COD".equalsIgnoreCase(orderRequest.getPaymentMethod());
+        order.setStatus(isCod ? "AWAITING_FULFILLMENT" : "PENDING_PAYMENT");
+        
         order.setShippingAddressId(orderRequest.getShippingAddressId());
+        order.setPaymentMethod(isCod ? "COD" : "ONLINE");
+        
+        // Populate snapshot fields
+        order.setShippingLine1(orderRequest.getShippingLine1());
+        order.setShippingLine2(orderRequest.getShippingLine2());
+        order.setShippingCity(orderRequest.getShippingCity());
+        order.setShippingState(orderRequest.getShippingState());
+        order.setShippingPincode(orderRequest.getShippingPincode());
+        order.setShippingCountry(orderRequest.getShippingCountry());
+        order.setCustomerPhone(orderRequest.getCustomerPhone());
 
         BigDecimal totalAmount = BigDecimal.ZERO;
 
@@ -94,24 +112,34 @@ public class OrderController {
         order.setTotalAmount(totalAmount);
         Order saved = orderRepository.save(order);
 
-        // 3. Initiate Payment
-        PaymentRequest paymentRequest = new PaymentRequest();
-        paymentRequest.setOrderId(saved.getId().toString());
-        paymentRequest.setAmount(totalAmount);
-        paymentRequest.setGateway("CREDIT_CARD");
+        // 3. Initiate Payment (Only if NOT COD)
+        if (!"COD".equalsIgnoreCase(saved.getPaymentMethod())) {
+            PaymentRequest paymentRequest = new PaymentRequest();
+            paymentRequest.setOrderId(saved.getId().toString());
+            paymentRequest.setAmount(totalAmount);
+            paymentRequest.setGateway("RAZORPAY");
 
-        try {
-            restTemplate.postForEntity(PAYMENT_URL, paymentRequest, PaymentResponse.class);
-        } catch (Exception e) {
-            // Log payment init failure
+            try {
+                restTemplate.postForEntity(PAYMENT_URL, paymentRequest, PaymentResponse.class);
+            } catch (Exception e) {
+                log.error("Failed to initiate payment for order {}", saved.getId(), e);
+            }
         }
 
         // 4. Publish order.created
         OrderEvent event = new OrderEvent();
         event.setOrderId(saved.getId().toString());
-        event.setStatus("PENDING");
+        event.setStatus(saved.getStatus());
         event.setEmail(email);
         event.setFullName(name);
+        event.setPaymentMethod(saved.getPaymentMethod());
+        event.setShippingLine1(saved.getShippingLine1());
+        event.setShippingLine2(saved.getShippingLine2());
+        event.setShippingCity(saved.getShippingCity());
+        event.setShippingState(saved.getShippingState());
+        event.setShippingPincode(saved.getShippingPincode());
+        event.setShippingCountry(saved.getShippingCountry());
+        event.setCustomerPhone(saved.getCustomerPhone());
 
         if (saved.getItems() != null) {
             event.setItems(saved.getItems().stream().map(i -> {
@@ -158,10 +186,85 @@ public class OrderController {
             @RequestParam String status) {
         return orderRepository.findById(id)
                 .map(order -> {
-                    order.setStatus(status);
-                    return ResponseEntity.ok(orderRepository.save(order));
+                    order.setStatus(status.toUpperCase());
+                    Order saved = orderRepository.save(order);
+                    
+                    // Emit specific event topics
+                    String topic = null;
+                    if ("SHIPPED".equalsIgnoreCase(status) || "DISPATCHED".equalsIgnoreCase(status)) {
+                        topic = "order.shipped";
+                    } else if ("CANCELLED".equalsIgnoreCase(status) || "CANCELLED_BY_CUSTOMER".equalsIgnoreCase(status)) {
+                        topic = "order.cancelled";
+                    } else if ("FAILED".equalsIgnoreCase(status) || "FULFILLMENT_FAILED".equalsIgnoreCase(status)) {
+                        topic = "order.failed"; // Inventory and Payment should react to this
+                    } else if ("ORDER_CONFIRMED".equalsIgnoreCase(status)) {
+                        topic = "order.confirmed";
+                    } else if ("DELIVERED".equalsIgnoreCase(status)) {
+                        topic = "order.delivered";
+                    }
+
+                    if (topic != null) {
+                        OrderEvent event = new OrderEvent();
+                        event.setOrderId(saved.getId().toString());
+                        event.setStatus(saved.getStatus());
+                        event.setEmail(saved.getUserId());
+                        event.setShippingLine1(saved.getShippingLine1());
+                        event.setShippingLine2(saved.getShippingLine2());
+                        event.setShippingCity(saved.getShippingCity());
+                        event.setShippingState(saved.getShippingState());
+                        event.setShippingPincode(saved.getShippingPincode());
+                        event.setShippingCountry(saved.getShippingCountry());
+                        event.setCustomerPhone(saved.getCustomerPhone());
+                        
+                        kafkaTemplate.send(topic, event.getOrderId(), event);
+                        log.info("Emitted {} event for order {}", topic, saved.getId());
+                    }
+
+                    return ResponseEntity.ok(saved);
                 })
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    @PostMapping("/{id}/cancel")
+    public ResponseEntity<?> cancelOrder(
+            @PathVariable UUID id,
+            @RequestHeader(value = "X-User-Email", required = false) String email) {
+        
+        if (email == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+
+        return orderRepository.findById(id).map(order -> {
+            if (!order.getUserId().equals(email)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+            // Strict cancellation window: Only before SHIPPED
+            String status = order.getStatus();
+            if ("SHIPPED".equalsIgnoreCase(status) || "DELIVERED".equalsIgnoreCase(status)) {
+                return ResponseEntity.badRequest().body("Order cannot be cancelled once it is " + status);
+            }
+            
+            order.setStatus("CANCELLED_BY_CUSTOMER");
+            Order saved = orderRepository.save(order);
+            
+            OrderEvent event = new OrderEvent();
+            event.setOrderId(saved.getId().toString());
+            event.setStatus("CANCELLED_BY_CUSTOMER");
+            event.setEmail(email);
+            
+            if (saved.getItems() != null) {
+                event.setItems(saved.getItems().stream().map(i -> {
+                    OrderItemDto dto = new OrderItemDto();
+                    dto.setProductId(i.getProductId());
+                    dto.setVariantId(i.getVariantId());
+                    dto.setQuantity(i.getQuantity());
+                    return dto;
+                }).collect(Collectors.toList()));
+            }
+
+            kafkaTemplate.send("order.cancelled", event.getOrderId(), event);
+            log.info("Order {} cancelled by customer {}", id, email);
+            
+            return ResponseEntity.ok(saved);
+        }).orElse(ResponseEntity.notFound().build());
     }
 
     /**

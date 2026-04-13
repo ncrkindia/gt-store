@@ -22,3 +22,4 @@ scrape_configs:
         - 'inventory-service:4008'
         - 'payment-service:4009'
         - 'notification-service:4010'
+        - 'media-service:4010'

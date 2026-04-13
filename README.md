@@ -1,104 +1,192 @@
-# GT Store: Microservices E-Commerce Platform
+# GT Store: Enterprise Microservices E-Commerce Platform
 
-GT Store is a full-stack, distributed e-commerce platform designed with a high-performance, event-driven microservices architecture. It demonstrates modern enterprise patterns including API Gateway orchestration, Role-Based Access Control (RBAC), distributed tracing, and specialized database selection.
-
-## 🚀 Quick Start
-
-Ensure you have **Docker Desktop** running, then execute the following from the root directory:
-
-```bash
-docker compose up -d --build
-```
-
-### Access URLs
-| Component | URL | Credentials |
-| :--- | :--- | :--- |
-| **Storefront** | [https://localhost](https://localhost) | `user1@example.com` / `password` |
-| **Admin Console** | [https://localhost/admin](https://localhost/admin) | `admin1@example.com` / `password` |
-| **API Docs (Swagger)** | [https://localhost/api/swagger-ui.html](https://localhost/api/swagger-ui.html) | N/A |
-| **Keycloak Admin** | [http://localhost:8180](http://localhost:8180) | `admin` / `admin` |
-| **Grafana** | [http://localhost:3001](http://localhost:3001) | `admin` / `admin` |
-| **Zipkin** | [http://localhost:9411](http://localhost:9411) | N/A |
-
-> [!NOTE]
-> The platform uses a self-signed SSL certificate for `localhost`. You may need to "Accept the Risk" in your browser initially.
+GT Store is a high-performance, event-driven e-commerce ecosystem built on a resilient microservices architecture. It demonstrates modern enterprise patterns including API Gateway orchestration, Distributed Tracing, JIT Identity Synchronization, and multi-class persistence strategies.
 
 ---
 
-## 🏗️ System Architecture
+## 🏗️ Technical Architecture
 
-The platform is fronted by an Nginx reverse proxy that handles SSL termination and routes traffic to the appropriate microservice or frontend.
+The platform follows a **decoupled microservices** pattern where each service owns its data and communicates through both synchronous (REST) and asynchronous (Kafka) channels.
+
+### Network & Connectivity Diagram
+
+The entry point is a production-hardened Nginx reverse proxy that handles SSL termination and intelligently routes traffic based on URL patterns.
 
 ```mermaid
 flowchart TD
-    Client([User Browser]) -->|HTTPS| Nginx[Nginx Proxy]
+    User([User Browser]) -->|HTTPS:443| Nginx[Nginx Reverse Proxy]
     
-    subgraph UI
-        Nginx -->|/| Web[Storefront UI]
-        Nginx -->|/admin| Admin[Admin Console]
+    subgraph Public_Entry["Public Entry Points"]
+        Nginx -->|/| Web[Storefront UI :4000]
+        Nginx -->|/admin| AdminWeb[Admin Console :4002]
+        Nginx -->|/api| Gateway[API Gateway :4003]
     end
-    
-    Nginx -->|/api| Gateway[API Gateway]
-    
-    subgraph Microservices
-        Gateway --> User[User Service]
-        Gateway --> Product[Product Service]
-        Gateway --> Search[Search Service]
-        Gateway --> Cart[Cart Service]
-        Gateway --> Order[Order Service]
-        Order --> IS[Inventory Service]
-        Order --> PS[Payment Service]
+
+    subgraph Internal_Network["Internal GT-Store Network"]
+        Gateway -.->|Auth Check| KC[Keycloak IDP :8180]
+        
+        Gateway --> UserSvc[User Service :4004]
+        Gateway --> ProductSvc[Product Service :4005]
+        Gateway --> CartSvc[Cart Service :4006]
+        Gateway --> OrderSvc[Order Service :4007]
+        Gateway --> SearchSvc[Search Service]
+        Gateway --> MediaSvc[Media Service :4010]
+        
+        OrderSvc --> InvSvc[Inventory Service :4008]
+        OrderSvc --> PaySvc[Payment Service :4009]
+        
+        Kafka[(Kafka Cluster)]
+        OrderSvc -.->|Events| Kafka
+        Kafka -.->|Subscribe| InvSvc
+        Kafka -.->|Subscribe| NotifySvc[Notification Service]
+        Kafka -.->|Subscribe| SearchSvc
     end
-    
-    subgraph Messaging
-        Order -.-> Kafka[Kafka Broker]
-        Kafka -.-> NS[Notification Service]
-        Kafka -.-> Search
-    end
-    
-    subgraph Data
-        Search -.-> ES[Elasticsearch]
-    end
-    
-    subgraph Auth
-        Gateway -.-> KC[Keycloak Auth]
+
+    subgraph Persistance["Persistence Layer"]
+        UserSvc & OrderSvc & InvSvc & PaySvc --> PG[(PostgreSQL)]
+        ProductSvc --> Mongo[(MongoDB)]
+        CartSvc --> Redis[(Redis)]
+        SearchSvc --> ES[(Elasticsearch)]
     end
 ```
+
+---
+
+## 📂 Database Structure & Relations
+
+GT Store employs a **Database-per-Service** pattern to ensure independent scalability and schema autonomy. Relationships across services are maintained via **Logical IDs** and **Eventual Consistency**.
+
+| Service | Database Type | Schema/Collection | Primary Responsibility |
+| :--- | :--- | :--- | :--- |
+| **User** | PostgreSQL | `users` | Profiles, Address Books, JIT Audit |
+| **Product** | MongoDB | `products`, `categories` | Flexible Catalog, Variants, Banners |
+| **Order** | PostgreSQL | `orders`, `order_items` | State Machine, Price Snapshots |
+| **Inventory**| PostgreSQL | `stock`, `variants` | Real-time Reservation, SKUs |
+| **Payment** | PostgreSQL | `transactions` | Gateway References (Razorpay/PayPal) |
+| **Cart** | Redis | `cart:{id}` | High-speed ephemeral storage (TTL) |
+| **Search** | Elasticsearch| `idx_products` | Full-text, Fuzzy searching |
+
+### Cross-Service Relation Logic
+- **`Order.userId`**: Resolves to `User.id` in PostgreSQL for profile/address lookup.
+- **`OrderItem.productId`**: Resolves to `Product.id` in MongoDB.
+- **`Inventory.variantId`**: Resolves to variant IDs embedded in Product documents.
+- **`Transaction.orderId`**: Resolves to `Order.id` for financial reconciliation.
+
+---
+
+## 🔄 Major Flow Diagrams
+
+### 1. Unified Authentication & JIT Sync
+The platform trusts Keycloak for identity but maintains a local shadow profile for performance and audit.
+
+```mermaid
+sequenceDiagram
+    participant UI as Browser
+    participant GW as API Gateway
+    participant KC as Keycloak
+    participant US as User Service
+    participant DB as Postgres
+    
+    UI->>KC: Authenticate
+    KC-->>UI: JWT Token
+    UI->>GW: Request + Bearer JWT
+    GW->>GW: Validate JWT Signature
+    GW->>US: Forward with X-User headers
+    US->>DB: Check if User exists (JIT Sync)
+    alt User Missing
+        US->>DB: Persist New Profile
+    end
+    US-->>GW: User Response
+    GW-->>UI: Response
+```
+
+### 2. Event-Driven Order Lifecycle
+Managing stock, payments, and notifications asynchronously to ensure system responsiveness.
+
+```mermaid
+sequenceDiagram
+    participant Order as Order Service
+    participant Inv as Inventory Service
+    participant Pay as Payment Service
+    participant Kafka as Kafka Broker
+    participant Notify as Notification Service
+
+    Order->>Inv: [Sync] Reserve Stock
+    Inv-->>Order: Success (Stock Locked)
+    Order->>Pay: [Sync] Initiate Payment
+    Pay-->>Order: Payment Intent
+    Note over Order,Pay: Customer completes Payment...
+    Pay->>Kafka: Emit [order.paid]
+    Kafka-->>Order: Change State: PAID
+    Order->>Kafka: Emit [order.confirmed]
+    Kafka-->>Notify: Send Confirmation Email
+    Kafka-->>Inv: Finalize Stock Deduction
+```
+
+---
+
+## ✨ Feature Matrix
+
+### 🛒 Customer Experience
+- **Dynamic Catalog**: Complex products with multi-variant support (size, color, etc.).
+- **Smart Search**: Typo-tolerant search powered by Elasticsearch.
+- **Persistent Cart**: Session-based carts that persist across logins.
+- **Secure Checkout**: Integrated with **Razorpay** and **PayPal**.
+- **Real-time Tracking**: Live order state updates from warehouse to delivery.
+
+### 🛡️ Admin & Operations
+- **Full Control**: CRUD operations for products, categories, and banners.
+- **Inventory Control**: Real-time stock adjusting and low-stock indicators.
+- **Order Management**: Transition orders through the fulfillment pipeline.
+- **Observability**: Centralized logs (Loki) and metrics (Prometheus).
 
 ---
 
 ## 🛠️ Technology Stack
 
-- **Backend**: Java 17, Spring Boot 3, Spring Cloud Gateway, Reactive Security.
-- **Frontend**: React, TypeScript, Vite, Tailwind CSS.
-- **Identity**: Keycloak (OAuth2 / OpenID Connect).
-- **Messaging**: Apache Kafka.
-- **Data Persistence**:
-    - **PostgreSQL**: Relational data (Orders, Users, Payments, Inventory).
-    - **MongoDB**: Flexible product catalog.
-    - **Elasticsearch**: Full-text product search indexing.
-    - **Redis**: High-speed user carts.
-- **Observability**: Prometheus, Grafana, Micrometer, Zipkin.
-- **Infrastructure**: Docker Compose, Nginx (SSL/TLS).
+| Category | technologies |
+| :--- | :--- |
+| **Core** | Java 17, Spring Boot 3, Spring Cloud Gateway |
+| **Frontend** | React 18, Vite, Tailwind CSS, TypeScript |
+| **Messaging** | Apache Kafka, Zookeeper |
+| **Persistence** | PostgreSQL 15, MongoDB 6, Redis 7, Elasticsearch 8 |
+| **Identity** | Keycloak (IAM), Spring Security (OIDC) |
+| **Observability** | Prometheus, Grafana, Loki, Promtail, Zipkin |
+| **Infrastructure** | Docker Compose, Nginx (SSL termination) |
 
 ---
 
-## 📖 Evolution Roadmap
+## 🚀 Getting Started
 
-The project was developed in three distinct phases:
+### Prerequisites
+- Docker & Docker Compose
+- 8GB+ System RAM (Recommended)
 
-### [Phase 1: MVP Foundation](file:///d:/project%20slpro/gt-store/phase1.md)
-Established the core architecture: API Gateway, User Service, Product Catalog with MongoDB, and the React Storefront.
+### Execution
+```bash
+# 1. Start all services (may take several minutes initially)
+docker compose up -d --build
 
-### [Phase 2: Event-Driven Checkout](file:///d:/project%20slpro/gt-store/phase2.md)
-Implemented the complex asynchronous checkout flow using Kafka, integrating Inventory reservation, Payment processing, and Email notifications.
-
-### [Phase 3: Production Readiness & Admin](file:///d:/project%20slpro/gt-store/phase3.md)
-Added Nginx reverse proxy with SSL, Role-Based Access Control (RBAC), deep observability (metrics & tracing), **Search Service (Elasticsearch)**, and **PayPal** integration.
+# 2. Access the Platform
+# - Storefront: https://localhost (Trust self-signed cert)
+# - Admin:     https://localhost/admin
+# - Gateway:   https://localhost/api
+```
 
 ---
 
-## 🧪 Admin/Test Credentials
+## 📊 Observability Dashboard
 
-- **Standard User**: `user1@example.com` / `password`
+| Tool | URL | Credentials |
+| :--- | :--- | :--- |
+| **Grafana** | `http://localhost:4013` | `admin` / `admin` |
+| **Prometheus** | `http://localhost:9090` | N/A |
+| **Zipkin** | `http://localhost:4012` | N/A |
+| **Loki** | `http://localhost:3100` | N/A |
+
+---
+
+## 🧪 Credentials for Testing
+- **Customer**: `user1@example.com` / `password`
 - **Administrator**: `admin1@example.com` / `password`
+- **Platform Admin**: `admin` / `admin` (Keycloak/Grafana)

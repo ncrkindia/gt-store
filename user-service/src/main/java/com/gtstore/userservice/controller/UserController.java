@@ -9,20 +9,27 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import org.springframework.kafka.core.KafkaTemplate;
+import com.gtstore.userservice.dto.SupportRequest;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 /**
  * REST Controller for the User Service.
- * Manages user profiles and addresses, synchronized with Keycloak identities.
+ * Manages user profiles and addresses, synchronized with Pahchaan identities.
  * 
  * Uses 'X-User-Email' and 'X-User-Name' headers (propagated by the API Gateway)
  * to identify and upsert users in the local PostgreSQL database.
  */
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 @RestController
 @RequestMapping("/api/users")
 public class UserController {
+
+    private static final Logger log = LoggerFactory.getLogger(UserController.class);
 
     @Autowired
     private UserRepository userRepository;
@@ -30,9 +37,22 @@ public class UserController {
     @Autowired
     private AddressRepository addressRepository;
 
+    @Autowired
+    private KafkaTemplate<String, Object> kafkaTemplate;
+
+    @PostMapping("/support")
+    public ResponseEntity<?> submitSupportRequest(@RequestBody SupportRequest request) {
+        log.info("Received support request from: {}", request.getEmail());
+        
+        // Publish to Kafka
+        kafkaTemplate.send("support.request", request);
+        
+        return ResponseEntity.ok(Map.of("message", "Support request submitted successfully"));
+    }
+
     /**
      * Endpoint hit by frontend to get the current profile.
-     * The API Gateway intercepts the Keycloak JWT and forwards claims as headers.
+     * The API Gateway intercepts the Pahchaan JWT and forwards claims as headers.
      * We use these headers to find or create the user in our DB.
      */
     @GetMapping("/me")
@@ -61,6 +81,26 @@ public class UserController {
         ));
     }
 
+    @PutMapping("/me")
+    public ResponseEntity<?> updateUser(
+            @RequestHeader(value = "X-User-Email", required = false) String email,
+            @RequestBody User updatedUser) {
+        
+        Optional<User> optionalUser = userRepository.findByEmail(email);
+        if (optionalUser.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not found");
+        }
+        
+        User user = optionalUser.get();
+        user.setPhone(updatedUser.getPhone());
+        user.setSecondaryPhone(updatedUser.getSecondaryPhone());
+        user.setGender(updatedUser.getGender());
+        user.setBirthday(updatedUser.getBirthday());
+        
+        User savedUser = userRepository.save(user);
+        return ResponseEntity.ok(savedUser);
+    }
+
     @PostMapping("/me/addresses")
     public ResponseEntity<?> addAddress(
             @RequestHeader(value = "X-User-Email", required = false) String email,
@@ -76,5 +116,94 @@ public class UserController {
         
         Address savedAddress = addressRepository.save(address);
         return ResponseEntity.status(HttpStatus.CREATED).body(savedAddress);
+    }
+
+    @PutMapping("/me/addresses/{id}")
+    public ResponseEntity<?> updateAddress(
+            @PathVariable Long id,
+            @RequestHeader(value = "X-User-Email", required = false) String email,
+            @RequestBody Address updatedAddress) {
+        
+        Optional<User> optionalUser = userRepository.findByEmail(email);
+        if (optionalUser.isEmpty()) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        
+        return addressRepository.findById(id).map(existing -> {
+            if (!existing.getUserId().equals(optionalUser.get().getId())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+            existing.setLine1(updatedAddress.getLine1());
+            existing.setLine2(updatedAddress.getLine2());
+            existing.setCity(updatedAddress.getCity());
+            existing.setState(updatedAddress.getState());
+            existing.setPincode(updatedAddress.getPincode());
+            existing.setCountry(updatedAddress.getCountry());
+            existing.setDefault(updatedAddress.isDefault());
+            return ResponseEntity.ok((Object) addressRepository.save(existing));
+        }).orElse(ResponseEntity.notFound().build());
+    }
+
+    @DeleteMapping("/me/addresses/{id}")
+    public ResponseEntity<?> deleteAddress(
+            @PathVariable Long id,
+            @RequestHeader(value = "X-User-Email", required = false) String email) {
+        
+        Optional<User> optionalUser = userRepository.findByEmail(email);
+        if (optionalUser.isEmpty()) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        
+        return addressRepository.findById(id).map(existing -> {
+            if (!existing.getUserId().equals(optionalUser.get().getId())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+            addressRepository.delete(existing);
+            return ResponseEntity.ok().build();
+        }).orElse(ResponseEntity.notFound().build());
+    }
+
+    // --- Wishlist Management --- //
+
+    @Autowired
+    private com.gtstore.userservice.repository.WishlistRepository wishlistRepository;
+
+    @GetMapping("/me/wishlist")
+    public ResponseEntity<?> getWishlist(@RequestHeader(value = "X-User-Email", required = false) String email) {
+        Optional<User> optionalUser = userRepository.findByEmail(email);
+        if (optionalUser.isEmpty()) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        
+        List<com.gtstore.userservice.entity.WishlistItem> wishlist = wishlistRepository.findByUserId(optionalUser.get().getId());
+        return ResponseEntity.ok(wishlist);
+    }
+
+    @PostMapping("/me/wishlist")
+    public ResponseEntity<?> addWishlistItem(
+            @RequestHeader(value = "X-User-Email", required = false) String email,
+            @RequestBody Map<String, String> payload) {
+        Optional<User> optionalUser = userRepository.findByEmail(email);
+        if (optionalUser.isEmpty()) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        
+        String productId = payload.get("productId");
+        if (productId == null || productId.isEmpty()) return ResponseEntity.badRequest().body("productId is required");
+
+        Optional<com.gtstore.userservice.entity.WishlistItem> exists = wishlistRepository.findByUserIdAndProductId(optionalUser.get().getId(), productId);
+        if (exists.isPresent()) {
+            return ResponseEntity.ok(exists.get());
+        }
+
+        com.gtstore.userservice.entity.WishlistItem item = new com.gtstore.userservice.entity.WishlistItem();
+        item.setUserId(optionalUser.get().getId());
+        item.setProductId(productId);
+        com.gtstore.userservice.entity.WishlistItem savedItem = wishlistRepository.save(item);
+        
+        return ResponseEntity.status(HttpStatus.CREATED).body(savedItem);
+    }
+
+    @DeleteMapping("/me/wishlist/{productId}")
+    public ResponseEntity<?> removeWishlistItem(
+            @PathVariable String productId,
+            @RequestHeader(value = "X-User-Email", required = false) String email) {
+        Optional<User> optionalUser = userRepository.findByEmail(email);
+        if (optionalUser.isEmpty()) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        
+        wishlistRepository.deleteByUserIdAndProductId(optionalUser.get().getId(), productId);
+        return ResponseEntity.ok().build();
     }
 }

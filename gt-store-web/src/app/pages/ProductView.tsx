@@ -6,23 +6,51 @@ import { useQuery } from '@tanstack/react-query';
 import apiClient from '../../api/axios';
 import { useKeycloak } from '@react-keycloak/web';
 import type { Product } from '../types';
+import { formatPrice } from '../../lib/formatPrice';
+import { toast } from 'sonner';
+
+const API_BASE = 'https://gts-api.slpro.in';
+const resolveImg = (img?: string): string => {
+  if (!img) return '';
+  if (img.startsWith('http')) return img;
+  const cleanPath = img.startsWith('/') ? img : '/' + img;
+  if (cleanPath.startsWith('/api/media/files/')) {
+    return `${API_BASE}${cleanPath}`;
+  }
+  return `${API_BASE}/api/media/files/${img}`;
+};
 
 const fetchProducts = async () => {
   const res = await apiClient.get('/products');
-  return (res.data.content || []).map((p: any) => ({
-    id: p.id,
-    name: p.name,
-    description: p.description || p.name,
-    price: p.price,
-    rating: p.rating || 0,
-    reviews: p.reviewCount || 0,
-    image: (p.images && p.images.length > 0) ? p.images[0] : '',
-    images: p.images || [],
-    brand: p.brand || 'Generic',
-    category: p.category || 'all',
-    inStock: true,
-    features: []
-  }));
+  return (res.data.content || []).map((p: any) => {
+    let originalPrice = undefined;
+    let price = p.price;
+    let discount = undefined;
+    if (p.salePrice && p.salePrice < p.price) {
+      originalPrice = p.price;
+      price = p.salePrice;
+      discount = Math.round(((p.price - p.salePrice) / p.price) * 100);
+    }
+
+    return {
+      id: p.id,
+      name: p.name,
+      description: p.description || p.name,
+      price: price,
+      originalPrice: originalPrice,
+      discount: discount,
+      rating: p.rating || 0,
+      reviews: p.reviewCount || 0,
+      image: (p.images && p.images.length > 0) ? resolveImg(p.images[0]) : '',
+      images: (p.images || []).map(resolveImg),
+      brand: p.brand || 'Generic',
+      category: (p.categoryIds && p.categoryIds.length > 0) ? p.categoryIds[0] : 'all',
+      inStock: p.inStock !== undefined ? p.inStock : true,
+      features: p.features || [],
+      ratingBreakdown: p.ratingBreakdown || {},
+      reviewsList: p.reviews || []
+    };
+  });
 };
 
 export function ProductView() {
@@ -73,10 +101,10 @@ export function ProductView() {
         productId: product.id,
         quantity: quantity
       });
-      alert('Added to cart!');
+      toast.success('Added to cart!');
     } catch (err) {
       console.error(err);
-      alert('Failed to add to cart.');
+      toast.error('Failed to add to cart.');
     }
   };
 
@@ -166,11 +194,11 @@ export function ProductView() {
               </div>
 
               <div className="flex items-baseline gap-3 mb-6">
-                <span className="text-3xl text-gray-900">${product.price}</span>
+                <span className="text-3xl text-gray-900">{formatPrice(product.price)}</span>
                 {product.originalPrice && (
                   <>
                     <span className="text-xl text-gray-400 line-through">
-                      ${product.originalPrice}
+                      {formatPrice(product.originalPrice)}
                     </span>
                     <span className="text-lg text-green-600">{product.discount}% off</span>
                   </>
@@ -255,6 +283,67 @@ export function ProductView() {
                   <span className="text-gray-900">{product.inStock ? "Yes" : "No"}</span>
                 </div>
               </div>
+            </div>
+
+            {product.features && product.features.length > 0 && (
+              <div className="bg-white rounded-lg p-6">
+                <h2 className="text-xl mb-4">Key Features</h2>
+                <ul className="list-disc pl-5 space-y-2 text-gray-700">
+                  {product.features.map((feature, idx) => (
+                    <li key={idx}>{feature}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Ratings & Reviews Section */}
+            <div className="bg-white rounded-lg p-6">
+              <h2 className="text-xl mb-4">Ratings & Reviews</h2>
+              <div className="flex flex-col md:flex-row gap-8 mb-8">
+                  {/* Rating Summary */}
+                  <div className="flex flex-col items-center justify-center min-w-[150px]">
+                      <div className="text-4xl font-light mb-2">{product.rating.toFixed(1)} <Star className="w-8 h-8 inline-block fill-current text-yellow-500 mb-1"/></div>
+                      <p className="text-sm text-gray-500 font-medium">{product.reviews.toLocaleString()} Ratings</p>
+                  </div>
+
+                  {/* Rating Breakdown Bars */}
+                  <div className="flex-1 space-y-2">
+                      {[5, 4, 3, 2, 1].map(stars => {
+                          const count = product.ratingBreakdown?.[stars] || 0;
+                          const percentage = product.reviews === 0 ? 0 : (count / product.reviews) * 100;
+                          return (
+                              <div key={stars} className="flex items-center gap-3 text-sm">
+                                  <div className="w-12 text-gray-600 flex items-center justify-end">{stars} <Star className="w-3 h-3 ml-1 fill-gray-400 text-gray-400"/></div>
+                                  <div className="flex-1 bg-gray-100 rounded-full h-2.5 overflow-hidden">
+                                      <div className={`h-full rounded-full ${stars > 2 ? 'bg-green-500' : stars === 2 ? 'bg-yellow-500' : 'bg-red-500'}`} style={{ width: `${percentage}%` }}></div>
+                                  </div>
+                                  <div className="w-12 text-gray-500 text-xs">{count}</div>
+                              </div>
+                          );
+                      })}
+                  </div>
+              </div>
+
+              {/* Review Timeline */}
+              {product.reviewsList && product.reviewsList.length > 0 ? (
+                  <div className="space-y-6">
+                      {product.reviewsList.slice().reverse().map((review, idx) => (
+                          <div key={idx} className="border-t border-gray-100 pt-6">
+                              <div className="flex items-center gap-2 mb-2">
+                                  <div className={`flex items-center gap-1 text-white px-2 py-0.5 rounded text-xs font-semibold ${review.rating > 2 ? 'bg-green-600' : review.rating === 2 ? 'bg-yellow-500' : 'bg-red-500'}`}>
+                                      <span>{review.rating}</span>
+                                      <Star className="w-3 h-3 fill-white" />
+                                  </div>
+                                  <span className="font-medium text-gray-900 border-l pl-2 ml-2 border-gray-300">{review.userName || 'Anonymous'}</span>
+                                  <span className="text-sm text-gray-500 ml-auto">{new Date(review.date).toLocaleDateString()}</span>
+                              </div>
+                              <p className="text-gray-700 mt-2">{review.comment}</p>
+                          </div>
+                      ))}
+                  </div>
+              ) : (
+                  <p className="text-gray-500 text-sm text-center">No reviews yet.</p>
+              )}
             </div>
           </div>
         </div>

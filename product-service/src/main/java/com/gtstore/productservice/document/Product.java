@@ -39,8 +39,13 @@ public class Product {
     private Double rating;
     private Integer reviewCount;
 
+    private List<String> features;
+    private Boolean inStock;
+
     // e.g. "Color": ["Red", "Blue"], "Size": ["M", "L"]
     private Map<String, List<String>> attributes;
+
+    private List<Review> reviews = new java.util.ArrayList<>();
 
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
@@ -66,4 +71,14 @@ public class Product {
     public void setReviewCount(Integer reviewCount) { this.reviewCount = reviewCount; }
     public Map<String, List<String>> getAttributes() { return attributes; }
     public void setAttributes(Map<String, List<String>> attributes) { this.attributes = attributes; }
+    public List<String> getFeatures() { return features; }
+    public void setFeatures(List<String> features) { this.features = features; }
+    public Boolean getInStock() { return inStock; }
+    public void setInStock(Boolean inStock) { this.inStock = inStock; }
+    public List<Review> getReviews() { return reviews; }
+    public void setReviews(List<Review> reviews) { this.reviews = reviews; }
+
+    private Map<Integer, Integer> ratingBreakdown = new java.util.HashMap<>();
+    public Map<Integer, Integer> getRatingBreakdown() { return ratingBreakdown; }
+    public void setRatingBreakdown(Map<Integer, Integer> ratingBreakdown) { this.ratingBreakdown = ratingBreakdown; }
 }

@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: layout(~{::div})}">
+<body>
+    <div>
+        <div class="order-badge" th:text="'ORDER #' + ${orderId}">ORDER #12345</div>
+        <h2 style="font-weight: 800; margin-top: 0; color: #1e293b;">Payment Issue</h2>
+        <p>Hello <span th:text="${fullName != null ? fullName : 'Customer'}" style="font-weight: 700;">Customer</span>,</p>
+        <p style="color: #475569;">We were unable to process your payment for the order. As a result, the order has been placed on hold.</p>
+        
+        <div style="background: #fff1f2; border: 1px solid #ffe4e6; border-radius: 16px; padding: 24px; margin: 24px 0;">
+            <p style="margin: 0; font-size: 13px; color: #9f1239; font-weight: 600; text-transform: uppercase;">Payment Status</p>
+            <div style="margin-top: 8px;">
+                <span class="status-pill status-danger">Payment Payment Failed</span>
+            </div>
+        </div>
+
+        <p style="color: #64748b; font-size: 14px;">You can try paying again from your account dashboard or place a new order. The items will be reserved for a limited time.</p>
+        
+        <a href="https://gtstore.slpro.in/account/orders" class="btn">Go to My Orders</a>
+        
+        <p style="margin-top: 30px; font-size: 14px; color: #94a3b8; text-align: center;">If you need assistance, please reply to this email or contact support.</p>
+    </div>
+</body>
+</html>

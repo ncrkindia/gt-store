@@ -32,7 +32,7 @@ public class SecurityConfig {
                 CorsConfiguration config = new CorsConfiguration();
                 config.setAllowedOrigins(List.of(
                                 "https://gts-admin.slpro.in",
-                                "https://gt-store.slpro.in",
+                                "https://gtstore.slpro.in",
                                 "http://localhost:5173",
                                 "http://localhost:5174"));
                 config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
@@ -56,7 +56,6 @@ public class SecurityConfig {
                                         CorsConfiguration config = new CorsConfiguration();
                                         config.setAllowedOrigins(List.of(
                                                         "https://gts-admin.slpro.in",
-                                                        "https://gt-store.slpro.in",
                                                         "https://gtstore.slpro.in",
                                                         "http://localhost:5173",
                                                         "http://localhost:5174"));
@@ -71,19 +70,28 @@ public class SecurityConfig {
                                         return config;
                                 }))
                                 .authorizeExchange(exchanges -> exchanges
-                                                // Public endpoints
-                                                .pathMatchers(HttpMethod.GET, "/api/products/**").permitAll()
+                                                // Public media access - strictly at the top
+                                                .pathMatchers(HttpMethod.GET, "/api/media/files/**").permitAll()
+
+                                                // Other public endpoints
+                                                .pathMatchers(HttpMethod.GET, "/api/products/**", "/api/categories/**",
+                                                                "/api/brands/**", "/api/banners/**")
+                                                .permitAll()
                                                 .pathMatchers(HttpMethod.POST, "/api/products/bulk").permitAll()
-                                                .pathMatchers(HttpMethod.GET, "/api/categories/**").permitAll()
                                                 .pathMatchers(HttpMethod.GET, "/api/search/**").permitAll()
                                                 .pathMatchers(HttpMethod.POST, "/api/products/sync").permitAll()
+                                                .pathMatchers(HttpMethod.POST, "/api/users/support").permitAll()
 
                                                 // Swagger/OpenAPI endpoints
-                                                .pathMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/webjars/**").permitAll()
+                                                .pathMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html",
+                                                                "/webjars/**")
+                                                .permitAll()
                                                 // Allow docs forwarding to microservices
                                                 .pathMatchers("/api/*/v3/api-docs").permitAll()
 
-
+                                                // Authenticated User product interactions
+                                                .pathMatchers(HttpMethod.POST, "/api/products/*/reviews")
+                                                .authenticated()
 
                                                 // Admin endpoints - role matches Keycloak role assigned to admin users
                                                 .pathMatchers(HttpMethod.POST, "/api/products/**").hasRole("GTS_ADMIN")
@@ -96,6 +104,9 @@ public class SecurityConfig {
                                                 .pathMatchers(HttpMethod.PUT, "/api/categories/**").hasRole("GTS_ADMIN")
                                                 .pathMatchers(HttpMethod.DELETE, "/api/categories/**")
                                                 .hasRole("GTS_ADMIN")
+
+                                                .pathMatchers(HttpMethod.POST, "/api/media/**").hasRole("GTS_ADMIN")
+                                                .pathMatchers(HttpMethod.DELETE, "/api/media/**").hasRole("GTS_ADMIN")
 
                                                 .pathMatchers(HttpMethod.GET, "/api/orders/all").hasRole("GTS_ADMIN")
                                                 .pathMatchers(HttpMethod.PUT, "/api/orders/*/status")
@@ -110,9 +121,9 @@ public class SecurityConfig {
                                 .headers(headers -> headers
                                                 .frameOptions(ServerHttpSecurity.HeaderSpec.FrameOptionsSpec::disable)
                                                 .contentSecurityPolicy(csp -> csp
-                                                                .policyDirectives("frame-ancestors 'self' https://gts-admin.slpro.in http://localhost:5174")))
+                                                                .policyDirectives(
+                                                                                "frame-ancestors 'self' https://gts-admin.slpro.in http://localhost:5174")))
                                 .oauth2ResourceServer(
-
 
                                                 oauth2 -> oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(
                                                                 grantedAuthoritiesExtractor())));

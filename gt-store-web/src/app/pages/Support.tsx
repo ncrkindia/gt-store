@@ -1,7 +1,11 @@
 import { useState } from "react";
-import { MessageCircle, Mail, Phone, Send, HelpCircle, FileText, Package } from "lucide-react";
+import axios from "axios";
+import { MessageCircle, Mail, Phone, Send, Loader2 } from "lucide-react";
+import { StaticPageLayout } from "../components/StaticPageLayout";
+import { toast } from "sonner";
 
 export function Support() {
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -9,212 +13,185 @@ export function Support() {
     message: "",
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Submit logic here
-    alert("Your message has been sent! We'll get back to you soon.");
-    setFormData({ name: "", email: "", subject: "", message: "" });
+    setLoading(true);
+    try {
+      await axios.post(`${import.meta.env.VITE_API_BASE_URL || "/api"}/users/support`, formData);
+      toast.success("Your message has been sent! We'll get back to you soon.");
+      setFormData({ name: "", email: "", subject: "", message: "" });
+    } catch (error) {
+      console.error("Support submission error:", error);
+      toast.error("Failed to send message. Please try again later.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="bg-gray-50 min-h-screen py-8">
-      <div className="max-w-screen-xl mx-auto px-4">
-        <div className="text-center mb-12">
-          <h1 className="text-3xl mb-4">Customer Support</h1>
-          <p className="text-gray-600">
-            We're here to help! Get in touch with our support team.
-          </p>
-        </div>
+    <StaticPageLayout title="Customer Support" category="HELP">
+      <div className="space-y-12">
+        <section>
+          <div className="grid lg:grid-cols-[1fr_350px] gap-8">
+            {/* Contact Form */}
+            <div className="bg-gray-50/50 rounded-2xl p-8 border border-gray-100">
+              <h2 className="text-xl font-bold text-gray-900 mb-6">Send us a message</h2>
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Your Name</label>
+                  <input
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    required
+                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:border-transparent transition"
+                    placeholder="John Doe"
+                  />
+                </div>
 
-        <div className="grid lg:grid-cols-[1fr_400px] gap-8">
-          {/* Contact Form */}
-          <div className="bg-white rounded-lg p-8">
-            <h2 className="text-xl mb-6">Send us a message</h2>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div>
-                <label className="block text-sm text-gray-700 mb-2">Your Name</label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2874f0]"
-                  placeholder="John Doe"
-                />
-              </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
+                  <input
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    required
+                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:border-transparent transition"
+                    placeholder="john@example.com"
+                  />
+                </div>
 
-              <div>
-                <label className="block text-sm text-gray-700 mb-2">Email Address</label>
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2874f0]"
-                  placeholder="john@example.com"
-                />
-              </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Subject</label>
+                  <select
+                    value={formData.subject}
+                    onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
+                    required
+                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:border-transparent transition"
+                  >
+                    <option value="">Select a subject</option>
+                    <option value="order">Order Issue</option>
+                    <option value="product">Product Question</option>
+                    <option value="payment">Payment Issue</option>
+                    <option value="return">Return/Refund</option>
+                    <option value="technical">Technical Issue</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
 
-              <div>
-                <label className="block text-sm text-gray-700 mb-2">Subject</label>
-                <select
-                  value={formData.subject}
-                  onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                  required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2874f0]"
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Message</label>
+                  <textarea
+                    value={formData.message}
+                    onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                    required
+                    rows={6}
+                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:border-transparent transition resize-none"
+                    placeholder="Tell us how we can help you..."
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-indigo-600 text-white py-4 rounded-xl hover:bg-indigo-700 transition flex items-center justify-center gap-2 font-semibold shadow-lg shadow-indigo-200 disabled:opacity-70 disabled:cursor-not-allowed"
                 >
-                  <option value="">Select a subject</option>
-                  <option value="order">Order Issue</option>
-                  <option value="product">Product Question</option>
-                  <option value="payment">Payment Issue</option>
-                  <option value="return">Return/Refund</option>
-                  <option value="technical">Technical Issue</option>
-                  <option value="other">Other</option>
-                </select>
-              </div>
+                  {loading ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <Send className="w-5 h-5" />
+                  )}
+                  {loading ? "Sending..." : "Send Message"}
+                </button>
+              </form>
+            </div>
 
-              <div>
-                <label className="block text-sm text-gray-700 mb-2">Message</label>
-                <textarea
-                  value={formData.message}
-                  onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                  required
-                  rows={6}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2874f0] resize-none"
-                  placeholder="Tell us how we can help you..."
-                />
-              </div>
+            {/* Contact Info */}
+            <div className="space-y-6">
+              <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+                <h3 className="text-lg font-bold text-gray-900 mb-4">Direct Contact</h3>
+                <div className="space-y-4">
+                  <a
+                    href="mailto:support@slpro.in"
+                    className="flex items-start gap-4 p-4 rounded-xl hover:bg-indigo-50 transition group"
+                  >
+                    <Mail className="w-6 h-6 text-indigo-600 mt-0.5" />
+                    <div>
+                      <p className="font-bold text-gray-900">Email Us</p>
+                      <p className="text-sm text-gray-500 group-hover:text-indigo-600 transition">support@slpro.in</p>
+                    </div>
+                  </a>
 
-              <button
-                type="submit"
-                className="w-full bg-[#2874f0] text-white py-3 rounded-lg hover:bg-[#1c5ccc] transition flex items-center justify-center gap-2"
-              >
-                <Send className="w-5 h-5" />
-                Send Message
-              </button>
-            </form>
-          </div>
+                  <a
+                    href="tel:+91-86840-5832-0"
+                    className="flex items-start gap-4 p-4 rounded-xl hover:bg-indigo-50 transition group"
+                  >
+                    <Phone className="w-6 h-6 text-indigo-600 mt-0.5" />
+                    <div>
+                      <p className="font-bold text-gray-900">Call Us</p>
+                      <p className="text-sm text-gray-500 group-hover:text-indigo-600 transition">+91-86840-5832-0</p>
+                      <p className="text-xs text-gray-400">Mon-Fri, 9am-6pm IST</p>
+                    </div>
+                  </a>
 
-          {/* Contact Info & Quick Links */}
-          <div className="space-y-6">
-            {/* Contact Methods */}
-            <div className="bg-white rounded-lg p-6">
-              <h3 className="text-lg mb-4">Get in Touch</h3>
-              <div className="space-y-4">
-                <a
-                  href="mailto:support@shopkart.com"
-                  className="flex items-start gap-3 p-3 rounded-lg hover:bg-gray-50 transition"
-                >
-                  <Mail className="w-5 h-5 text-[#2874f0] mt-0.5" />
-                  <div>
-                    <p className="text-sm">Email us</p>
-                    <p className="text-xs text-gray-600">support@shopkart.com</p>
-                  </div>
-                </a>
-
-                <a
-                  href="tel:+15551234567"
-                  className="flex items-start gap-3 p-3 rounded-lg hover:bg-gray-50 transition"
-                >
-                  <Phone className="w-5 h-5 text-[#2874f0] mt-0.5" />
-                  <div>
-                    <p className="text-sm">Call us</p>
-                    <p className="text-xs text-gray-600">+1 (555) 123-4567</p>
-                    <p className="text-xs text-gray-500">Mon-Fri, 9am-6pm EST</p>
-                  </div>
-                </a>
-
-                <div className="flex items-start gap-3 p-3 rounded-lg hover:bg-gray-50 transition">
-                  <MessageCircle className="w-5 h-5 text-[#2874f0] mt-0.5" />
-                  <div>
-                    <p className="text-sm">Live Chat</p>
-                    <p className="text-xs text-gray-600">Available 24/7</p>
-                    <button className="text-xs text-[#2874f0] hover:underline mt-1">
-                      Start Chat
-                    </button>
+                  <div className="flex items-start gap-4 p-4 rounded-xl bg-indigo-50/50 border border-indigo-100">
+                    <MessageCircle className="w-6 h-6 text-indigo-600 mt-0.5" />
+                    <div>
+                      <p className="font-bold text-indigo-900">Live Chat</p>
+                      <p className="text-xs text-indigo-700/70 mb-2">Available 24/7 for urgent issues</p>
+                      <button className="text-sm font-bold text-indigo-600 hover:text-indigo-800 transition">
+                        Start Chat Now →
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            {/* Quick Help */}
-            <div className="bg-white rounded-lg p-6">
-              <h3 className="text-lg mb-4">Quick Help</h3>
-              <div className="space-y-2">
-                <a
-                  href="#"
-                  className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition"
-                >
-                  <HelpCircle className="w-5 h-5 text-gray-600" />
-                  <span className="text-sm">FAQs</span>
-                </a>
-                <a
-                  href="#"
-                  className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition"
-                >
-                  <Package className="w-5 h-5 text-gray-600" />
-                  <span className="text-sm">Track Order</span>
-                </a>
-                <a
-                  href="#"
-                  className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition"
-                >
-                  <FileText className="w-5 h-5 text-gray-600" />
-                  <span className="text-sm">Return Policy</span>
-                </a>
+              <div className="bg-indigo-600 rounded-2xl p-6 text-white shadow-xl shadow-indigo-100">
+                <h4 className="font-bold mb-2">Average Response Time</h4>
+                <p className="text-3xl font-bold mb-2">2-4 Hours</p>
+                <p className="text-sm text-indigo-100 leading-relaxed">
+                  Our dedicated team works around the clock to ensure you get the help you need quickly.
+                </p>
               </div>
             </div>
-
-            {/* Response Time */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-              <h4 className="mb-2">Average Response Time</h4>
-              <p className="text-2xl text-[#2874f0] mb-2">2-4 hours</p>
-              <p className="text-xs text-gray-600">
-                Our team typically responds within 2-4 hours during business hours.
-              </p>
-            </div>
           </div>
-        </div>
+        </section>
 
         {/* FAQ Section */}
-        <div className="mt-12 bg-white rounded-lg p-8">
-          <h2 className="text-2xl mb-6">Frequently Asked Questions</h2>
-          <div className="space-y-6">
-            <div>
-              <h3 className="mb-2">How do I track my order?</h3>
-              <p className="text-sm text-gray-600">
-                You can track your order by going to the Orders section in your account. Click
-                on the order you want to track and you'll see the current status and tracking
-                information.
+        <section className="pt-10 border-t border-gray-100">
+          <h2 className="text-2xl font-bold text-gray-900 mb-8">Frequently Asked Questions</h2>
+          <div className="grid md:grid-cols-2 gap-8">
+            <div className="space-y-2">
+              <h3 className="font-bold text-gray-900">How do I track my order?</h3>
+              <p className="text-sm text-gray-600 leading-relaxed">
+                Log in to your account and navigate to the "Orders" section. Click on any active order to view its real-time tracking status and carrier information.
               </p>
             </div>
 
-            <div>
-              <h3 className="mb-2">What is your return policy?</h3>
-              <p className="text-sm text-gray-600">
-                We offer a 30-day return policy for most items. Products must be unused and in
-                their original packaging. Visit our Returns page for more details.
+            <div className="space-y-2">
+              <h3 className="font-bold text-gray-900">What is your return policy?</h3>
+              <p className="text-sm text-gray-600 leading-relaxed">
+                We offer a hassle-free 30-day return policy for most unused items in original packaging. Some exceptions apply for perishables and hygiene products.
               </p>
             </div>
 
-            <div>
-              <h3 className="mb-2">How long does shipping take?</h3>
-              <p className="text-sm text-gray-600">
-                Standard shipping typically takes 5-7 business days. Express shipping is
-                available for 2-3 business days. Free shipping is available on orders over $50.
+            <div className="space-y-2">
+              <h3 className="font-bold text-gray-900">How long does shipping take?</h3>
+              <p className="text-sm text-gray-600 leading-relaxed">
+                Standard delivery typically takes 3-5 business days. Express options are available at checkout for 1-2 day delivery in select regions.
               </p>
             </div>
 
-            <div>
-              <h3 className="mb-2">Do you ship internationally?</h3>
-              <p className="text-sm text-gray-600">
-                Yes, we ship to over 100 countries worldwide. International shipping times and
-                costs vary by location. Check our shipping page for specific details.
+            <div className="space-y-2">
+              <h3 className="font-bold text-gray-900">Do you ship internationally?</h3>
+              <p className="text-sm text-gray-600 leading-relaxed">
+                Yes! We ship to over 50 countries worldwide. International shipping rates and delivery times are calculated automatically at checkout.
               </p>
             </div>
           </div>
-        </div>
+        </section>
       </div>
-    </div>
+    </StaticPageLayout>
   );
 }

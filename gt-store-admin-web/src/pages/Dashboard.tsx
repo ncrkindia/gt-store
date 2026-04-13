@@ -93,6 +93,27 @@ const Dashboard = () => {
                         <span>Payment Service: Online</span>
                     </div>
                 </div>
+
+                <div className="mt-8 pt-6 border-t border-gray-700">
+                    <h4 className="text-gray-400 text-sm mb-4 uppercase tracking-wider">Maintenance Actions</h4>
+                    <button 
+                        onClick={async () => {
+                            if (window.confirm('This will resync all products to the Search engine. Continue?')) {
+                                try {
+                                    const res = await apiClient.post('/api/products/sync');
+                                    alert(res.data);
+                                } catch (err) {
+                                    alert('Sync failed. Check console for details.');
+                                }
+                            }
+                        }}
+                        className="btn-primary bg-indigo-600 hover:bg-indigo-500 flex items-center gap-2"
+                    >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                        Sync Search Index
+                    </button>
+                    <p className="text-xs text-gray-500 mt-2 italic">Triggers a pull-based re-indexing of all products from the catalog to Elasticsearch.</p>
+                </div>
             </div>
         </div>
     );

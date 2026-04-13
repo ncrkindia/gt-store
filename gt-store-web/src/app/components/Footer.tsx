@@ -61,12 +61,11 @@ export function Footer() {
 
         <div className="border-t border-gray-700 pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-sm">
           <div className="flex items-center gap-2">
-            <span>© 2026 ShopKart.com</span>
+            <span>© 2026 GTStore.slpro.in</span>
           </div>
           <div className="flex gap-4">
-            <img src="https://via.placeholder.com/50x30/cccccc/666666?text=VISA" alt="Visa" className="h-6" />
-            <img src="https://via.placeholder.com/50x30/cccccc/666666?text=MC" alt="Mastercard" className="h-6" />
-            <img src="https://via.placeholder.com/50x30/cccccc/666666?text=AMEX" alt="Amex" className="h-6" />
+            <img src="/images/paypal.png" alt="PayPal" className="h-8 rounded shadow-sm opacity-90 hover:opacity-100 transition" />
+            <img src="/images/cod.png" alt="Cash on Delivery" className="h-8 rounded shadow-sm opacity-90 hover:opacity-100 transition" />
           </div>
         </div>
       </div>
