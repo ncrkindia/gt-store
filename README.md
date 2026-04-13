@@ -47,6 +47,7 @@ flowchart TD
         ProductSvc --> Mongo[(MongoDB)]
         CartSvc --> Redis[(Redis)]
         SearchSvc --> ES[(Elasticsearch)]
+        ConfigSvc --> Vault[(HashiCorp Vault)]
     end
 ```
 
@@ -150,9 +151,9 @@ sequenceDiagram
 | **Frontend** | React 18, Vite, Tailwind CSS, TypeScript |
 | **Messaging** | Apache Kafka, Zookeeper |
 | **Persistence** | PostgreSQL 15, MongoDB 6, Redis 7, Elasticsearch 8 |
-| **Identity** | Keycloak (IAM), Spring Security (OIDC) |
+| **Identity & Secrets** | Keycloak (IAM), HashiCorp Vault (AppRole) |
 | **Observability** | Prometheus, Grafana, Loki, Promtail, Zipkin |
-| **Infrastructure** | Docker Compose, Nginx (SSL termination) |
+| **Infrastructure** | Docker Compose, Nginx (SSL termination), Spring Cloud Config |
 
 ---
 
@@ -172,6 +173,15 @@ docker compose up -d --build
 # - Admin:     https://localhost/admin
 # - Gateway:   https://localhost/api
 ```
+
+### 🔐 Security & Secrets
+The platform uses **HashiCorp Vault** for sensitive credential management. 
+1. Ensure your root `.env` file contains the required AppRole credentials:
+   ```env
+   VAULT_ROLE_ID=your-role-id
+   VAULT_SECRET_ID=your-secret-id
+   ```
+2. The Config Server automatically merges secrets from Vault into the application properties using a **Composite Backend** (Filesystem + Vault).
 
 ---
 

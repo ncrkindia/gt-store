@@ -1,0 +1,57 @@
+server:
+  port: 8888
+
+spring:
+  application:
+    name: config-server
+  main:
+    allow-bean-definition-overriding: true
+  profiles:
+    active: composite
+  cloud:
+    vault:
+      authentication: APPROLE
+      app-role:
+        role-id: ${VAULT_ROLE_ID}
+        secret-id: ${VAULT_SECRET_ID}
+      host: vault
+      port: 8200
+      scheme: http
+      kv-version: 2
+    config:
+      server:
+        vault:
+          authentication: APPROLE
+          app-role:
+            role-id: ${VAULT_ROLE_ID}
+            secret-id: ${VAULT_SECRET_ID}
+          host: vault
+          port: 8200
+          scheme: http
+          kv-version: 2
+          token-direct-forward: false
+          tokenDirectForward: false
+        composite:
+          - type: native
+            search-locations: file:/app/config
+          - type: vault
+            host: vault
+            port: 8200
+            scheme: http
+            kv-version: 2
+            authentication: APPROLE
+            app-role:
+              role-id: ${VAULT_ROLE_ID}
+              secret-id: ${VAULT_SECRET_ID}
+            token-direct-forward: false
+            tokenDirectForward: false
+    bus:
+      enabled: true
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:29092}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,refresh,bus-refresh,busrefresh

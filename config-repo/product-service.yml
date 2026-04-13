@@ -1,0 +1,21 @@
+# Product Service Specific Configuration
+spring:
+  data:
+    mongodb:
+      uri: ${SPRING_DATA_MONGODB_URI:mongodb://admin:password@mongo:27017/gtstore_catalog?authSource=admin}
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://pahchaan.slpro.in/realms/e-pahchaan}
+          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:https://pahchaan.slpro.in/realms/e-pahchaan/protocol/openid-connect/certs}
+
+springdoc:
+  api-docs:
+    path: /api/products/v3/api-docs
+    servers:
+      - url: https://gts-api.slpro.in
+        description: GT Store API Gateway
+  swagger-ui:
+    enabled: true

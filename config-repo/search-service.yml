@@ -1,0 +1,9 @@
+# Search Service Configuration
+elasticsearch:
+  uris: ${ELASTICSEARCH_URIS:http://elasticsearch:9200}
+
+springdoc:
+  api-docs:
+    path: /api/search/v3/api-docs
+  swagger-ui:
+    enabled: true

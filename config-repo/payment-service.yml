@@ -1,0 +1,22 @@
+# Payment Service Specific Configuration
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+razorpay:
+  key-id: ${RAZORPAY_KEY_ID}
+  key-secret: ${RAZORPAY_KEY_SECRET}
+
+springdoc:
+  api-docs:
+    path: /api/payments/v3/api-docs
+    servers:
+      - url: https://gts-api.slpro.in
+        description: GT Store API Gateway
+  swagger-ui:
+    enabled: true

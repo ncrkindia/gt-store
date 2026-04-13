@@ -1,53 +1,8 @@
 server:
-  port: 4011
-  forward-headers-strategy: native
-
+  port: 4014
 
 spring:
   application:
     name: search-service
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          issuer-uri: https://pahchaan.slpro.in/realms/e-pahchaan
-          jwk-set-uri: https://pahchaan.slpro.in/realms/e-pahchaan/protocol/openid-connect/certs
-  elasticsearch:
-    uris: http://elasticsearch:9200
-    socket-timeout: 30s
-    connection-timeout: 5s
-  kafka:
-    bootstrap-servers: kafka:29092
-    consumer:
-      group-id: search-group
-      auto-offset-reset: earliest
-      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-
-
-      properties:
-        spring.json.trusted.packages: "*"
-
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,metrics,prometheus
-  tracing:
-    sampling:
-      probability: 1.0
-  zipkin:
-    tracing:
-      endpoint: http://zipkin:4012/api/v2/spans
-
-springdoc:
-  api-docs:
-    path: /api/search/v3/api-docs
-    servers:
-      - url: https://gts-api.slpro.in
-        description: GT Store API Gateway
-  swagger-ui:
-    enabled: true
-
-
-
+  config:
+    import: "optional:configserver:http://localhost:8888"

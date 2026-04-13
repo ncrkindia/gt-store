@@ -1,0 +1,13 @@
+# Cart Service Configuration
+spring:
+  data:
+    redis:
+      host: ${REDIS_HOST:redis}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:password}
+
+springdoc:
+  api-docs:
+    path: /api/cart/v3/api-docs
+  swagger-ui:
+    enabled: true

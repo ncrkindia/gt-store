@@ -31,9 +31,9 @@ services:
     container_name: gt-store-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: gtstore
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: gtstore_db
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     ports:
       - "5432:5432"
     volumes:
@@ -50,9 +50,9 @@ services:
     container_name: gt-store-mongo
     restart: unless-stopped
     environment:
-      MONGO_INITDB_ROOT_USERNAME: admin
-      MONGO_INITDB_ROOT_PASSWORD: password
-      MONGO_INITDB_DATABASE: gtstore_catalog
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+      MONGO_INITDB_DATABASE: ${MONGO_INITDB_DATABASE}
     ports:
       - "27018:27017"
     volumes:
@@ -130,6 +130,62 @@ services:
       - gt-store-network
 
   # ----------------------------------------------------------------------------
+  # Secret & Key Management
+  # ----------------------------------------------------------------------------
+  vault:
+    image: hashicorp/vault:latest
+    container_name: gt-store-vault
+    restart: unless-stopped
+    ports:
+      - "8200:8200"
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: root-token
+      VAULT_ADDR: http://0.0.0.0:8200
+    cap_add:
+      - IPC_LOCK
+    networks:
+      - gt-store-network
+
+  # ----------------------------------------------------------------------------
+  # Centralized Configuration Management
+  # ----------------------------------------------------------------------------
+  config-server:
+    build:
+      context: ./config-server
+    container_name: gt-store-config-server
+    restart: unless-stopped
+    ports:
+      - "8888:8888"
+    volumes:
+      - ./config-repo:/app/config
+    environment:
+      - SPRING_MAIN_ALLOW_BEAN_DEFINITION_OVERRIDING=true
+      - SPRING_CLOUD_VAULT_ENABLED=true
+      - SPRING_CLOUD_VAULT_HOST=vault
+      - SPRING_CLOUD_VAULT_PORT=8200
+      - SPRING_CLOUD_VAULT_SCHEME=http
+      - SPRING_CLOUD_VAULT_AUTHENTICATION=approle
+      - SPRING_CLOUD_VAULT_APP_ROLE_ROLE_ID=${VAULT_ROLE_ID}
+      - SPRING_CLOUD_VAULT_APP_ROLE_SECRET_ID=${VAULT_SECRET_ID}
+      - SPRING_CLOUD_CONFIG_SERVER_VAULT_HOST=vault
+      - SPRING_CLOUD_CONFIG_SERVER_VAULT_PORT=8200
+      - SPRING_CLOUD_CONFIG_SERVER_VAULT_SCHEME=http
+      - SPRING_CLOUD_CONFIG_SERVER_VAULT_AUTHENTICATION=approle
+      - SPRING_CLOUD_CONFIG_SERVER_VAULT_APP_ROLE_ROLE_ID=${VAULT_ROLE_ID}
+      - SPRING_CLOUD_CONFIG_SERVER_VAULT_APP_ROLE_SECRET_ID=${VAULT_SECRET_ID}
+      - SPRING_CLOUD_CONFIG_SERVER_VAULT_TOKEN_DIRECT_FORWARD=false
+      - SPRING_CLOUD_CONFIG_SERVER_VAULT_KV_VERSION=2
+      - LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_CLOUD_CONFIG_SERVER_VAULT=TRACE
+      - KAFKA_BOOTSTRAP_SERVERS=${KAFKA_BOOTSTRAP_SERVERS}
+    networks:
+      - gt-store-network
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8888/actuator/health" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ----------------------------------------------------------------------------
   # Application Microservices
   # ----------------------------------------------------------------------------
   api-gateway:
@@ -139,8 +195,14 @@ services:
     restart: unless-stopped
     ports:
       - "4003:4003"
-    # depends_on:
-    #   - keycloak
+    depends_on:
+      config-server:
+        condition: service_healthy
+    environment:
+      - SPRING_CONFIG_IMPORT=optional:configserver:http://config-server:8888
+      - KEYCLOAK_ISSUER_URI=${KEYCLOAK_ISSUER_URI}
+      - KEYCLOAK_JWK_SET_URI=${KEYCLOAK_JWK_SET_URI}
+      - ZIPKIN_ENDPOINT=${ZIPKIN_ENDPOINT}
     networks:
       - gt-store-network
 
@@ -150,8 +212,14 @@ services:
     container_name: gt-store-user-service
     restart: unless-stopped
     depends_on:
-      - postgres
-      # - keycloak
+      config-server:
+        condition: service_healthy
+    environment:
+      - SPRING_CONFIG_IMPORT=optional:configserver:http://config-server:8888
+      - SPRING_DATASOURCE_URL=${POSTGRES_URL}
+      - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER}
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
+      - ZIPKIN_ENDPOINT=${ZIPKIN_ENDPOINT}
     networks:
       - gt-store-network
 
@@ -161,8 +229,15 @@ services:
     container_name: gt-store-product-service
     restart: unless-stopped
     depends_on:
-      - mongodb
-      # - keycloak
+      config-server:
+        condition: service_healthy
+    environment:
+      - SPRING_CONFIG_IMPORT=optional:configserver:http://config-server:8888
+      - SPRING_DATA_MONGODB_URI=${MONGODB_URI}
+      - KAFKA_BOOTSTRAP_SERVERS=${KAFKA_BOOTSTRAP_SERVERS}
+      - ZIPKIN_ENDPOINT=${ZIPKIN_ENDPOINT}
+      - KEYCLOAK_ISSUER_URI=${KEYCLOAK_ISSUER_URI}
+      - KEYCLOAK_JWK_SET_URI=${KEYCLOAK_JWK_SET_URI}
     networks:
       - gt-store-network
 
@@ -173,12 +248,19 @@ services:
     restart: unless-stopped
     # depends_on:
     #   - redis
-    networks:
-      - gt-store-network
+    depends_on:
+      config-server:
+        condition: service_healthy
     environment:
-      - REDIS_PASSWORD=khojo_redis_password # Override this with your external Redis password
+      - SPRING_CONFIG_IMPORT=optional:configserver:http://config-server:8888
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - ZIPKIN_ENDPOINT=${ZIPKIN_ENDPOINT}
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    networks:
+      - gt-store-network
 
   order-service:
     build:
@@ -188,8 +270,15 @@ services:
     ports:
       - "4007:4007"
     depends_on:
-      - postgres
-      - kafka
+      config-server:
+        condition: service_healthy
+    environment:
+      - SPRING_CONFIG_IMPORT=optional:configserver:http://config-server:8888
+      - SPRING_DATASOURCE_URL=${POSTGRES_URL}
+      - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER}
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
+      - KAFKA_BOOTSTRAP_SERVERS=${KAFKA_BOOTSTRAP_SERVERS}
+      - ZIPKIN_ENDPOINT=${ZIPKIN_ENDPOINT}
     networks:
       - gt-store-network
 
@@ -228,8 +317,15 @@ services:
     ports:
       - "4008:4008"
     depends_on:
-      - postgres
-      - kafka
+      config-server:
+        condition: service_healthy
+    environment:
+      - SPRING_CONFIG_IMPORT=optional:configserver:http://config-server:8888
+      - SPRING_DATASOURCE_URL=${POSTGRES_URL}
+      - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER}
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
+      - KAFKA_BOOTSTRAP_SERVERS=${KAFKA_BOOTSTRAP_SERVERS}
+      - ZIPKIN_ENDPOINT=${ZIPKIN_ENDPOINT}
     networks:
       - gt-store-network
 
@@ -241,13 +337,19 @@ services:
     ports:
       - "4009:4009"
     depends_on:
-      - postgres
-      - kafka
+      config-server:
+        condition: service_healthy
+    environment:
+      - SPRING_CONFIG_IMPORT=optional:configserver:http://config-server:8888
+      - SPRING_DATASOURCE_URL=${POSTGRES_URL}
+      - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER}
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
+      - KAFKA_BOOTSTRAP_SERVERS=${KAFKA_BOOTSTRAP_SERVERS}
+      - ZIPKIN_ENDPOINT=${ZIPKIN_ENDPOINT}
+      - RAZORPAY_KEY_ID=${RAZORPAY_KEY_ID}
+      - RAZORPAY_KEY_SECRET=${RAZORPAY_KEY_SECRET}
     networks:
       - gt-store-network
-    environment:
-      - RAZORPAY_KEY_ID=${RAZORPAY_KEY_ID:-rzp_test_placeholder}
-      - RAZORPAY_KEY_SECRET=${RAZORPAY_KEY_SECRET:-placeholder_secret}
 
   search-service:
     build:
@@ -255,8 +357,12 @@ services:
     container_name: gt-store-search-service
     restart: unless-stopped
     depends_on:
-      - elasticsearch
-      - kafka
+      config-server:
+        condition: service_healthy
+    environment:
+      - SPRING_CONFIG_IMPORT=optional:configserver:http://config-server:8888
+      - KAFKA_BOOTSTRAP_SERVERS=${KAFKA_BOOTSTRAP_SERVERS}
+      - ZIPKIN_ENDPOINT=${ZIPKIN_ENDPOINT}
     networks:
       - gt-store-network
 
@@ -269,6 +375,12 @@ services:
       - "4010:4010"
     volumes:
       - media_data:/app/media
+    depends_on:
+      config-server:
+        condition: service_healthy
+    environment:
+      - SPRING_CONFIG_IMPORT=optional:configserver:http://config-server:8888
+      - ZIPKIN_ENDPOINT=${ZIPKIN_ENDPOINT}
     networks:
       - gt-store-network
 
@@ -278,8 +390,12 @@ services:
     container_name: gt-store-notification-service
     restart: unless-stopped
     depends_on:
-      - kafka
+      config-server:
+        condition: service_healthy
     environment:
+      - SPRING_CONFIG_IMPORT=optional:configserver:http://config-server:8888
+      - KAFKA_BOOTSTRAP_SERVERS=${KAFKA_BOOTSTRAP_SERVERS}
+      - ZIPKIN_ENDPOINT=${ZIPKIN_ENDPOINT}
       - SPRING_MAIL_HOST=${SMTP_HOST}
       - SPRING_MAIL_PORT=${SMTP_PORT}
       - SPRING_MAIL_USERNAME=${SMTP_USERNAME}

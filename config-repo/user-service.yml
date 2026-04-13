@@ -1,0 +1,6 @@
+# User Service Configuration
+springdoc:
+  api-docs:
+    path: /api/users/v3/api-docs
+  swagger-ui:
+    enabled: true

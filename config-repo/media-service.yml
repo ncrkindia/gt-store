@@ -1,0 +1,10 @@
+# Media Service Configuration
+media:
+  upload-dir: /app/media
+  allowed-extensions: jpg,jpeg,png,gif,webp,mp4
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
