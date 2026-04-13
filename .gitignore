@@ -112,4 +112,8 @@ ehthumbs.db
 *.orig
 
 
+# -------------------------------------------------------
+# Infrastructure & Persistence
+# -------------------------------------------------------
+vault/data/
 /E-commerce Website Theme/

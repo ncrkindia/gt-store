@@ -139,10 +139,19 @@ services:
     ports:
       - "8200:8200"
     environment:
-      VAULT_DEV_ROOT_TOKEN_ID: root-token
-      VAULT_ADDR: http://0.0.0.0:8200
+      VAULT_ADDR: http://127.0.0.1:8200
+      NOTIFICATION_CC: ${NOTIFICATION_CC}
+      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      VAULT_ROLE_ID: ${VAULT_ROLE_ID}
+      VAULT_SECRET_ID: ${VAULT_SECRET_ID}
     cap_add:
       - IPC_LOCK
+    volumes:
+      - ./vault/config:/vault/config:ro
+      - ./vault/data:/vault/data
+      - ./vault/scripts:/vault/scripts:ro
+    command: sh /vault/scripts/init-vault.sh
     networks:
       - gt-store-network
 
