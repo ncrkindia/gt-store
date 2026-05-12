@@ -44,6 +44,10 @@ spring:
           uri: http://shipping-service:4016
           predicates:
             - Path=/api/shipping/**
+        - id: invoice-service
+          uri: http://invoice-service:4017
+          predicates:
+            - Path=/api/invoices/**
 
 springdoc:
   swagger-ui:

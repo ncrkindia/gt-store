@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from "react-router";
 import { 
   Package, Truck, CheckCircle2, XCircle, 
   ChevronLeft, Calendar, CreditCard, MapPin, 
-  ArrowRight, Clock, Tag, Info
+  ArrowRight, Clock, Tag, Info, FileDown, Loader2
 } from "lucide-react";
 import apiClient from "../../../api/axios";
 import { useKeycloak } from "@react-keycloak/web";
@@ -29,6 +29,28 @@ export function OrderDetails() {
   const [order, setOrder] = useState<any>(null);
   const [shipment, setShipment] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [downloading, setDownloading] = useState(false);
+
+  const handleDownloadInvoice = async () => {
+     setDownloading(true);
+     try {
+        const response = await apiClient.get(`/invoices/order/${id}`, {
+           responseType: 'blob'
+        });
+        const url = window.URL.createObjectURL(new Blob([response.data]));
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `Invoice-${id?.substring(0,8).toUpperCase()}.pdf`);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+     } catch (error) {
+        console.error("Failed to download invoice", error);
+        alert("Failed to generate invoice PDF. Please try again later.");
+     } finally {
+        setDownloading(false);
+     }
+  };
 
   useEffect(() => {
     if (!initialized) return;
@@ -142,6 +164,17 @@ export function OrderDetails() {
                <div className="flex items-center gap-1"><Calendar size={16}/> {new Date(order.createdAt).toLocaleDateString()}</div>
                <div className="flex items-center gap-1"><Tag size={16}/> {order.items?.length || 0} Item{(order.items?.length !== 1) ? 's' : ''}</div>
             </div>
+
+            {isDelivered && (
+               <button 
+                 onClick={handleDownloadInvoice}
+                 disabled={downloading}
+                 className="mt-4 inline-flex items-center gap-2 bg-gray-900 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-black transition-all shadow-sm hover:shadow disabled:opacity-70"
+               >
+                  {downloading ? <Loader2 className="animate-spin" size={16}/> : <FileDown size={16}/>}
+                  {downloading ? 'Preparing Invoice...' : 'Download Invoice'}
+               </button>
+            )}
          </div>
 
          <div className="bg-gray-50 rounded-2xl p-4 md:px-6 border border-gray-100 text-center md:text-right flex-shrink-0">

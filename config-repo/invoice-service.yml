@@ -1,0 +1,10 @@
+# Invoice Service Configuration
+logging:
+  level:
+    com.gtstore.invoiceservice: DEBUG
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus

@@ -1,0 +1,8 @@
+server:
+  port: 4017
+
+spring:
+  application:
+    name: invoice-service
+  config:
+    import: "optional:configserver:http://localhost:8888"

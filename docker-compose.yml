@@ -440,6 +440,26 @@ services:
     networks:
       - gt-store-network
 
+  invoice-service:
+    build:
+      context: ./invoice-service
+    container_name: gt-store-invoice-service
+    restart: unless-stopped
+    ports:
+      - "4017:4017"
+    depends_on:
+      config-server:
+        condition: service_healthy
+    environment:
+      - SPRING_CONFIG_IMPORT=optional:configserver:http://config-server:8888
+      - ZIPKIN_ENDPOINT=${ZIPKIN_ENDPOINT}
+      - SPRING_DATASOURCE_URL=${POSTGRES_URL}?currentSchema=invoice
+      - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER}
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+    networks:
+      - gt-store-network
+
   # ----------------------------------------------------------------------------
   # Observability & Tracing (Phase 3)
   # ----------------------------------------------------------------------------
