@@ -16,6 +16,7 @@ const resolveImg = (img?: string): string => {
 
 interface SearchResult {
   id: string;
+  slug?: string;
   name: string;
   description: string;
   price: number;
@@ -181,7 +182,7 @@ export function SearchResults() {
                   className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow p-5 flex gap-5 group"
                 >
                   {/* Product Image */}
-                  <Link to={`/product/${result.id}`} className="shrink-0">
+                  <Link to={result.slug ? `/p/${result.slug}` : `/product/${result.id}`} className="shrink-0">
                     <div className="w-32 h-32 rounded-xl overflow-hidden bg-gray-100 border border-gray-200">
                       {result.imageUrl ? (
                         <img
@@ -228,7 +229,7 @@ export function SearchResults() {
                         </div>
 
                         {/* Name */}
-                        <Link to={`/product/${result.id}`}>
+                        <Link to={result.slug ? `/p/${result.slug}` : `/product/${result.id}`}>
                           <h3 className="font-semibold text-gray-900 text-base hover:text-indigo-600 transition line-clamp-2 leading-snug">
                             {result.name}
                           </h3>
@@ -306,7 +307,7 @@ export function SearchResults() {
                             )}
                           </button>
                           <Link
-                            to={`/product/${result.id}`}
+                            to={result.slug ? `/p/${result.slug}` : `/product/${result.id}`}
                             className="flex items-center gap-1 px-4 py-2 rounded-xl text-sm font-medium border border-gray-200 text-gray-700 hover:bg-gray-50 transition"
                           >
                             View <ArrowRight className="w-3.5 h-3.5" />

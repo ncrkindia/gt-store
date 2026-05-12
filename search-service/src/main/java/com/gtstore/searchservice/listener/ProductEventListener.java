@@ -28,6 +28,7 @@ public class ProductEventListener {
             ProductDocument doc = new ProductDocument();
             doc.setId(node.get("id").asText());
             doc.setName(node.path("name").asText(null));
+            doc.setSlug(node.path("slug").asText(null));
             doc.setDescription(node.path("description").asText(null));
             doc.setBrand(node.path("brand").asText(null));
             doc.setInStock(node.path("inStock").asBoolean(true));

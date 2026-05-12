@@ -40,6 +40,10 @@ spring:
           uri: http://media-service:4010
           predicates:
             - Path=/api/media/**
+        - id: shipping-service
+          uri: http://shipping-service:4016
+          predicates:
+            - Path=/api/shipping/**
 
 springdoc:
   swagger-ui:
@@ -59,3 +63,5 @@ springdoc:
         url: /api/payments/v3/api-docs
       - name: Search Service
         url: /api/search/v3/api-docs
+      - name: Shipping Service
+        url: /api/shipping/v3/api-docs

@@ -33,6 +33,7 @@ const fetchProductsBulk = async (ids: string[]) => {
 
     return {
       id: p.id,
+      slug: p.slug,
       name: p.name,
       description: p.description || p.name,
       price: price,
@@ -96,6 +97,7 @@ export function Cart() {
       ...item,
       product: product || {
         id: item.productId,
+        slug: undefined,
         name: 'Loading...',
         price: 0,
         image: ''
@@ -324,7 +326,7 @@ export function Cart() {
               {enrichedItems.map((item: any) => (
                 <div key={item.productId} className="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition border border-gray-100">
                   <div className="flex gap-4">
-                    <Link to={`/product/${item.productId}`} className="flex-shrink-0">
+                    <Link to={item.product.slug ? `/p/${item.product.slug}` : `/product/${item.productId}`} className="flex-shrink-0">
                       <img
                         src={item.product.image || 'https://via.placeholder.com/150'}
                         alt={item.product.name}
@@ -335,7 +337,7 @@ export function Cart() {
                     <div className="flex-1">
                       <div className="flex justify-between mb-2">
                         <Link
-                          to={`/product/${item.productId}`}
+                          to={item.product.slug ? `/p/${item.product.slug}` : `/product/${item.productId}`}
                           className="text-lg font-semibold hover:text-indigo-600 transition"
                         >
                           {item.product.name}

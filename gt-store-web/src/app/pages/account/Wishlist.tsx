@@ -19,6 +19,7 @@ function normalizeProduct(p: any): Product {
   const hasDiscount = p.salePrice && p.salePrice < p.price;
   return {
     id: p.id,
+    slug: p.slug,
     name: p.name,
     description: p.description || p.name,
     price: hasDiscount ? p.salePrice : p.price,

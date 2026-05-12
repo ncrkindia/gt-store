@@ -21,6 +21,7 @@ const fetchProducts = async () => {
 
     return {
       id: p.id,
+      slug: p.slug,
       name: p.name,
       description: p.description || p.name,
       price: price,

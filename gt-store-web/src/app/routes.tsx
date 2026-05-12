@@ -52,6 +52,7 @@ export const router = createBrowserRouter([
       { path: "security", Component: Security },
 
       { path: "product/:id", Component: ProductView },
+      { path: "p/:slug", Component: ProductView },
       { path: "category/:category", Component: CategoryPage },
       { path: "brand/:brand", Component: BrandPage },
       { path: "search", Component: SearchResults },

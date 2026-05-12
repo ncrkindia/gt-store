@@ -2,6 +2,7 @@ package com.gtstore.productservice.controller;
 
 import com.gtstore.productservice.document.Product;
 import com.gtstore.productservice.repository.ProductRepository;
+import com.gtstore.productservice.repository.CategoryRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -26,6 +27,9 @@ public class ProductController {
 
     @Autowired
     private ProductRepository productRepository;
+
+    @Autowired
+    private CategoryRepository categoryRepository;
 
     @Autowired
     private org.springframework.kafka.core.KafkaTemplate<String, Object> kafkaTemplate;
@@ -82,14 +86,89 @@ public class ProductController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @GetMapping("/slug/{slug}")
+    public ResponseEntity<Product> getProductBySlug(@PathVariable String slug) {
+        return productRepository.findBySlug(slug)
+                .map(product -> {
+                    if (product.getReviews() != null) {
+                        List<com.gtstore.productservice.document.Review> approvedReviews = product.getReviews().stream()
+                            .filter(r -> "APPROVED".equals(r.getStatus()))
+                            .collect(java.util.stream.Collectors.toList());
+                        product.setReviews(approvedReviews);
+                    }
+                    return ResponseEntity.ok(product);
+                })
+                .orElse(ResponseEntity.notFound().build());
+    }
+
     @PostMapping("/bulk")
     public List<Product> getProductsBulk(@RequestBody List<String> ids) {
         return (List<Product>) productRepository.findAllById(ids);
     }
 
+    private void generateSlug(Product product) {
+        // Build clean base: category-brand-name
+        StringBuilder sb = new StringBuilder();
+        if (product.getCategoryIds() != null && !product.getCategoryIds().isEmpty()) {
+            String firstCat = product.getCategoryIds().get(0);
+            
+            // Try find by ID
+            java.util.Optional<com.gtstore.productservice.document.Category> catOpt = categoryRepository.findById(firstCat);
+            
+            // Try fallback to slug matching if ID lookup returned empty
+            if (catOpt.isEmpty()) {
+                catOpt = categoryRepository.findBySlug(firstCat);
+            }
+
+            if (catOpt.isPresent()) {
+                sb.append(catOpt.get().getName()).append("-");
+            } else {
+                // Robust Fallback: Use literal identifier string directly if database entry dangling
+                sb.append(firstCat).append("-");
+            }
+        }
+        
+        if (product.getBrand() != null) {
+            sb.append(product.getBrand()).append("-");
+        }
+        
+        sb.append(product.getName());
+
+        // Sanitize: lowercase, trim, convert non-alphanum to hyphen, collapse multiple hyphens
+        String base = sb.toString().toLowerCase().trim()
+                .replaceAll("[^a-z0-9]+", "-")
+                .replaceAll("^-|-$", ""); // Trim start/end hyphens
+        
+        if (base.isEmpty()) {
+            base = "product";
+        }
+
+        String uniqueSlug = base;
+        int counter = 1;
+        
+        // Ensure absolute uniqueness loop
+        while (true) {
+            java.util.Optional<Product> existing = productRepository.findBySlug(uniqueSlug);
+            // If it doesn't exist, OR the existing product is US, accept it!
+            if (existing.isEmpty() || existing.get().getId().equals(product.getId())) {
+                break;
+            }
+            uniqueSlug = base + "-" + (++counter);
+            if (counter > 100) {
+                uniqueSlug = base + "-" + java.util.UUID.randomUUID().toString().substring(0, 5);
+                break;
+            }
+        }
+        
+        product.setSlug(uniqueSlug);
+    }
+
     // Secured endpoints (requires Keycloak JWT token with write roles ideally)
     @PostMapping
     public ResponseEntity<Product> createProduct(@RequestBody Product product) {
+        if (product.getSlug() == null || product.getSlug().trim().isEmpty()) {
+            generateSlug(product);
+        }
         Product saved = productRepository.save(product);
         kafkaTemplate.send(TOPIC_UPSERT, saved.getId(), saved);
         return ResponseEntity.status(HttpStatus.CREATED).body(saved);
@@ -101,6 +180,10 @@ public class ProductController {
             return ResponseEntity.notFound().build();
         }
         product.setId(id);
+        // Generate if not set in input payload or exists implicitly blank
+        if (product.getSlug() == null || product.getSlug().trim().isEmpty()) {
+            generateSlug(product);
+        }
         Product updated = productRepository.save(product);
         kafkaTemplate.send(TOPIC_UPSERT, updated.getId(), updated);
         return ResponseEntity.ok(updated);
@@ -230,5 +313,6 @@ public class ProductController {
         products.forEach(product -> kafkaTemplate.send(TOPIC_UPSERT, product.getId(), product));
         return ResponseEntity.ok("Synced " + products.size() + " products to Search service.");
     }
+
 }
 

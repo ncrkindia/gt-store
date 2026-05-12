@@ -104,6 +104,7 @@ const OrdersPage = () => {
                         <option value="ALL">All Status</option>
                         <option value="PENDING">PENDING</option>
                         <option value="PAID">PAID</option>
+                        <option value="READY_TO_BE_SHIPPED">READY TO SHIP</option>
                         <option value="SHIPPED">SHIPPED</option>
                         <option value="DELIVERED">DELIVERED</option>
                         <option value="CANCELLED">CANCELLED</option>
@@ -149,6 +150,7 @@ const OrdersPage = () => {
                                     >
                                         <option value="PENDING">PENDING</option>
                                         <option value="PAID">PAID</option>
+                                        <option value="READY_TO_BE_SHIPPED">READY TO SHIP</option>
                                         <option value="SHIPPED">SHIPPED</option>
                                         <option value="DELIVERED">DELIVERED</option>
                                         <option value="CANCELLED">CANCELLED</option>

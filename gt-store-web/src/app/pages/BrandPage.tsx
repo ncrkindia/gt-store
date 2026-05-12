@@ -11,6 +11,7 @@ const fetchProducts = async () => {
   const res = await apiClient.get('/products');
   return (res.data.content || []).map((p: any) => ({
       id: p.id,
+      slug: p.slug,
       name: p.name,
       description: p.description || p.name,
       price: p.salePrice || p.price,

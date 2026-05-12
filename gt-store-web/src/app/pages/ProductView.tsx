@@ -1,5 +1,5 @@
 import { useParams, Link } from "react-router";
-import { Star, Heart, ShoppingCart, Truck, Shield, RotateCcw, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { Star, Heart, ShoppingCart, Truck, Shield, RotateCcw, X, ChevronLeft, ChevronRight, Share2 } from "lucide-react";
 import { ProductCard } from "../components/ProductCard";
 import { useState } from "react";
 import { useQuery } from '@tanstack/react-query';
@@ -34,6 +34,7 @@ const fetchProducts = async () => {
 
     return {
       id: p.id,
+      slug: p.slug,
       name: p.name,
       description: p.description || p.name,
       price: price,
@@ -54,7 +55,7 @@ const fetchProducts = async () => {
 };
 
 export function ProductView() {
-  const { id } = useParams<{ id: string }>();
+  const { id, slug } = useParams<{ id?: string; slug?: string }>();
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [sortOption, setSortOption] = useState("newest");
@@ -82,7 +83,7 @@ export function ProductView() {
     queryFn: fetchProducts
   });
 
-  const product = products.find((p) => p.id === id);
+  const product = products.find((p) => (id && p.id === id) || (slug && p.slug === slug));
 
   if (isLoading) {
     return <div className="max-w-screen-xl mx-auto px-4 py-16 text-center text-xl">Loading product...</div>;
@@ -247,10 +248,23 @@ export function ProductView() {
                 </div>
               </div>
 
-              <button className="flex items-center gap-2 text-gray-700 hover:text-[#2874f0] transition mb-6 cursor-pointer">
-                <Heart className="w-5 h-5" />
-                Add to Wishlist
-              </button>
+              <div className="flex items-center gap-4 mb-6">
+                <button className="flex items-center gap-2 text-gray-700 hover:text-[#2874f0] transition cursor-pointer">
+                  <Heart className="w-5 h-5" />
+                  Add to Wishlist
+                </button>
+                <button 
+                  onClick={() => {
+                    const shareUrl = window.location.origin + "/p/" + (product.slug || product.id);
+                    navigator.clipboard.writeText(shareUrl);
+                    toast.success('Product link copied to clipboard!');
+                  }}
+                  className="flex items-center gap-2 text-gray-700 hover:text-[#2874f0] transition cursor-pointer"
+                >
+                  <Share2 className="w-5 h-5" />
+                  Share Product
+                </button>
+              </div>
 
               <div className="border-t border-gray-200 pt-6 space-y-4">
                 <div className="flex items-start gap-3">

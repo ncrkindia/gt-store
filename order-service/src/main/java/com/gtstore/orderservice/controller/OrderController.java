@@ -193,6 +193,8 @@ public class OrderController {
                     String topic = null;
                     if ("SHIPPED".equalsIgnoreCase(status) || "DISPATCHED".equalsIgnoreCase(status)) {
                         topic = "order.shipped";
+                    } else if ("READY_TO_BE_SHIPPED".equalsIgnoreCase(status)) {
+                        topic = "order.ready_to_be_shipped";
                     } else if ("CANCELLED".equalsIgnoreCase(status) || "CANCELLED_BY_CUSTOMER".equalsIgnoreCase(status)) {
                         topic = "order.cancelled";
                     } else if ("FAILED".equalsIgnoreCase(status) || "FULFILLMENT_FAILED".equalsIgnoreCase(status)) {
@@ -216,6 +218,17 @@ public class OrderController {
                         event.setShippingCountry(saved.getShippingCountry());
                         event.setCustomerPhone(saved.getCustomerPhone());
                         
+                        // Capture order items for external services consuming the event stream
+                        if (saved.getItems() != null) {
+                            event.setItems(saved.getItems().stream().map(i -> {
+                                OrderItemDto dto = new OrderItemDto();
+                                dto.setProductId(i.getProductId());
+                                dto.setVariantId(i.getVariantId());
+                                dto.setQuantity(i.getQuantity());
+                                return dto;
+                            }).collect(Collectors.toList()));
+                        }
+
                         kafkaTemplate.send(topic, event.getOrderId(), event);
                         log.info("Emitted {} event for order {}", topic, saved.getId());
                     }

@@ -9,6 +9,7 @@ import OrdersPage from './pages/OrdersPage';
 import InventoryPage from './pages/InventoryPage';
 import Documentation from './pages/Documentation';
 import ReviewsPage from './pages/ReviewsPage';
+import ShippingPage from './pages/ShippingPage';
 import Sidebar from './components/Sidebar';
 import { AdminHeader } from './components/AdminHeader';
 import { AdminFooter } from './components/AdminFooter';
@@ -92,6 +93,7 @@ function App() {
                 <Route path="/inventory" element={<InventoryPage />} />
                 <Route path="/orders" element={<OrdersPage />} />
                 <Route path="/reviews" element={<ReviewsPage />} />
+                <Route path="/shipping" element={<ShippingPage />} />
                 <Route path="/documentation" element={<Documentation />} />
               </Routes>
 
