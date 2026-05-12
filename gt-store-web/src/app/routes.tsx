@@ -11,6 +11,7 @@ import { Orders } from "./pages/account/Orders";
 import { Wishlist } from "./pages/account/Wishlist";
 import { Addresses } from "./pages/account/Addresses";
 import { Support } from "./pages/Support";
+import { OrderDetails } from "./pages/account/OrderDetails";
 import { NotFound } from "./pages/NotFound";
 import { SearchResults } from "./pages/SearchResults";
 
@@ -67,6 +68,7 @@ export const router = createBrowserRouter([
           { path: "addresses", Component: Addresses },
         ]
       },
+      { path: "orders/:id", Component: OrderDetails },
       { path: "support", Component: Support },
       { path: "*", Component: NotFound },
     ],

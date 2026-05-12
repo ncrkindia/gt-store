@@ -53,6 +53,9 @@ public class Order {
 
     @Column(name = "customer_phone")
     private String customerPhone;
+    
+    @Column(name = "customer_name")
+    private String customerName;
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
@@ -118,6 +121,8 @@ public class Order {
     public void setShippingCountry(String shippingCountry) { this.shippingCountry = shippingCountry; }
     public String getCustomerPhone() { return customerPhone; }
     public void setCustomerPhone(String customerPhone) { this.customerPhone = customerPhone; }
+    public String getCustomerName() { return customerName; }
+    public void setCustomerName(String customerName) { this.customerName = customerName; }
 
     public List<OrderItem> getItems() { return items; }
     public void setItems(List<OrderItem> items) { this.items = items; }

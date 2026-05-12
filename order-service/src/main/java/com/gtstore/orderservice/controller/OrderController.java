@@ -94,6 +94,7 @@ public class OrderController {
         order.setShippingPincode(orderRequest.getShippingPincode());
         order.setShippingCountry(orderRequest.getShippingCountry());
         order.setCustomerPhone(orderRequest.getCustomerPhone());
+        order.setCustomerName(orderRequest.getCustomerName() != null ? orderRequest.getCustomerName() : name);
 
         BigDecimal totalAmount = BigDecimal.ZERO;
 
@@ -131,7 +132,7 @@ public class OrderController {
         event.setOrderId(saved.getId().toString());
         event.setStatus(saved.getStatus());
         event.setEmail(email);
-        event.setFullName(name);
+        event.setFullName(saved.getCustomerName() != null ? saved.getCustomerName() : name);
         event.setPaymentMethod(saved.getPaymentMethod());
         event.setShippingLine1(saved.getShippingLine1());
         event.setShippingLine2(saved.getShippingLine2());
@@ -210,6 +211,7 @@ public class OrderController {
                         event.setOrderId(saved.getId().toString());
                         event.setStatus(saved.getStatus());
                         event.setEmail(saved.getUserId());
+                        event.setFullName(saved.getCustomerName());
                         event.setShippingLine1(saved.getShippingLine1());
                         event.setShippingLine2(saved.getShippingLine2());
                         event.setShippingCity(saved.getShippingCity());
@@ -262,6 +264,7 @@ public class OrderController {
             event.setOrderId(saved.getId().toString());
             event.setStatus("CANCELLED_BY_CUSTOMER");
             event.setEmail(email);
+            event.setFullName(saved.getCustomerName());
             
             if (saved.getItems() != null) {
                 event.setItems(saved.getItems().stream().map(i -> {

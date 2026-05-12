@@ -50,3 +50,6 @@ management:
 # Common Gateway URL
 gateway:
   public-url: ${GATEWAY_PUBLIC_URL:https://gts-api.slpro.in}
+
+platform:
+  web-url: ${PLATFORM_WEB_URL:https://gtstore.slpro.in}

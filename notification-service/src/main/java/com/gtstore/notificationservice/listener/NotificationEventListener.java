@@ -23,6 +23,9 @@ public class NotificationEventListener {
     private final NotificationProperties notificationProperties;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+    @org.springframework.beans.factory.annotation.Value("${platform.web-url}")
+    private String webUrl;
+
     public NotificationEventListener(EmailService emailService, NotificationProperties notificationProperties) {
         this.emailService = emailService;
         this.notificationProperties = notificationProperties;
@@ -97,6 +100,10 @@ public class NotificationEventListener {
             model.put("status", event.getStatus());
             model.put("paymentMethod", event.getPaymentMethod());
             model.put("items", event.getItems());
+            
+            // Add Dynamic Direct Tracking Link
+            String trackingUrl = (webUrl != null ? webUrl : "https://gtstore.slpro.in") + "/orders/" + event.getOrderId();
+            model.put("trackLink", trackingUrl);
             
             // Add Address and Phone
             model.put("shippingLine1", event.getShippingLine1());

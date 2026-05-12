@@ -146,6 +146,8 @@ export function Cart() {
       shippingState: selectedAddress.state,
       shippingPincode: selectedAddress.pincode,
       shippingCountry: selectedAddress.country,
+      customerName: user.name || user.username || '',
+      customerEmail: user.email || '',
       customerPhone: user.phone || ''
     };
   };

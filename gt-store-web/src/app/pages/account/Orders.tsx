@@ -202,7 +202,7 @@ export function Orders() {
                   <div className="flex items-center gap-6">
                     <div>
                       <p className="text-sm text-gray-600">Order ID</p>
-                      <p className="font-medium">{order.id.slice(0,8)}...</p>
+                      <Link to={`/orders/${order.id}`} className="font-bold text-[#2874f0] hover:underline">{order.id.slice(0,8)}...</Link>
                     </div>
                     <div>
                       <p className="text-sm text-gray-600">Order Date</p>
