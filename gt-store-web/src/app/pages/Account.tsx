@@ -1,8 +1,11 @@
 import { Outlet, Link, useLocation } from "react-router";
 import { User, Package, Heart, MapPin, Settings } from "lucide-react";
+import { useKeycloak } from "@react-keycloak/web";
 
 export function Account() {
   const location = useLocation();
+  const { keycloak } = useKeycloak();
+  const userName = keycloak?.tokenParsed?.name || keycloak?.tokenParsed?.preferred_username || "User";
 
   const menuItems = [
     { path: "/account", label: "Profile", icon: User },
@@ -25,7 +28,7 @@ export function Account() {
               </div>
               <div>
                 <p className="text-sm text-gray-600">Hello,</p>
-                <p>John Doe</p>
+                <p>{userName}</p>
               </div>
             </div>
 

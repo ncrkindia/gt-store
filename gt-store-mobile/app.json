@@ -1,0 +1,41 @@
+{
+  "expo": {
+    "name": "GT Store",
+    "slug": "gt-store-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#030213"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#030213"
+      },
+      "package": "com.gtstore.mobile",
+      "versionCode": 1,
+      "permissions": [
+        "INTERNET"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "scheme": "gtstore",
+    "extra": {
+      "eas": {
+        "projectId": "26c0b258-17e7-4955-a695-f55417e1b432"
+      }
+    }
+  }
+}

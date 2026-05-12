@@ -1,0 +1,1 @@
+export const theme = { primary: '#030213', background: '#ffffff', text: '#030213', muted: '#717182', accent: '#e9ebef', destructive: '#d4183d', radius: 10 };
