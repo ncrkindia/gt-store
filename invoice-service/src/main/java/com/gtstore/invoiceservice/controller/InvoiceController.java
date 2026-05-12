@@ -79,11 +79,23 @@ public class InvoiceController {
                             PROD_SVC_URL, HttpMethod.POST, bulkReq, new ParameterizedTypeReference<List<Map<String, Object>>>() {}
                     );
                     if (prodResp.getStatusCode().is2xxSuccessful() && prodResp.getBody() != null) {
-                        Map<String, String> nameMap = prodResp.getBody().stream().collect(Collectors.toMap(
+                        Map<String, Map<String, Object>> prodMap = prodResp.getBody().stream().collect(Collectors.toMap(
                                 p -> p.get("id").toString(),
-                                p -> p.get("name").toString()
+                                p -> p
                         ));
-                        order.getItems().forEach(i -> i.setProductName(nameMap.get(i.getProductId())));
+                        
+                        order.getItems().forEach(item -> {
+                            Map<String, Object> prodData = prodMap.get(item.getProductId());
+                            if (prodData != null) {
+                                item.setProductName(String.valueOf(prodData.getOrDefault("name", "Product Item")));
+                                Object rawGst = prodData.get("gstPercentage");
+                                if (rawGst != null) {
+                                    try {
+                                        item.setGstPercentage(Integer.parseInt(rawGst.toString()));
+                                    } catch (Exception ignored) {}
+                                }
+                            }
+                        });
                     }
                 }
             } catch (Exception e) {

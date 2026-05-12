@@ -137,7 +137,7 @@ public class PdfGenerator {
         pTable.setWidthPercentage(100);
 
         // Headers
-        String[] headers = { "Sr.", "Product Code", "Product Name", "Unit Price", "GST(18%)", "Net Rate", "Qty",
+        String[] headers = { "Sr.", "Product Code", "Product Name", "Unit Price", "GST %", "Net Rate", "Qty",
                 "Total" };
         for (String h : headers) {
             PdfPCell ch = new PdfPCell(new Phrase(h, FONT_BOLD_MED));
@@ -151,28 +151,35 @@ public class PdfGenerator {
         // Body Rows
         int sr = 1;
         int totalQty = 0;
-        BigDecimal divisor = new BigDecimal("1.18");
+        BigDecimal globalTaxableTotal = BigDecimal.ZERO;
+        BigDecimal globalGstTotal = BigDecimal.ZERO;
 
         if (order.getItems() != null) {
             for (OrderItemDto item : order.getItems()) {
+                Integer pct = item.getGstPercentage();
+                BigDecimal taxFactor = new BigDecimal("1").add(
+                    new BigDecimal(pct).divide(new BigDecimal("100"))
+                );
+                
                 BigDecimal finalPricePerItem = item.getPrice();
-                BigDecimal taxableUnit = finalPricePerItem.divide(divisor, 2, RoundingMode.HALF_UP);
+                BigDecimal taxableUnit = finalPricePerItem.divide(taxFactor, 2, RoundingMode.HALF_UP);
                 BigDecimal gstPerItem = finalPricePerItem.subtract(taxableUnit);
                 BigDecimal lineTotal = finalPricePerItem.multiply(BigDecimal.valueOf(item.getQuantity()));
 
                 pTable.addCell(createDataCell(String.format("%02d", sr++), Element.ALIGN_CENTER));
-                pTable.addCell(createDataCell(item.getProductId().toUpperCase(), Element.ALIGN_LEFT)); // Full Product
-                                                                                                       // ID as code
+                pTable.addCell(createDataCell(item.getProductId().toUpperCase(), Element.ALIGN_LEFT)); 
                 pTable.addCell(createDataCell(item.getProductName() != null ? item.getProductName() : "Product Item",
                         Element.ALIGN_LEFT));
 
                 pTable.addCell(createDataCell(taxableUnit.toString(), Element.ALIGN_RIGHT));
-                pTable.addCell(createDataCell(gstPerItem.toString(), Element.ALIGN_RIGHT));
+                pTable.addCell(createDataCell(pct + "%", Element.ALIGN_CENTER)); // Dynamic column shows the active %
                 pTable.addCell(createDataCell(finalPricePerItem.toString(), Element.ALIGN_RIGHT));
                 pTable.addCell(createDataCell(String.valueOf(item.getQuantity()), Element.ALIGN_CENTER));
                 pTable.addCell(createDataCell(lineTotal.toString(), Element.ALIGN_RIGHT));
 
                 totalQty += item.getQuantity();
+                globalTaxableTotal = globalTaxableTotal.add(taxableUnit.multiply(BigDecimal.valueOf(item.getQuantity())));
+                globalGstTotal = globalGstTotal.add(gstPerItem.multiply(BigDecimal.valueOf(item.getQuantity())));
             }
         }
 
@@ -241,23 +248,20 @@ public class PdfGenerator {
         // Right Sub-Table: Calculations breakdown
         PdfPCell rightCell = createCell(Rectangle.NO_BORDER);
 
-        // Tax Calculations (Assume included 18% standard)
+        // Exact pre-calculated aggregate values accumulated row-by-row
         BigDecimal total = order.getTotalAmount();
-        BigDecimal divisorCalc = new BigDecimal("1.18");
-        BigDecimal taxableVal = total.divide(divisorCalc, 2, RoundingMode.HALF_UP);
-        BigDecimal igst = total.subtract(taxableVal);
-
+        
         PdfPTable calcTable = new PdfPTable(new float[] { 3, 1 });
         calcTable.setWidthPercentage(100);
         calcTable.getDefaultCell().setBorderColor(BORDER_COLOR);
         calcTable.getDefaultCell().setPadding(5);
 
-        addRowToCalc(calcTable, "Pre-Discount Value", order.getTotalAmount().toString());
+        addRowToCalc(calcTable, "Pre-Discount Value", total.toString());
         addRowToCalc(calcTable, "Strike-Through Discount", "- 0.00");
-        addRowToCalc(calcTable, "Taxable Value", taxableVal.toString());
+        addRowToCalc(calcTable, "Taxable Value", globalTaxableTotal.setScale(2, RoundingMode.HALF_UP).toString());
         addRowToCalc(calcTable, "CGST (0.00%)", "0.00");
         addRowToCalc(calcTable, "SGST (0.00%)", "0.00");
-        addRowToCalc(calcTable, "IGST (18.00%)", igst.toString());
+        addRowToCalc(calcTable, "Aggregate IGST", globalGstTotal.setScale(2, RoundingMode.HALF_UP).toString());
 
         // Bold total rows
         PdfPCell totalCap = new PdfPCell(new Phrase("Total Invoice Price", FONT_BOLD_MED));

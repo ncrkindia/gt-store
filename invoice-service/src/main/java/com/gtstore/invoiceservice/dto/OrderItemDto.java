@@ -9,6 +9,10 @@ public class OrderItemDto {
     
     // Virtual fields added by enrichers
     private String productName;
+    private Integer gstPercentage = 18;
+
+    public Integer getGstPercentage() { return gstPercentage != null ? gstPercentage : 18; }
+    public void setGstPercentage(Integer gstPercentage) { this.gstPercentage = gstPercentage; }
 
     public String getProductId() { return productId; }
     public void setProductId(String productId) { this.productId = productId; }

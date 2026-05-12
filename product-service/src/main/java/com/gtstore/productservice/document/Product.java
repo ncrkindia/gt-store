@@ -44,6 +44,8 @@ public class Product {
 
     // e.g. "Color": ["Red", "Blue"], "Size": ["M", "L"]
     private Map<String, List<String>> attributes;
+    
+    private Integer gstPercentage = 18; // Default 18% tax
 
     private List<Review> reviews = new java.util.ArrayList<>();
 
@@ -77,6 +79,13 @@ public class Product {
     public void setInStock(Boolean inStock) { this.inStock = inStock; }
     public List<Review> getReviews() { return reviews; }
     public void setReviews(List<Review> reviews) { this.reviews = reviews; }
+
+    public Integer getGstPercentage() { 
+        return (gstPercentage != null) ? gstPercentage : 18; 
+    }
+    public void setGstPercentage(Integer gstPercentage) { 
+        this.gstPercentage = gstPercentage; 
+    }
 
     private Map<Integer, Integer> ratingBreakdown = new java.util.HashMap<>();
     public Map<Integer, Integer> getRatingBreakdown() { return ratingBreakdown; }

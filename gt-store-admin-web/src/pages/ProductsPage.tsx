@@ -21,6 +21,7 @@ interface Product {
     features: string[];
     images: string[];
     inStock: boolean;
+    gstPercentage?: number;
 }
 
 const ProductsPage = () => {
@@ -40,7 +41,8 @@ const ProductsPage = () => {
         categoryIds: [],
         features: [],
         images: [],
-        inStock: true
+        inStock: true,
+        gstPercentage: 18
     };
     const [formData, setFormData] = useState<Omit<Product, 'id'>>(emptyProduct);
     const [featureInput, setFeatureInput] = useState('');
@@ -102,7 +104,8 @@ const ProductsPage = () => {
             categoryIds: p.categoryIds || [],
             features: p.features || [],
             images: p.images || [],
-            inStock: p.inStock !== undefined ? p.inStock : true
+            inStock: p.inStock !== undefined ? p.inStock : true,
+            gstPercentage: p.gstPercentage || 18
         });
         setEditingId(p.id);
         setIsModalOpen(true);
@@ -234,14 +237,18 @@ const ProductsPage = () => {
                                 </div>
                             </div>
                             
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-3 gap-4">
                                 <div className="form-group mb-0">
                                     <label className="text-sm">MSRP base Price</label>
                                     <input type="number" step="0.01" required value={formData.price} onChange={e => setFormData({ ...formData, price: parseFloat(e.target.value) })} />
                                 </div>
                                 <div className="form-group mb-0">
-                                    <label className="text-sm">Sale Price (Optional)</label>
+                                    <label className="text-sm">Sale Price (Opt)</label>
                                     <input type="number" step="0.01" value={formData.salePrice || ''} onChange={e => setFormData({ ...formData, salePrice: e.target.value ? parseFloat(e.target.value) : undefined })} />
+                                </div>
+                                <div className="form-group mb-0">
+                                    <label className="text-sm">GST %</label>
+                                    <input type="number" min={0} max={100} required value={formData.gstPercentage ?? 18} onChange={e => setFormData({ ...formData, gstPercentage: parseInt(e.target.value) || 0 })} />
                                 </div>
                             </div>
 
