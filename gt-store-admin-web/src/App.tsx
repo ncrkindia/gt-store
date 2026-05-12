@@ -8,7 +8,9 @@ import BannersPage from './pages/BannersPage';
 import OrdersPage from './pages/OrdersPage';
 import InventoryPage from './pages/InventoryPage';
 import Documentation from './pages/Documentation';
+import ReviewsPage from './pages/ReviewsPage';
 import Sidebar from './components/Sidebar';
+import { Toaster } from 'sonner';
 
 
 function App() {
@@ -37,6 +39,7 @@ function App() {
 
   return (
     <BrowserRouter basename="/admin">
+      <Toaster position="top-center" richColors />
       <div className="app-container">
         <Sidebar />
         <main className="content">
@@ -49,6 +52,7 @@ function App() {
             <Route path="/banners" element={<BannersPage />} />
             <Route path="/inventory" element={<InventoryPage />} />
             <Route path="/orders" element={<OrdersPage />} />
+            <Route path="/reviews" element={<ReviewsPage />} />
             <Route path="/documentation" element={<Documentation />} />
           </Routes>
 

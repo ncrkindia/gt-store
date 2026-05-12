@@ -42,20 +42,43 @@ public class ProductController {
         
         Pageable pageable = PageRequest.of(page, size);
         
+        Page<Product> resultPage;
+        
         if (keyword != null && !keyword.trim().isEmpty()) {
             TextCriteria textCriteria = TextCriteria.forDefaultLanguage().matching(keyword);
-            return productRepository.findAllBy(textCriteria, pageable);
+            resultPage = productRepository.findAllBy(textCriteria, pageable);
         } else if (categoryId != null && !categoryId.trim().isEmpty()) {
-            return productRepository.findByCategoryIdsContaining(categoryId, pageable);
+            resultPage = productRepository.findByCategoryIdsContaining(categoryId, pageable);
+        } else {
+            resultPage = productRepository.findAll(pageable);
         }
-        
-        return productRepository.findAll(pageable);
+
+        // Filter reviews to only show APPROVED ones
+        resultPage.forEach(product -> {
+            if (product.getReviews() != null) {
+                List<com.gtstore.productservice.document.Review> approvedReviews = product.getReviews().stream()
+                    .filter(r -> "APPROVED".equals(r.getStatus()))
+                    .collect(java.util.stream.Collectors.toList());
+                product.setReviews(approvedReviews);
+            }
+        });
+
+        return resultPage;
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<Product> getProduct(@PathVariable String id) {
         return productRepository.findById(id)
-                .map(ResponseEntity::ok)
+                .map(product -> {
+                    // Filter reviews to only show APPROVED ones
+                    if (product.getReviews() != null) {
+                        List<com.gtstore.productservice.document.Review> approvedReviews = product.getReviews().stream()
+                            .filter(r -> "APPROVED".equals(r.getStatus()))
+                            .collect(java.util.stream.Collectors.toList());
+                        product.setReviews(approvedReviews);
+                    }
+                    return ResponseEntity.ok(product);
+                })
                 .orElse(ResponseEntity.notFound().build());
     }
 
@@ -115,20 +138,86 @@ public class ProductController {
         return productRepository.findById(id).map(product -> {
             review.setDate(java.time.LocalDateTime.now());
             review.setUserName(name != null ? name : email);
+            if (review.getId() == null) {
+                review.setId(java.util.UUID.randomUUID().toString());
+            }
+            
+            // Limit images to 5
+            if (review.getImages() != null && review.getImages().size() > 5) {
+                review.setImages(review.getImages().subList(0, 5));
+            }
+            
+            // Set status to PENDING for async processing
+            review.setStatus("PENDING");
+
             if (product.getReviews() == null) {
                 product.setReviews(new java.util.ArrayList<>());
             }
             product.getReviews().add(review);
             
-            int totalRatings = product.getReviews().stream().mapToInt(com.gtstore.productservice.document.Review::getRating).sum();
-            product.setReviewCount(product.getReviews().size());
-            product.setRating((double) totalRatings / product.getReviews().size());
+            Product updated = productRepository.save(product);
             
-            java.util.Map<Integer, Integer> breakdown = new java.util.HashMap<>();
-            for (com.gtstore.productservice.document.Review r : product.getReviews()) {
-                breakdown.put(r.getRating(), breakdown.getOrDefault(r.getRating(), 0) + 1);
+            java.util.Map<String, String> payload = new java.util.HashMap<>();
+            payload.put("productId", updated.getId());
+            payload.put("reviewId", review.getId());
+            kafkaTemplate.send("review.submitted", payload);
+
+            return ResponseEntity.status(HttpStatus.ACCEPTED).body(updated);
+        }).orElse(ResponseEntity.notFound().build());
+    }
+
+    // Admin endpoints for Reviews
+    @GetMapping("/reviews/pending")
+    public ResponseEntity<List<Product>> getPendingReviews() {
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        List<Product> results = new java.util.ArrayList<>();
+        for (Product p : productRepository.findByReviewsStatus("NEEDS_REVIEW")) {
+            if (seen.add(p.getId())) results.add(p);
+        }
+        for (Product p : productRepository.findByReviewsStatus("PENDING")) {
+            if (seen.add(p.getId())) results.add(p);
+        }
+        return ResponseEntity.ok(results);
+    }
+
+    @PutMapping("/{id}/reviews/{reviewId}/status")
+    public ResponseEntity<?> updateReviewStatus(
+            @PathVariable String id,
+            @PathVariable String reviewId,
+            @RequestParam String status) {
+        
+        return productRepository.findById(id).map(product -> {
+            if (product.getReviews() != null) {
+                for (com.gtstore.productservice.document.Review r : product.getReviews()) {
+                    if (reviewId.equals(r.getId())) {
+                        r.setStatus(status.toUpperCase());
+                        break;
+                    }
+                }
             }
-            product.setRatingBreakdown(breakdown);
+            
+            // Recalculate based on APPROVED reviews only
+            List<com.gtstore.productservice.document.Review> approvedReviews = product.getReviews() == null ? 
+                new java.util.ArrayList<>() : 
+                product.getReviews().stream()
+                    .filter(r -> "APPROVED".equals(r.getStatus()))
+                    .collect(java.util.stream.Collectors.toList());
+            
+            if (!approvedReviews.isEmpty()) {
+                int totalRatings = approvedReviews.stream().mapToInt(com.gtstore.productservice.document.Review::getRating).sum();
+                product.setReviewCount(approvedReviews.size());
+                product.setRating((double) totalRatings / approvedReviews.size());
+                
+                java.util.Map<Integer, Integer> breakdown = new java.util.HashMap<>();
+                for (com.gtstore.productservice.document.Review r : approvedReviews) {
+                    breakdown.put(r.getRating(), breakdown.getOrDefault(r.getRating(), 0) + 1);
+                }
+                product.setRatingBreakdown(breakdown);
+            } else {
+                product.setReviewCount(0);
+                product.setRating(0.0);
+                product.setRatingBreakdown(new java.util.HashMap<>());
+            }
 
             Product updated = productRepository.save(product);
             kafkaTemplate.send(TOPIC_UPSERT, updated.getId(), updated);

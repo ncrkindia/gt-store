@@ -7,8 +7,10 @@ db.products.insertMany([
     "name": "iPhone 15 Pro Max",
     "price": 1599,
     "salePrice": 1399,
-    "rating": 4.8,
-    "reviewCount": 2453,
+    "rating": 0,
+    "reviewCount": 0,
+    "reviews": [],
+    "ratingBreakdown": {},
     "images": [
       "https://images.unsplash.com/photo-1678652197950-92a74c4f5efd?w=500&h=500&fit=crop",
       "https://images.unsplash.com/photo-1678652197950-92a74c4f5efd?w=800&h=800&fit=crop",
@@ -26,8 +28,10 @@ db.products.insertMany([
     "name": "Samsung 65\" 4K Smart TV",
     "price": 1299,
     "salePrice": 899,
-    "rating": 4.6,
-    "reviewCount": 1876,
+    "rating": 0,
+    "reviewCount": 0,
+    "reviews": [],
+    "ratingBreakdown": {},
     "images": [
       "https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?w=500&h=500&fit=crop",
       "https://images.unsplash.com/photo-1552802875-1e3d06eb4c02?w=500&h=500&fit=crop"
@@ -44,8 +48,10 @@ db.products.insertMany([
     "name": "Sony WH-1000XM5 Headphones",
     "price": 399,
     "salePrice": 349,
-    "rating": 4.9,
-    "reviewCount": 3421,
+    "rating": 0,
+    "reviewCount": 0,
+    "reviews": [],
+    "ratingBreakdown": {},
     "images": [
       "https://images.unsplash.com/photo-1546435770-a3e426bf472b?w=500&h=500&fit=crop",
       "https://images.unsplash.com/photo-1583394838336-acd977736f90?w=500&h=500&fit=crop",
@@ -63,8 +69,10 @@ db.products.insertMany([
     "name": "Men's Casual Denim Jacket",
     "price": 89,
     "salePrice": 59,
-    "rating": 4.3,
-    "reviewCount": 892,
+    "rating": 0,
+    "reviewCount": 0,
+    "reviews": [],
+    "ratingBreakdown": {},
     "images": [
       "https://images.unsplash.com/photo-1551028719-00167b16eac5?w=500&h=500&fit=crop",
       "https://images.unsplash.com/photo-1551028719-00167b16eac5?w=600&h=600&fit=crop"
@@ -81,8 +89,10 @@ db.products.insertMany([
     "name": "Women's Running Shoes",
     "price": 120,
     "salePrice": 79,
-    "rating": 4.7,
-    "reviewCount": 1543,
+    "rating": 0,
+    "reviewCount": 0,
+    "reviews": [],
+    "ratingBreakdown": {},
     "images": [
       "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=500&h=500&fit=crop",
       "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600&h=600&fit=crop"
@@ -99,8 +109,10 @@ db.products.insertMany([
     "name": "Modern Laptop Desk",
     "price": 299,
     "salePrice": 199,
-    "rating": 4.5,
-    "reviewCount": 678,
+    "rating": 0,
+    "reviewCount": 0,
+    "reviews": [],
+    "ratingBreakdown": {},
     "images": [
       "https://images.unsplash.com/photo-1595515106969-1ce29566ff1c?w=500&h=500&fit=crop",
       "https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?w=500&h=500&fit=crop"
@@ -117,8 +129,10 @@ db.products.insertMany([
     "name": "Bestseller Novel Collection",
     "price": 35,
     "salePrice": 24,
-    "rating": 4.8,
-    "reviewCount": 2341,
+    "rating": 0,
+    "reviewCount": 0,
+    "reviews": [],
+    "ratingBreakdown": {},
     "images": [
       "https://images.unsplash.com/photo-1512820790803-83ca734da794?w=500&h=500&fit=crop"
     ],
@@ -134,8 +148,10 @@ db.products.insertMany([
     "name": "Professional Makeup Kit",
     "price": 129,
     "salePrice": 89,
-    "rating": 4.6,
-    "reviewCount": 1234,
+    "rating": 0,
+    "reviewCount": 0,
+    "reviews": [],
+    "ratingBreakdown": {},
     "images": [
       "https://images.unsplash.com/photo-1512496015851-a90fb38ba796?w=500&h=500&fit=crop",
       "https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=500&h=500&fit=crop"
@@ -152,8 +168,10 @@ db.products.insertMany([
     "name": "MacBook Pro 14-inch",
     "price": 2299,
     "salePrice": 1999,
-    "rating": 4.9,
-    "reviewCount": 3876,
+    "rating": 0,
+    "reviewCount": 0,
+    "reviews": [],
+    "ratingBreakdown": {},
     "images": [
       "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=500&h=500&fit=crop",
       "https://images.unsplash.com/photo-1611186871348-b1ce696e52c9?w=500&h=500&fit=crop"
@@ -170,8 +188,10 @@ db.products.insertMany([
     "name": "Wireless Gaming Mouse",
     "price": 99,
     "salePrice": 79,
-    "rating": 4.7,
-    "reviewCount": 1567,
+    "rating": 0,
+    "reviewCount": 0,
+    "reviews": [],
+    "ratingBreakdown": {},
     "images": [
       "https://images.unsplash.com/photo-1527814050087-3793815479db?w=500&h=500&fit=crop",
       "https://images.unsplash.com/photo-1615663245857-ac93bb7c39e7?w=500&h=500&fit=crop"
@@ -188,8 +208,10 @@ db.products.insertMany([
     "name": "Yoga Mat & Accessories Set",
     "price": 69,
     "salePrice": 45,
-    "rating": 4.4,
-    "reviewCount": 892,
+    "rating": 0,
+    "reviewCount": 0,
+    "reviews": [],
+    "ratingBreakdown": {},
     "images": [
       "https://images.unsplash.com/photo-1601925260368-ae2f83cf8b7f?w=500&h=500&fit=crop",
       "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=500&h=500&fit=crop"
@@ -206,8 +228,10 @@ db.products.insertMany([
     "name": "Smart Watch Series 9",
     "price": 499,
     "salePrice": 429,
-    "rating": 4.8,
-    "reviewCount": 2987,
+    "rating": 0,
+    "reviewCount": 0,
+    "reviews": [],
+    "ratingBreakdown": {},
     "images": [
       "https://images.unsplash.com/photo-1579586337278-3befd40fd17a?w=500&h=500&fit=crop",
       "https://images.unsplash.com/photo-1434493789847-2f02bbf1bf11?w=500&h=500&fit=crop"

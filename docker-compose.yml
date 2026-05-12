@@ -63,15 +63,16 @@ services:
   # ----------------------------------------------------------------------------
   # Cache & Cart Storage
   # ----------------------------------------------------------------------------
-  # redis:
-  #   image: redis:7-alpine
-  #   container_name: gt-store-redis
-  #   ports:
-  #     - "6379:6379"
-  #   volumes:
-  #     - redis_data:/data
-  #   networks:
-  #     - gt-store-network
+  redis:
+    image: redis:7-alpine
+    container_name: gt-store-redis
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    ports:
+      - "6381:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - gt-store-network
 
   # ----------------------------------------------------------------------------
   # Message Broker for Async Events
@@ -255,9 +256,9 @@ services:
       context: ./cart-service
     container_name: gt-store-cart-service
     restart: unless-stopped
-    # depends_on:
-    #   - redis
     depends_on:
+      redis:
+        condition: service_started
       config-server:
         condition: service_healthy
     environment:

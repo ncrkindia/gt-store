@@ -1,5 +1,5 @@
 import { useParams, Link } from "react-router";
-import { Star, Heart, ShoppingCart, Truck, Shield, RotateCcw } from "lucide-react";
+import { Star, Heart, ShoppingCart, Truck, Shield, RotateCcw, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { ProductCard } from "../components/ProductCard";
 import { useState } from "react";
 import { useQuery } from '@tanstack/react-query';
@@ -57,6 +57,24 @@ export function ProductView() {
   const { id } = useParams<{ id: string }>();
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
+  const [sortOption, setSortOption] = useState("newest");
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxImages, setLightboxImages] = useState<string[]>([]);
+  const [lightboxIdx, setLightboxIdx] = useState(0);
+
+  const openLightbox = (images: string[], idx: number) => {
+    setLightboxImages(images);
+    setLightboxIdx(idx);
+    setLightboxOpen(true);
+  };
+
+  const nextLightbox = () => {
+    setLightboxIdx((prev) => (prev + 1) % lightboxImages.length);
+  };
+
+  const prevLightbox = () => {
+    setLightboxIdx((prev) => (prev - 1 + lightboxImages.length) % lightboxImages.length);
+  };
   const { keycloak } = useKeycloak();
 
   const { data: products = [], isLoading, error } = useQuery<Product[]>({
@@ -88,7 +106,8 @@ export function ProductView() {
     .slice(0, 6);
 
   const suggestedProducts = products
-    .filter((p) => p.rating >= 4.0 && p.id !== product.id)
+    .filter((p) => p.id !== product.id)
+    .sort((a, b) => b.rating - a.rating)
     .slice(0, 6);
 
   const handleAddToCart = async () => {
@@ -183,15 +202,19 @@ export function ProductView() {
               <h1 className="text-2xl text-gray-900 mb-2">{product.name}</h1>
               <p className="text-sm text-gray-600 mb-4">{product.brand}</p>
 
+              {product.rating > 0 ? (
               <div className="flex items-center gap-4 mb-6">
                 <div className="flex items-center gap-2 bg-green-600 text-white px-3 py-1 rounded">
-                  <span>{product.rating}</span>
+                  <span>{product.rating.toFixed(1)}</span>
                   <Star className="w-4 h-4 fill-white" />
                 </div>
                 <span className="text-gray-600">
                   {product.reviews.toLocaleString()} ratings & reviews
                 </span>
               </div>
+              ) : (
+              <p className="text-sm text-gray-400 mb-6">No reviews yet</p>
+              )}
 
               <div className="flex items-baseline gap-3 mb-6">
                 <span className="text-3xl text-gray-900">{formatPrice(product.price)}</span>
@@ -298,7 +321,20 @@ export function ProductView() {
 
             {/* Ratings & Reviews Section */}
             <div className="bg-white rounded-lg p-6">
-              <h2 className="text-xl mb-4">Ratings & Reviews</h2>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl">Ratings & Reviews</h2>
+                <select 
+                  value={sortOption} 
+                  onChange={(e) => setSortOption(e.target.value)}
+                  className="px-3 py-1.5 border border-gray-300 rounded text-sm bg-white outline-none"
+                >
+                  <option value="newest">Newest First</option>
+                  <option value="oldest">Oldest First</option>
+                  <option value="high">Highest Rating</option>
+                  <option value="low">Lowest Rating</option>
+                </select>
+              </div>
+              {product.reviews > 0 ? (
               <div className="flex flex-col md:flex-row gap-8 mb-8">
                   {/* Rating Summary */}
                   <div className="flex flex-col items-center justify-center min-w-[150px]">
@@ -323,11 +359,21 @@ export function ProductView() {
                       })}
                   </div>
               </div>
+              ) : (
+              <p className="text-gray-400 text-sm mb-8">No ratings yet. Be the first to review this product!</p>
+              )}
 
               {/* Review Timeline */}
               {product.reviewsList && product.reviewsList.length > 0 ? (
                   <div className="space-y-6">
-                      {product.reviewsList.slice().reverse().map((review, idx) => (
+                      {product.reviewsList.slice().sort((a, b) => {
+                          if (sortOption === "high") return b.rating - a.rating;
+                          if (sortOption === "low") return a.rating - b.rating;
+                          const dateA = new Date(a.date).getTime();
+                          const dateB = new Date(b.date).getTime();
+                          if (sortOption === "oldest") return dateA - dateB;
+                          return dateB - dateA; // newest
+                      }).map((review, idx) => (
                           <div key={idx} className="border-t border-gray-100 pt-6">
                               <div className="flex items-center gap-2 mb-2">
                                   <div className={`flex items-center gap-1 text-white px-2 py-0.5 rounded text-xs font-semibold ${review.rating > 2 ? 'bg-green-600' : review.rating === 2 ? 'bg-yellow-500' : 'bg-red-500'}`}>
@@ -338,6 +384,13 @@ export function ProductView() {
                                   <span className="text-sm text-gray-500 ml-auto">{new Date(review.date).toLocaleDateString()}</span>
                               </div>
                               <p className="text-gray-700 mt-2">{review.comment}</p>
+                              {review.images && review.images.length > 0 && (
+                                <div className="flex flex-wrap gap-2 mt-3">
+                                  {review.images.map((img, imgIdx) => (
+                                    <div key={imgIdx} className="w-16 h-16 border rounded overflow-hidden cursor-pointer hover:opacity-80 transition" onClick={() => openLightbox(review.images || [], imgIdx)}><img src={resolveImg(img)} className="w-full h-full object-cover" alt="Review upload" /></div>
+                                  ))}
+                                </div>
+                              )}
                           </div>
                       ))}
                   </div>
@@ -374,6 +427,56 @@ export function ProductView() {
           </section>
         )}
       </div>
+      {lightboxOpen && lightboxImages.length > 0 && (
+        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex flex-col items-center justify-center">
+          <button 
+            onClick={() => setLightboxOpen(false)}
+            className="absolute top-6 right-6 text-white hover:text-gray-300 bg-black/20 rounded-full p-2"
+          >
+            <X className="w-8 h-8" />
+          </button>
+
+          <div className="relative w-full max-w-4xl flex items-center justify-center px-4">
+            {lightboxImages.length > 1 && (
+              <button 
+                onClick={prevLightbox}
+                className="absolute left-4 text-white bg-black/40 hover:bg-black/60 rounded-full p-3 z-10"
+              >
+                <ChevronLeft className="w-8 h-8" />
+              </button>
+            )}
+
+            <img 
+              src={resolveImg(lightboxImages[lightboxIdx])} 
+              alt="Full view review" 
+              className="max-w-full max-h-[80vh] object-contain rounded shadow-2xl animate-in fade-in zoom-in-95 duration-200"
+            />
+
+            {lightboxImages.length > 1 && (
+              <button 
+                onClick={nextLightbox}
+                className="absolute right-4 text-white bg-black/40 hover:bg-black/60 rounded-full p-3 z-10"
+              >
+                <ChevronRight className="w-8 h-8" />
+              </button>
+            )}
+          </div>
+          
+          {lightboxImages.length > 1 && (
+            <div className="mt-6 flex gap-2 overflow-x-auto px-4 max-w-full">
+              {lightboxImages.map((thumb, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setLightboxIdx(idx)}
+                  className={`w-16 h-16 rounded border-2 overflow-hidden flex-shrink-0 transition-all ${idx === lightboxIdx ? 'border-blue-500 opacity-100' : 'border-transparent opacity-60 hover:opacity-100'}`}
+                >
+                  <img src={resolveImg(thumb)} className="w-full h-full object-cover" alt="" />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

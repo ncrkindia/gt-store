@@ -48,13 +48,15 @@ export function ProductCard({ product }: ProductCardProps) {
           {product.name}
         </h3>
 
+        {product.rating > 0 && (
         <div className="flex items-center gap-2 mb-3">
           <div className="flex items-center gap-1 bg-gradient-to-r from-amber-500 to-orange-500 text-white px-2 py-1 rounded-lg text-xs font-semibold shadow-sm">
-            <span>{product.rating}</span>
+            <span>{product.rating.toFixed(1)}</span>
             <Star className="w-3 h-3 fill-white" />
           </div>
           <span className="text-xs text-gray-500">({product.reviews.toLocaleString()})</span>
         </div>
+        )}
 
         <div className="flex items-baseline gap-2 mb-2">
           <span className="text-xl text-gray-900 font-bold">{formatPrice(product.price)}</span>

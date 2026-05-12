@@ -41,11 +41,10 @@ export function Account() {
                   <Link
                     key={item.path}
                     to={item.path}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-lg transition ${
-                      isActive
+                    className={`flex items-center gap-3 px-4 py-3 rounded-lg transition ${isActive
                         ? "bg-[#2874f0] text-white"
                         : "text-gray-700 hover:bg-gray-100"
-                    }`}
+                      }`}
                   >
                     <Icon className="w-5 h-5" />
                     <span>{item.label}</span>

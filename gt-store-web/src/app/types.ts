@@ -14,5 +14,14 @@ export interface Product {
   inStock: boolean;
   features: string[];
   ratingBreakdown?: Record<number, number>;
-  reviewsList?: { rating: number, comment: string, userName: string, date: string }[];
+  reviewsList?: Review[];
+}
+
+export interface Review {
+  rating: number;
+  comment: string;
+  userName: string;
+  date: string;
+  status?: string;
+  images?: string[];
 }

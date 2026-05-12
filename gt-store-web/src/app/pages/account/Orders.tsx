@@ -27,6 +27,8 @@ export function Orders() {
   const [reviewProductId, setReviewProductId] = useState<string>("");
   const [reviewRating, setReviewRating] = useState<number>(5);
   const [reviewComment, setReviewComment] = useState("");
+  const [reviewImages, setReviewImages] = useState<string[]>([]);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   const fetchOrders = async () => {
     try {
@@ -70,16 +72,44 @@ export function Orders() {
     }
   };
 
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    if (reviewImages.length >= 5) {
+      toast.error("You can only upload up to 5 images.");
+      return;
+    }
+    const file = e.target.files[0];
+    const formData = new FormData();
+    formData.append("file", file);
+    
+    setUploadingImage(true);
+    try {
+      const { data } = await apiClient.post("/media/upload", formData, {
+        headers: { "Content-Type": "multipart/form-data" }
+      });
+      setReviewImages(prev => [...prev, data.fileName || data.url]);
+      toast.success("Image uploaded!");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to upload image.");
+    } finally {
+      setUploadingImage(false);
+      e.target.value = ''; // clear input
+    }
+  };
+
   const submitReview = async () => {
     try {
         await apiClient.post(`/products/${reviewProductId}/reviews`, {
             rating: reviewRating,
-            comment: reviewComment
+            comment: reviewComment,
+            images: reviewImages
         });
         toast.success("Review submitted successfully!");
         setReviewOrderVisible(null);
         setReviewComment("");
         setReviewRating(5);
+        setReviewImages([]);
     } catch (e) {
         console.error(e);
         toast.error("Failed to submit review.");
@@ -269,8 +299,25 @@ export function Orders() {
                 <label className="block text-sm font-medium mb-1">Comment</label>
                 <textarea rows={4} value={reviewComment} onChange={e => setReviewComment(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded" placeholder="What did you think of this product?"></textarea>
             </div>
+            <div className="mb-4">
+                <label className="block text-sm font-medium mb-1">Add Images (Up to 5)</label>
+                <div className="flex flex-wrap gap-2 mb-2">
+                    {reviewImages.map((img, i) => (
+                        <div key={i} className="relative w-16 h-16 border rounded overflow-hidden">
+                           <img src={resolveImg(img)} className="w-full h-full object-cover" alt="Review upload" />
+                           <button onClick={() => setReviewImages(reviewImages.filter((_, idx) => idx !== i))} className="absolute top-0 right-0 bg-red-500 text-white w-4 h-4 flex items-center justify-center text-xs">x</button>
+                        </div>
+                    ))}
+                    {reviewImages.length < 5 && (
+                        <div className="w-16 h-16 border border-dashed border-gray-400 rounded flex items-center justify-center relative bg-gray-50">
+                            {uploadingImage ? <span className="text-xs">...</span> : <span className="text-2xl text-gray-400">+</span>}
+                            <input type="file" accept="image/*" onChange={handleImageUpload} disabled={uploadingImage} className="absolute inset-0 opacity-0 cursor-pointer" />
+                        </div>
+                    )}
+                </div>
+            </div>
             <div className="flex gap-3 justify-end">
-                <button onClick={() => setReviewOrderVisible(null)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">Cancel</button>
+                <button onClick={() => { setReviewOrderVisible(null); setReviewImages([]); }} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">Cancel</button>
                 <button onClick={submitReview} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Submit Review</button>
             </div>
           </div>

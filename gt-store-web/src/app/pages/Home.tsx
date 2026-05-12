@@ -71,13 +71,14 @@ export function Home() {
     setCurrentBanner((prev) => (prev - 1 + banners.length) % banners.length);
   };
 
+  const bannerBg = "bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500";
   const defaultBanner = {
     imageUrl: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&q=80&w=1200",
     linkUrl: "/category/all",
     headline: "GT Store Specials",
     description: "Premium Products, Best Prices",
     discount: "Upto 50% Off",
-    bg: "bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500"
+    bg: bannerBg,
   };
 
   const activeBanners = banners.length > 0 ? banners : [defaultBanner];
@@ -85,7 +86,9 @@ export function Home() {
   const trendingProducts = products.slice(0, 6);
   // Just arbitrary filters for deals since we don't have discount natively
   const bestDeals = products.slice(0, 6);
-  const topRated = products.filter(p => p.rating >= 4.0).slice(0, 6);
+  const topRated = products.filter(p => p.rating > 0).length > 0
+    ? products.filter(p => p.rating > 0).sort((a, b) => b.rating - a.rating).slice(0, 6)
+    : products.slice(0, 6);
 
   return (
     <div>
@@ -96,18 +99,17 @@ export function Home() {
             {activeBanners.map((banner: any, index: number) => (
               <div
                 key={index}
-                className={`absolute inset-0 transition-opacity duration-500 ${
-                  index === currentBanner ? "opacity-100" : "opacity-0"
-                }`}
+                className={`absolute inset-0 transition-opacity duration-500 ${index === currentBanner ? "opacity-100" : "opacity-0"
+                  }`}
               >
-                <div className={`${banner.bg || 'bg-gray-800'} h-full flex items-center`}>
+                <div className={`${banner.bg || bannerBg} h-full flex items-center`}>
                   <div className="max-w-screen-xl mx-auto px-4 w-full">
                     <div className="grid md:grid-cols-2 gap-8 items-center">
                       <div className="text-white space-y-6">
                         {banner.discount && (
-                            <div className="inline-block bg-gradient-to-r from-amber-400 to-yellow-300 text-gray-900 px-5 py-2 rounded-full text-sm font-bold shadow-lg">
+                          <div className="inline-block bg-gradient-to-r from-amber-400 to-yellow-300 text-gray-900 px-5 py-2 rounded-full text-sm font-bold shadow-lg">
                             {banner.discount}
-                            </div>
+                          </div>
                         )}
                         <h1 className="text-5xl md:text-7xl font-bold leading-tight">{banner.headline || 'Special Offer'}</h1>
                         <p className="text-2xl text-white/90">{banner.description || `Shop our latest collections`}</p>
@@ -132,32 +134,31 @@ export function Home() {
             ))}
 
             {activeBanners.length > 1 && (
-                <>
+              <>
                 <button
-                onClick={prevBanner}
-                className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/20 backdrop-blur-sm hover:bg-white/30 p-2 rounded-full transition"
+                  onClick={prevBanner}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/20 backdrop-blur-sm hover:bg-white/30 p-2 rounded-full transition"
                 >
-                <ChevronLeft className="w-6 h-6 text-white" />
+                  <ChevronLeft className="w-6 h-6 text-white" />
                 </button>
                 <button
-                onClick={nextBanner}
-                className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/20 backdrop-blur-sm hover:bg-white/30 p-2 rounded-full transition"
+                  onClick={nextBanner}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/20 backdrop-blur-sm hover:bg-white/30 p-2 rounded-full transition"
                 >
-                <ChevronRight className="w-6 h-6 text-white" />
+                  <ChevronRight className="w-6 h-6 text-white" />
                 </button>
 
                 <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2">
-                {activeBanners.map((_: any, index: number) => (
+                  {activeBanners.map((_: any, index: number) => (
                     <button
-                    key={index}
-                    onClick={() => setCurrentBanner(index)}
-                    className={`w-2 h-2 rounded-full transition-all ${
-                        index === currentBanner ? "bg-white w-8" : "bg-white/50"
-                    }`}
+                      key={index}
+                      onClick={() => setCurrentBanner(index)}
+                      className={`w-2 h-2 rounded-full transition-all ${index === currentBanner ? "bg-white w-8" : "bg-white/50"
+                        }`}
                     />
-                ))}
+                  ))}
                 </div>
-                </>
+              </>
             )}
           </div>
         </div>

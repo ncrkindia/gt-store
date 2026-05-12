@@ -17,4 +17,7 @@ public interface ProductRepository extends MongoRepository<Product, String> {
     Page<Product> findAllBy(TextCriteria textCriteria, Pageable pageable);
     
     Page<Product> findByCategoryIdsContaining(String categoryId, Pageable pageable);
+
+    @org.springframework.data.mongodb.repository.Query("{ 'reviews.status': ?0 }")
+    java.util.List<Product> findByReviewsStatus(String status);
 }
