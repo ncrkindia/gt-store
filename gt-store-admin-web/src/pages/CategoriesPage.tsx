@@ -183,7 +183,7 @@ const CategoriesPage = () => {
                                 )}
                                 <div className="relative cursor-pointer">
                                     <input type="file" className="absolute opacity-0 w-full h-full cursor-pointer" onChange={handleImageUpload} disabled={uploadingImage} />
-                                    <div className="border-2 border-dashed border-gray-600 rounded p-4 text-center hover:bg-white/5 transition">
+                                    <div className="border-2 border-dashed border-gray-600 rounded p-4 text-center hover:bg-white transition">
                                         <Upload className="mx-auto mb-1" size={20} />
                                         <span>{uploadingImage ? 'Uploading...' : 'Upload Image'}</span>
                                     </div>

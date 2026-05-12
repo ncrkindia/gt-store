@@ -1,6 +1,7 @@
 import { useState, useEffect, Fragment } from 'react';
 import apiClient from '../api/axios';
 import { useKeycloak } from '@react-keycloak/web';
+import { formatPrice } from '../lib/formatPrice';
 
 interface OrderItem {
     id: string;
@@ -133,7 +134,7 @@ const OrdersPage = () => {
                                 </td>
                                 <td className="mono-text">{o.id.substring(0, 8)}...</td>
                                 <td>{o.userId}</td>
-                                <td className="price-text">${o.totalAmount.toFixed(2)}</td>
+                                <td className="price-text">{formatPrice(o.totalAmount)}</td>
                                 <td>
                                     <span className={`status-badge status-${o.status.toLowerCase()}`}>
                                         {o.status}
@@ -173,8 +174,8 @@ const OrdersPage = () => {
                                                         <tr key={item.id}>
                                                             <td className="mono-text">{item.productId}</td>
                                                             <td>x{item.quantity}</td>
-                                                            <td>${item.price.toFixed(2)}</td>
-                                                            <td>${(item.price * item.quantity).toFixed(2)}</td>
+                                                            <td>{formatPrice(item.price)}</td>
+                                                            <td>{formatPrice(item.price * item.quantity)}</td>
                                                         </tr>
                                                     ))}
                                                 </tbody>

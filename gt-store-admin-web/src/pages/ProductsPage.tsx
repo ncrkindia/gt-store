@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import apiClient from '../api/axios';
 import { useKeycloak } from '@react-keycloak/web';
 import { Upload, X, Plus } from 'lucide-react';
+import { formatPrice } from '../lib/formatPrice';
 
 const getImageUrl = (url: string | undefined): string => {
     if (!url) return '';
@@ -191,7 +192,7 @@ const ProductsPage = () => {
                                     {p.images && p.images.length > 0 && (
                                         <img src={getImageUrl(p.images[0])} alt="" className="w-8 h-8 rounded object-cover" />
                                     )}
-                                    <span className="font-medium text-gray-100">{p.name}</span>
+                                    <span className="font-medium text-slate-800">{p.name}</span>
                                 </div>
                             </td>
                             <td>
@@ -200,8 +201,8 @@ const ProductsPage = () => {
                                 </span>
                             </td>
                             <td>
-                                <span className={p.salePrice ? "text-red-400 font-bold" : ""}>${p.salePrice || p.price}</span>
-                                {p.salePrice && <span className="line-through text-gray-500 text-xs ml-1">${p.price}</span>}
+                                <span className={p.salePrice ? "text-red-400 font-bold" : ""}>{formatPrice(p.salePrice || p.price)}</span>
+                                {p.salePrice && <span className="line-through text-gray-500 text-xs ml-1">{formatPrice(p.price)}</span>}
                             </td>
                             <td>{p.brand}</td>
                             <td>
@@ -304,7 +305,7 @@ const ProductsPage = () => {
                                         disabled={uploadingImage}
                                         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed" 
                                     />
-                                    <div className="flex items-center justify-center gap-2 w-full py-3 border-2 border-dashed border-gray-600 rounded-lg text-gray-400 hover:text-white hover:border-gray-400 transition bg-white/5">
+                                    <div className="flex items-center justify-center gap-2 w-full py-3 border-2 border-dashed border-gray-600 rounded-lg text-gray-400 hover:text-white hover:border-gray-400 transition bg-white">
                                         <Upload size={18} />
                                         <span>{uploadingImage ? 'Uploading...' : 'Click or Drag to upload new media'}</span>
                                     </div>

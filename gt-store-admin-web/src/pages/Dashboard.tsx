@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import apiClient from '../api/axios';
 import { useKeycloak } from '@react-keycloak/web';
+import { formatPrice } from '../lib/formatPrice';
 
 /**
  * Admin Dashboard Component.
@@ -60,7 +61,7 @@ const Dashboard = () => {
                 <div className="stats-card glass-card">
                     <div className="stats-info">
                         <span className="stats-label">Total Revenue</span>
-                        <h2 className="stats-value highlight-text">${stats.totalRevenue.toLocaleString()}</h2>
+                        <h2 className="stats-value highlight-text">{formatPrice(stats.totalRevenue)}</h2>
                     </div>
                 </div>
                 <div className="stats-card glass-card">

@@ -152,53 +152,53 @@ const InventoryPage = () => {
             {/* Filter Bar */}
             <div className="filter-section mb-6 grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
                 <div className="filter-group">
-                    <label className="text-xs uppercase tracking-wider text-gray-400 mb-1 block font-semibold">Product ID</label>
+                    <label className="text-xs uppercase tracking-wider text-slate-600 mb-1 block font-semibold">Product ID</label>
                     <div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={14} />
                         <input 
                             placeholder="Filter by ID..." 
-                            className="w-full pl-9 pr-4 py-2 bg-white/5 border border-white/10 rounded-lg text-sm focus:border-blue-500/50 outline-none transition text-white"
+                            className="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:border-blue-500/50 outline-none transition text-slate-800"
                             value={filterId}
                             onChange={e => setFilterId(e.target.value)}
                         />
                     </div>
                 </div>
                 <div className="filter-group">
-                    <label className="text-xs uppercase tracking-wider text-gray-400 mb-1 block font-semibold">Name</label>
+                    <label className="text-xs uppercase tracking-wider text-slate-600 mb-1 block font-semibold">Name</label>
                     <div className="relative">
                         <Inbox className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={14} />
                         <input 
                             placeholder="Filter by name..." 
-                            className="w-full pl-9 pr-4 py-2 bg-white/5 border border-white/10 rounded-lg text-sm focus:border-blue-500/50 outline-none transition text-white"
+                            className="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:border-blue-500/50 outline-none transition text-slate-800"
                             value={filterName}
                             onChange={e => setFilterName(e.target.value)}
                         />
                     </div>
                 </div>
                 <div className="filter-group">
-                    <label className="text-xs uppercase tracking-wider text-gray-400 mb-1 block font-semibold">Brand</label>
+                    <label className="text-xs uppercase tracking-wider text-slate-600 mb-1 block font-semibold">Brand</label>
                     <input 
                         placeholder="Filter by brand..." 
-                        className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-sm focus:border-blue-500/50 outline-none transition text-white"
+                        className="w-full px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:border-blue-500/50 outline-none transition text-slate-800"
                         value={filterBrand}
                         onChange={e => setFilterBrand(e.target.value)}
                     />
                 </div>
                 <div className="filter-group">
-                    <label className="text-xs uppercase tracking-wider text-gray-400 mb-1 block font-semibold">Category</label>
+                    <label className="text-xs uppercase tracking-wider text-slate-600 mb-1 block font-semibold">Category</label>
                     <input 
                         placeholder="Filter by category..." 
-                        className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-sm focus:border-blue-500/50 outline-none transition text-white"
+                        className="w-full px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:border-blue-500/50 outline-none transition text-slate-800"
                         value={filterCategory}
                         onChange={e => setFilterCategory(e.target.value)}
                     />
                 </div>
                 <div className="filter-group">
-                    <label className="text-xs uppercase tracking-wider text-gray-400 mb-1 block font-semibold">Status</label>
+                    <label className="text-xs uppercase tracking-wider text-slate-600 mb-1 block font-semibold">Status</label>
                     <div className="relative">
                         <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={14} />
                         <select 
-                            className="w-full pl-9 pr-4 py-2 bg-white/5 border border-white/10 rounded-lg text-sm focus:border-blue-500/50 outline-none transition appearance-none cursor-pointer text-white"
+                            className="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:border-blue-500/50 outline-none transition appearance-none cursor-pointer text-slate-800"
                             value={filterStatus}
                             onChange={e => setFilterStatus(e.target.value)}
                         >
@@ -211,7 +211,7 @@ const InventoryPage = () => {
                 </div>
             </div>
 
-            <div className="overflow-x-auto rounded-xl border border-white/5">
+            <div className="overflow-x-auto rounded-xl border border-gray-100">
                 <table className="admin-table">
                     <thead>
                         <tr>
@@ -234,10 +234,10 @@ const InventoryPage = () => {
                             </tr>
                         ) : (
                             filteredInventory.map(item => (
-                                <tr key={item.productId} className="hover:bg-white/5 transition-colors">
+                                <tr key={item.productId} className="hover:bg-white transition-colors">
                                     <td className="font-mono text-xs text-blue-300/70">{item.productId}</td>
                                     <td>
-                                        <div className="font-semibold text-gray-100">{item.productName}</div>
+                                        <div className="font-semibold text-slate-800">{item.productName}</div>
                                     </td>
                                     <td>{item.brand}</td>
                                     <td className="text-xs text-gray-400 max-w-[150px] truncate" title={item.categories}>{item.categories}</td>
@@ -267,7 +267,7 @@ const InventoryPage = () => {
                                                 type="number"
                                                 min="0"
                                                 placeholder={item.stock.toString()}
-                                                className="w-20 px-3 py-1.5 bg-white/5 border border-white/10 rounded focus:border-blue-500/50 outline-none text-sm transition text-white"
+                                                className="w-20 px-3 py-1.5 bg-white border border-gray-200 rounded focus:border-blue-500/50 outline-none text-sm transition text-slate-800"
                                                 value={isNaN(updateValues[item.productId]) ? '' : updateValues[item.productId] ?? ''}
                                                 onChange={(e) => handleStockChange(item.productId, e.target.value)}
                                             />

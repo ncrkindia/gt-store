@@ -10,23 +10,39 @@ import InventoryPage from './pages/InventoryPage';
 import Documentation from './pages/Documentation';
 import ReviewsPage from './pages/ReviewsPage';
 import Sidebar from './components/Sidebar';
+import { AdminHeader } from './components/AdminHeader';
+import { AdminFooter } from './components/AdminFooter';
 import { Toaster } from 'sonner';
-
+import { ShieldAlert } from 'lucide-react';
 
 function App() {
   const { keycloak, initialized } = useKeycloak();
 
   if (!initialized) {
-    return <div className="loading">Initializing...</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="animate-spin w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full" />
+      </div>
+    );
   }
 
   if (!keycloak.authenticated) {
     return (
-      <div className="login-screen">
-        <div className="login-card">
-          <h1>Admin Portal</h1>
-          <p>GT Store Administrative Access</p>
-          <button onClick={() => keycloak.login()} className="btn-primary">Secure Login</button>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-indigo-950 to-indigo-900 p-6">
+        <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl p-10 border border-white/10 text-center relative overflow-hidden">
+          <div className="absolute top-0 inset-x-0 h-2 bg-gradient-to-r from-indigo-500 to-purple-500" />
+          <div className="w-16 h-16 bg-indigo-50 rounded-2xl flex items-center justify-center mx-auto mb-6">
+             <ShieldAlert className="w-8 h-8 text-indigo-600" />
+          </div>
+          <h1 className="text-3xl font-bold text-slate-900 mb-2">Admin Portal</h1>
+          <p className="text-slate-500 mb-8 font-medium">GT Store Administrative Security Verification</p>
+          
+          <button 
+            onClick={() => keycloak.login()} 
+            className="w-full btn-primary text-base py-3.5 shadow-lg shadow-indigo-500/30"
+          >
+            Sign in to System
+          </button>
         </div>
       </div>
     );
@@ -34,29 +50,58 @@ function App() {
 
   const isAdmin = keycloak.realmAccess?.roles.includes('GTS_ADMIN');
   if (!isAdmin) {
-    return <div className="error-screen"><h2>403 Forbidden</h2><p>You lack administrative privileges.</p></div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 p-6">
+         <div className="bg-white rounded-2xl shadow-lg border border-red-100 p-8 text-center max-w-md">
+            <div className="w-12 h-12 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+               <ShieldAlert className="w-6 h-6" />
+            </div>
+            <h2 className="text-xl font-bold text-slate-900 mb-1">403 Forbidden</h2>
+            <p className="text-slate-500 mb-4">Your account lacks administrative privileges required for this environment.</p>
+            <button onClick={() => keycloak.logout()} className="text-indigo-600 text-sm font-semibold hover:underline">Sign Out</button>
+         </div>
+      </div>
+    );
   }
 
   return (
     <BrowserRouter basename="/admin">
-      <Toaster position="top-center" richColors />
-      <div className="app-container">
-        <Sidebar />
-        <main className="content">
-          <Routes>
-            <Route path="/" element={<Navigate to="/dashboard" />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/products" element={<ProductsPage />} />
-            <Route path="/categories" element={<CategoriesPage />} />
-            <Route path="/brands" element={<BrandsPage />} />
-            <Route path="/banners" element={<BannersPage />} />
-            <Route path="/inventory" element={<InventoryPage />} />
-            <Route path="/orders" element={<OrdersPage />} />
-            <Route path="/reviews" element={<ReviewsPage />} />
-            <Route path="/documentation" element={<Documentation />} />
-          </Routes>
+      <div className="min-h-screen flex flex-col bg-slate-50">
+        <Toaster position="top-center" richColors />
+        
+        {/* Global Admin Header (Sticky top) */}
+        <AdminHeader />
+        
+        <div className="flex flex-1 w-full">
+          {/* Sidebar Navigation */}
+          <Sidebar />
+          
+          {/* Main Dynamic Area */}
+          <main className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
+            {/* Background subtle gradients mirroring main-store Content feel */}
+            <div className="absolute top-0 left-0 w-full h-96 bg-gradient-to-b from-indigo-50/50 to-transparent pointer-events-none" />
 
-        </main>
+            <div className="flex-1 overflow-y-auto relative z-10 p-8 flex flex-col">
+              <Routes>
+                <Route path="/" element={<Navigate to="/dashboard" />} />
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/products" element={<ProductsPage />} />
+                <Route path="/categories" element={<CategoriesPage />} />
+                <Route path="/brands" element={<BrandsPage />} />
+                <Route path="/banners" element={<BannersPage />} />
+                <Route path="/inventory" element={<InventoryPage />} />
+                <Route path="/orders" element={<OrdersPage />} />
+                <Route path="/reviews" element={<ReviewsPage />} />
+                <Route path="/documentation" element={<Documentation />} />
+              </Routes>
+
+              {/* Admin Footer */}
+              <div className="mt-16">
+                <AdminFooter />
+              </div>
+            </div>
+          </main>
+        </div>
       </div>
     </BrowserRouter>
   );

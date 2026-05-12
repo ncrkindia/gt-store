@@ -105,7 +105,7 @@ export default function ReviewsPage() {
   };
 
   if (!initialized || loading) return (
-    <div className="bg-white/5 backdrop-blur rounded-2xl p-12 text-center max-w-screen-xl mx-auto mt-8 shadow-sm border border-white/10 text-white">
+    <div className="bg-white backdrop-blur rounded-2xl p-12 text-center max-w-screen-xl mx-auto mt-8 shadow-sm border border-gray-200 text-slate-800">
       <div className="animate-spin w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full mx-auto mb-4" />
       <p className="opacity-60">Loading Review Queue...</p>
     </div>
@@ -355,7 +355,7 @@ export default function ReviewsPage() {
               <div className="relative w-full max-w-5xl flex items-center justify-center px-8" onClick={(e) => e.stopPropagation()}>
                   {lightboxImages.length > 1 && (
                       <button 
-                          className="absolute left-0 bg-white/5 hover:bg-white/10 text-white p-4 rounded-full transition-all backdrop-blur-sm border border-white/5"
+                          className="absolute left-0 bg-white hover:bg-white/10 text-white p-4 rounded-full transition-all backdrop-blur-sm border border-gray-100"
                           onClick={(e) => {
                               e.stopPropagation();
                               setLightboxIdx(prev => (prev - 1 + lightboxImages.length) % lightboxImages.length);
@@ -368,12 +368,12 @@ export default function ReviewsPage() {
                   <img 
                       src={resolveImg(lightboxImages[lightboxIdx])} 
                       alt="High-resolution attachment" 
-                      className="max-w-full max-h-[80vh] object-contain rounded-xl shadow-2xl border border-white/10 animate-in zoom-in-95 duration-300"
+                      className="max-w-full max-h-[80vh] object-contain rounded-xl shadow-2xl border border-gray-200 animate-in zoom-in-95 duration-300"
                   />
 
                   {lightboxImages.length > 1 && (
                       <button 
-                          className="absolute right-0 bg-white/5 hover:bg-white/10 text-white p-4 rounded-full transition-all backdrop-blur-sm border border-white/5"
+                          className="absolute right-0 bg-white hover:bg-white/10 text-white p-4 rounded-full transition-all backdrop-blur-sm border border-gray-100"
                           onClick={(e) => {
                               e.stopPropagation();
                               setLightboxIdx(prev => (prev + 1) % lightboxImages.length);
