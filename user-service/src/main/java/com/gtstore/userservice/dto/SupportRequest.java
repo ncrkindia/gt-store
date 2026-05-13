@@ -5,15 +5,17 @@ public class SupportRequest {
     private String email;
     private String subject;
     private String message;
+    private String ticketNumber;
 
     // Default constructor for Jackson
     public SupportRequest() {}
 
-    public SupportRequest(String name, String email, String subject, String message) {
+    public SupportRequest(String name, String email, String subject, String message, String ticketNumber) {
         this.name = name;
         this.email = email;
         this.subject = subject;
         this.message = message;
+        this.ticketNumber = ticketNumber;
     }
 
     // Getters and Setters
@@ -28,4 +30,7 @@ public class SupportRequest {
 
     public String getMessage() { return message; }
     public void setMessage(String message) { this.message = message; }
+
+    public String getTicketNumber() { return ticketNumber; }
+    public void setTicketNumber(String ticketNumber) { this.ticketNumber = ticketNumber; }
 }

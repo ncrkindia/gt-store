@@ -2,6 +2,7 @@ package com.gtstore.notificationservice.listener;
 
 import com.gtstore.notificationservice.dto.OrderEvent;
 import com.gtstore.notificationservice.dto.SupportRequestEvent;
+import com.gtstore.notificationservice.dto.SupportReplyEvent;
 import com.gtstore.notificationservice.service.EmailService;
 import com.gtstore.notificationservice.config.NotificationProperties;
 import org.slf4j.Logger;
@@ -67,17 +68,42 @@ public class NotificationEventListener {
             model.put("email", event.getEmail());
             model.put("subject", event.getSubject());
             model.put("message", event.getMessage());
+            model.put("ticketNumber", event.getTicketNumber() != null ? event.getTicketNumber() : "PENDING");
 
             // 1. Send detailed email to support team
             String adminTemplate = notificationProperties.getTemplates().get("SUPPORT_ADMIN");
-            emailService.sendHtmlMessage(notificationProperties.getCcEmail(), "Support Request: " + event.getSubject(), adminTemplate, model);
+            String adminSubject = "[" + model.get("ticketNumber") + "] Support Request: " + event.getSubject();
+            emailService.sendHtmlMessage(notificationProperties.getCcEmail(), adminSubject, adminTemplate, model);
 
             // 2. Send acknowledgement to the customer
             String ackTemplate = notificationProperties.getTemplates().get("SUPPORT_ACK");
-            emailService.sendHtmlMessage(event.getEmail(), "We've received your support request", ackTemplate, model);
+            String ackSubject = "We've received your support request - " + model.get("ticketNumber");
+            emailService.sendHtmlMessage(event.getEmail(), ackSubject, ackTemplate, model);
 
         } catch (JsonProcessingException e) {
-            log.error("Failed to parse support request social JSON", e);
+            log.error("Failed to parse support request event JSON", e);
+        }
+    }
+
+    @KafkaListener(topics = "support.reply", groupId = "notification-group")
+    public void handleSupportReply(String eventJson) {
+        try {
+            SupportReplyEvent event = objectMapper.readValue(eventJson, SupportReplyEvent.class);
+            log.info("Processing support reply to email: {}", event.getCustomerEmail());
+
+            Map<String, Object> model = new HashMap<>();
+            model.put("name", event.getCustomerName());
+            model.put("ticketNumber", event.getTicketNumber());
+            model.put("subject", event.getOriginalSubject());
+            model.put("replyMessage", event.getReplyMessage());
+
+            String replyTemplate = notificationProperties.getTemplates().getOrDefault("SUPPORT_REPLY", "support-reply");
+            String subject = "Update: Support Ticket #" + event.getTicketNumber();
+
+            emailService.sendHtmlMessage(event.getCustomerEmail(), subject, replyTemplate, model);
+
+        } catch (JsonProcessingException e) {
+            log.error("Failed to parse support reply event JSON", e);
         }
     }
 

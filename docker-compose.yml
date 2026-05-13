@@ -415,30 +415,30 @@ services:
     networks:
       - gt-store-network
 
-  shipping-service:
-    build:
-      context: ./shipping-service
-    container_name: gt-store-shipping-service
-    restart: unless-stopped
-    ports:
-      - "4016:4016"
-    depends_on:
-      config-server:
-        condition: service_healthy
-      kafka:
-        condition: service_started
-    environment:
-      - SPRING_CONFIG_IMPORT=optional:configserver:http://config-server:8888
-      - SPRING_DATASOURCE_URL=${POSTGRES_URL}?currentSchema=shipping
-      - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER}
-      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
-      - KAFKA_BOOTSTRAP_SERVERS=${KAFKA_BOOTSTRAP_SERVERS}
-      - SHIPROCKET_EMAIL=${SHIPROCKET_EMAIL}
-      - SHIPROCKET_PASSWORD=${SHIPROCKET_PASSWORD}
-      - SHIPROCKET_PICKUP_LOCATION=${SHIPROCKET_PICKUP_LOCATION}
-      - ZIPKIN_ENDPOINT=${ZIPKIN_ENDPOINT}
-    networks:
-      - gt-store-network
+  # shipping-service:
+  #   build:
+  #     context: ./shipping-service
+  #   container_name: gt-store-shipping-service
+  #   restart: unless-stopped
+  #   ports:
+  #     - "4016:4016"
+  #   depends_on:
+  #     config-server:
+  #       condition: service_healthy
+  #     kafka:
+  #       condition: service_started
+  #   environment:
+  #     - SPRING_CONFIG_IMPORT=optional:configserver:http://config-server:8888
+  #     - SPRING_DATASOURCE_URL=${POSTGRES_URL}?currentSchema=shipping
+  #     - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER}
+  #     - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
+  #     - KAFKA_BOOTSTRAP_SERVERS=${KAFKA_BOOTSTRAP_SERVERS}
+  #     - SHIPROCKET_EMAIL=${SHIPROCKET_EMAIL}
+  #     - SHIPROCKET_PASSWORD=${SHIPROCKET_PASSWORD}
+  #     - SHIPROCKET_PICKUP_LOCATION=${SHIPROCKET_PICKUP_LOCATION}
+  #     - ZIPKIN_ENDPOINT=${ZIPKIN_ENDPOINT}
+  #   networks:
+  #     - gt-store-network
 
   invoice-service:
     build:

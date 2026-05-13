@@ -5,6 +5,7 @@ public class SupportRequestEvent {
     private String email;
     private String subject;
     private String message;
+    private String ticketNumber;
 
     // Default constructor for Jackson
     public SupportRequestEvent() {}
@@ -21,4 +22,7 @@ public class SupportRequestEvent {
 
     public String getMessage() { return message; }
     public void setMessage(String message) { this.message = message; }
+
+    public String getTicketNumber() { return ticketNumber; }
+    public void setTicketNumber(String ticketNumber) { this.ticketNumber = ticketNumber; }
 }

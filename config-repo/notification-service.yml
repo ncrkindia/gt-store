@@ -29,3 +29,4 @@ notification:
     AWAITING_FULFILLMENT: order-processing
     SUPPORT_ADMIN: support-admin
     SUPPORT_ACK: support-ack
+    SUPPORT_REPLY: support-reply

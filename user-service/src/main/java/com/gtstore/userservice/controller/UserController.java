@@ -14,6 +14,9 @@ import com.gtstore.userservice.dto.SupportRequest;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import com.gtstore.userservice.entity.SupportTicket;
+import com.gtstore.userservice.entity.SupportAudit;
+import com.gtstore.userservice.repository.SupportTicketRepository;
 
 /**
  * REST Controller for the User Service.
@@ -40,14 +43,40 @@ public class UserController {
     @Autowired
     private KafkaTemplate<String, Object> kafkaTemplate;
 
+    @Autowired
+    private SupportTicketRepository supportTicketRepository;
+
     @PostMapping("/support")
+    @jakarta.transaction.Transactional
     public ResponseEntity<?> submitSupportRequest(@RequestBody SupportRequest request) {
         log.info("Received support request from: {}", request.getEmail());
         
-        // Publish to Kafka
+        // 1. Store in database
+        SupportTicket ticket = new SupportTicket();
+        ticket.setName(request.getName());
+        ticket.setEmail(request.getEmail());
+        ticket.setSubject(request.getSubject());
+        ticket.setDescription(request.getMessage());
+        
+        // Generate initial audit log
+        SupportAudit audit = new SupportAudit();
+        audit.setAction("TICKET_CREATED");
+        audit.setDescription("Support request generated via online form");
+        audit.setPerformedBy(request.getEmail());
+        ticket.addAudit(audit);
+        
+        SupportTicket savedTicket = supportTicketRepository.save(ticket);
+        
+        // 2. Attach generated ticket number to the Kafka event payload
+        request.setTicketNumber(savedTicket.getTicketNumber());
+        
+        // 3. Publish to Kafka for async email notification via notification-service
         kafkaTemplate.send("support.request", request);
         
-        return ResponseEntity.ok(Map.of("message", "Support request submitted successfully"));
+        return ResponseEntity.ok(Map.of(
+            "message", "Support request submitted successfully",
+            "ticketNumber", savedTicket.getTicketNumber()
+        ));
     }
 
     /**
