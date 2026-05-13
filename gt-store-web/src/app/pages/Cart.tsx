@@ -75,7 +75,7 @@ export function Cart() {
 
   useEffect(() => {
     if (addresses.length > 0 && selectedAddressId === null) {
-      const defaultAddr = addresses.find((a: any) => a.default) || addresses[0];
+      const defaultAddr = addresses.find((a: any) => a.isDefault) || addresses[0];
       setSelectedAddressId(defaultAddr.id);
     }
   }, [addresses]);
@@ -146,9 +146,9 @@ export function Cart() {
       shippingState: selectedAddress.state,
       shippingPincode: selectedAddress.pincode,
       shippingCountry: selectedAddress.country,
-      customerName: user.name || user.username || '',
+      customerName: selectedAddress.name || user.name || user.username || '',
       customerEmail: user.email || '',
-      customerPhone: user.phone || ''
+      customerPhone: selectedAddress.phone || user.phone || ''
     };
   };
 
@@ -279,12 +279,12 @@ export function Cart() {
                      <div className="flex justify-between items-start bg-gray-50 p-4 rounded-xl border border-gray-200">
                        <div className="flex-1">
                          <div className="flex items-center gap-2 mb-1">
-                           <span className="font-bold text-gray-900">{user.name}</span>
-                           {selectedAddress?.default && <span className="text-[10px] bg-indigo-600 text-white px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Default</span>}
+                           <span className="font-bold text-gray-900">{selectedAddress?.name || user.name}</span>
+                           {selectedAddress?.isDefault && <span className="text-[10px] bg-indigo-600 text-white px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Default</span>}
                          </div>
                          <p className="text-gray-600 text-sm">{selectedAddress?.line1}, {selectedAddress?.line2 && selectedAddress.line2 + ', '}{selectedAddress?.city}</p>
                          <p className="text-gray-600 text-sm font-semibold mt-1">{selectedAddress?.state}, {selectedAddress?.pincode}</p>
-                         <p className="text-indigo-600 text-sm font-bold mt-2">Contact: {user.phone || 'N/A'}</p>
+                         <p className="text-indigo-600 text-sm font-bold mt-2">Contact: {selectedAddress?.phone || user.phone || 'N/A'}</p>
                        </div>
                        <button 
                          onClick={() => setShowAddressSelector(true)}
@@ -304,9 +304,14 @@ export function Cart() {
                            }}
                            className={`p-4 rounded-xl border-2 transition cursor-pointer flex justify-between items-center ${selectedAddressId === addr.id ? 'border-indigo-600 bg-indigo-50/30' : 'border-gray-100 bg-white hover:border-indigo-200'}`}
                          >
-                           <div>
-                              <p className="font-bold text-gray-900">{addr.line1}</p>
-                              <p className="text-xs text-gray-500">{addr.city}, {addr.state} - {addr.pincode}</p>
+                           <div className="flex-1 pr-4">
+                              <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                <span className="font-bold text-gray-900 text-sm">{addr.name || user.name}</span>
+                                {addr.isDefault && <span className="text-[9px] bg-indigo-600 text-white px-1.5 py-0.5 rounded-full font-bold tracking-wide">DEFAULT</span>}
+                              </div>
+                              <p className="text-xs text-gray-700 mb-0.5">{addr.line1}</p>
+                              <p className="text-[11px] text-gray-500">{addr.city}, {addr.state} - {addr.pincode}</p>
+                              <p className="text-[11px] text-indigo-600 font-semibold">Phone: {addr.phone || user.phone || 'N/A'}</p>
                            </div>
                            {selectedAddressId === addr.id && <CheckCircle2 className="w-5 h-5 text-indigo-600" />}
                          </div>

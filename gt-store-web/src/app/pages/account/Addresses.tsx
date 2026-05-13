@@ -13,7 +13,7 @@ interface Address {
   state: string;
   pincode: string;
   country: string;
-  default: boolean;
+  isDefault: boolean;
 }
 
 export function Addresses() {
@@ -55,7 +55,7 @@ export function Addresses() {
       state: address.state || "",
       pincode: address.pincode || "",
       country: address.country || "USA",
-      isDefault: address.default || false,
+      isDefault: address.isDefault || false,
     });
     setShowAddForm(true);
   };
@@ -128,7 +128,6 @@ export function Addresses() {
             <h3 className="mb-4">{editingId ? 'Edit Address' : 'Add New Address'}</h3>
             <div className="grid md:grid-cols-2 gap-4">
               <input
-                required
                 type="text"
                 placeholder="Full Name (optional)"
                 value={formData.name}
@@ -225,7 +224,7 @@ export function Addresses() {
                 key={address.id}
                 className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition relative"
               >
-                {address.default && (
+                {address.isDefault && (
                   <div className="absolute top-4 right-4 flex items-center gap-1 bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs">
                     <Check className="w-3 h-3" />
                     Default
@@ -255,7 +254,7 @@ export function Addresses() {
                     <Trash2 className="w-4 h-4" />
                     Delete
                   </button>
-                  {!address.default && (
+                  {!address.isDefault && (
                     <button onClick={() => setAsDefault(address)} className="flex items-center gap-2 text-gray-700 hover:underline text-sm ml-auto">
                       Set as Default
                     </button>

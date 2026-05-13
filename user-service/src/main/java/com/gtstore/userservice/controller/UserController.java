@@ -113,6 +113,17 @@ public class UserController {
         
         User user = optionalUser.get();
         address.setUserId(user.getId());
+
+        if (address.getName() == null || address.getName().trim().isEmpty()) {
+            address.setName(user.getName());
+        }
+        if (address.getPhone() == null || address.getPhone().trim().isEmpty()) {
+            address.setPhone(user.getPhone());
+        }
+        
+        if (address.isDefault()) {
+            addressRepository.clearDefaultAddressForUser(user.getId());
+        }
         
         Address savedAddress = addressRepository.save(address);
         return ResponseEntity.status(HttpStatus.CREATED).body(savedAddress);
@@ -126,17 +137,35 @@ public class UserController {
         
         Optional<User> optionalUser = userRepository.findByEmail(email);
         if (optionalUser.isEmpty()) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        User user = optionalUser.get();
         
         return addressRepository.findById(id).map(existing -> {
-            if (!existing.getUserId().equals(optionalUser.get().getId())) {
+            if (!existing.getUserId().equals(user.getId())) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
             }
+            
+            String name = updatedAddress.getName();
+            if (name == null || name.trim().isEmpty()) {
+                name = user.getName();
+            }
+            existing.setName(name);
+
+            String phone = updatedAddress.getPhone();
+            if (phone == null || phone.trim().isEmpty()) {
+                phone = user.getPhone();
+            }
+            existing.setPhone(phone);
+
             existing.setLine1(updatedAddress.getLine1());
             existing.setLine2(updatedAddress.getLine2());
             existing.setCity(updatedAddress.getCity());
             existing.setState(updatedAddress.getState());
             existing.setPincode(updatedAddress.getPincode());
             existing.setCountry(updatedAddress.getCountry());
+            
+            if (updatedAddress.isDefault()) {
+                addressRepository.clearDefaultAddressForUser(user.getId());
+            }
             existing.setDefault(updatedAddress.isDefault());
             return ResponseEntity.ok((Object) addressRepository.save(existing));
         }).orElse(ResponseEntity.notFound().build());

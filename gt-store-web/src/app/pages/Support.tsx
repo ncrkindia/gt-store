@@ -1,5 +1,5 @@
 import { useState } from "react";
-import axios from "axios";
+import apiClient from "../../api/axios";
 import { MessageCircle, Mail, Phone, Send, Loader2 } from "lucide-react";
 import { StaticPageLayout } from "../components/StaticPageLayout";
 import { toast } from "sonner";
@@ -17,7 +17,7 @@ export function Support() {
     e.preventDefault();
     setLoading(true);
     try {
-      await axios.post(`${import.meta.env.VITE_API_BASE_URL || "/api"}/users/support`, formData);
+      await apiClient.post("/users/support", formData);
       toast.success("Your message has been sent! We'll get back to you soon.");
       setFormData({ name: "", email: "", subject: "", message: "" });
     } catch (error) {

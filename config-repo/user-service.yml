@@ -1,4 +1,10 @@
 # User Service Configuration
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+
 springdoc:
   api-docs:
     path: /api/users/v3/api-docs
