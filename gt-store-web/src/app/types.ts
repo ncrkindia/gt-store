@@ -12,6 +12,7 @@ export interface Product {
   images: string[];
   brand: string;
   category: string;
+  categoryIds?: string[];
   inStock: boolean;
   features: string[];
   ratingBreakdown?: Record<number, number>;

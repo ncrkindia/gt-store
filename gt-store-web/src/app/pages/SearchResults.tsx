@@ -2,6 +2,7 @@ import { useSearchParams, Link, useNavigate } from "react-router";
 import { useState, useEffect, useRef } from "react";
 import { ShoppingCart, Heart, Star, ArrowRight, Search, Package, CheckCircle, XCircle } from "lucide-react";
 import apiClient from "../../api/axios";
+import { useQuery } from '@tanstack/react-query';
 import { useKeycloak } from "@react-keycloak/web";
 import { formatPrice } from "../../lib/formatPrice";
 
@@ -30,6 +31,11 @@ interface SearchResult {
   inStock: boolean;
 }
 
+const fetchCategories = async () => {
+  const res = await apiClient.get('/categories');
+  return res.data || [];
+};
+
 export function SearchResults() {
   const [searchParams] = useSearchParams();
   const q = searchParams.get("q") || "";
@@ -41,6 +47,11 @@ export function SearchResults() {
   const [addingCart, setAddingCart] = useState<string | null>(null);
   const [addingWishlist, setAddingWishlist] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<{ id: string; type: "cart" | "wishlist" } | null>(null);
+
+  const { data: categories = [] } = useQuery<{id: string, name: string, slug: string}[]>({
+    queryKey: ['categories'],
+    queryFn: fetchCategories
+  });
 
   // Sorting & filtering state
   const [sortBy, setSortBy] = useState("relevance");
@@ -182,7 +193,7 @@ export function SearchResults() {
                   className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow p-5 flex gap-5 group"
                 >
                   {/* Product Image */}
-                  <Link to={result.slug ? `/p/${result.slug}` : `/product/${result.id}`} className="shrink-0">
+                  <Link to={`/p/${result.slug || result.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`} className="shrink-0">
                     <div className="w-32 h-32 rounded-xl overflow-hidden bg-gray-100 border border-gray-200">
                       {result.imageUrl ? (
                         <img
@@ -212,11 +223,17 @@ export function SearchResults() {
                               {result.brand}
                             </span>
                           )}
-                          {result.categoryIds?.slice(0, 2).map((cat) => (
-                            <span key={cat} className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full capitalize">
-                              {cat}
-                            </span>
-                          ))}
+                          {result.categoryIds?.slice(0, 2).map((catId) => {
+                            const matched = categories.find(c => c.id === catId || c.slug === catId);
+                            const displayName = matched ? matched.name : catId;
+                            // Prevent raw mongo id leaks visually
+                            if (/^[0-9a-fA-F]{24}$/.test(displayName)) return null;
+                            return (
+                              <span key={catId} className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full capitalize">
+                                {displayName}
+                              </span>
+                            );
+                          })}
                           {result.inStock === false ? (
                             <span className="flex items-center gap-1 text-xs text-red-500 bg-red-50 px-2 py-0.5 rounded-full">
                               <XCircle className="w-3 h-3" /> Out of Stock
@@ -229,7 +246,7 @@ export function SearchResults() {
                         </div>
 
                         {/* Name */}
-                        <Link to={result.slug ? `/p/${result.slug}` : `/product/${result.id}`}>
+                        <Link to={`/p/${result.slug || result.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}>
                           <h3 className="font-semibold text-gray-900 text-base hover:text-indigo-600 transition line-clamp-2 leading-snug">
                             {result.name}
                           </h3>
@@ -307,7 +324,7 @@ export function SearchResults() {
                             )}
                           </button>
                           <Link
-                            to={result.slug ? `/p/${result.slug}` : `/product/${result.id}`}
+                            to={`/p/${result.slug || result.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
                             className="flex items-center gap-1 px-4 py-2 rounded-xl text-sm font-medium border border-gray-200 text-gray-700 hover:bg-gray-50 transition"
                           >
                             View <ArrowRight className="w-3.5 h-3.5" />

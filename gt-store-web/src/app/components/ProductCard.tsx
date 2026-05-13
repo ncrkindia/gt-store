@@ -12,7 +12,7 @@ interface ProductCardProps {
 export function ProductCard({ product }: ProductCardProps) {
   return (
     <Link
-      to={product.slug ? `/p/${product.slug}` : `/product/${product.id}`}
+      to={`/p/${product.slug || product.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
       className="bg-white rounded-2xl overflow-hidden hover:shadow-2xl transition-all duration-300 group border border-gray-100"
     >
       <div className="relative aspect-square overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100">

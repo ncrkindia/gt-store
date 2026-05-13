@@ -20,6 +20,28 @@ const resolveImg = (img?: string): string => {
   return `${API_BASE}/api/media/files/${img}`;
 };
 
+interface Category {
+  id: string;
+  name: string;
+  slug: string;
+}
+
+interface Brand {
+  id: string;
+  name: string;
+  slug: string;
+}
+
+const fetchCategories = async () => {
+  const res = await apiClient.get('/categories');
+  return res.data || [];
+};
+
+const fetchBrands = async () => {
+  const res = await apiClient.get('/brands');
+  return res.data || [];
+};
+
 const fetchProducts = async () => {
   const res = await apiClient.get('/products');
   return (res.data.content || []).map((p: any) => {
@@ -46,6 +68,7 @@ const fetchProducts = async () => {
       images: (p.images || []).map(resolveImg),
       brand: p.brand || 'Generic',
       category: (p.categoryIds && p.categoryIds.length > 0) ? p.categoryIds[0] : 'all',
+      categoryIds: p.categoryIds || [],
       inStock: p.inStock !== undefined ? p.inStock : true,
       features: p.features || [],
       ratingBreakdown: p.ratingBreakdown || {},
@@ -83,6 +106,16 @@ export function ProductView() {
     queryFn: fetchProducts
   });
 
+  const { data: categories = [] } = useQuery<Category[]>({
+    queryKey: ['categories'],
+    queryFn: fetchCategories
+  });
+
+  const { data: brands = [] } = useQuery<Brand[]>({
+    queryKey: ['brands'],
+    queryFn: fetchBrands
+  });
+
   const product = products.find((p) => (id && p.id === id) || (slug && p.slug === slug));
 
   if (isLoading) {
@@ -111,6 +144,28 @@ export function ProductView() {
     .sort((a, b) => b.rating - a.rating)
     .slice(0, 6);
 
+  // Match the brand object by name and resolve dynamic storefront target URL
+  const matchedBrand = brands.find((b) => b.name.toLowerCase() === product.brand.toLowerCase());
+  const brandHref = matchedBrand ? `/brand/${matchedBrand.slug || matchedBrand.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}` : `#`;
+
+  // Map category references to resolved names and route slugs
+  const resolvedCategories = (product.categoryIds || []).map((ref) => {
+    const cat = categories.find((c) => c.id === ref || c.slug === ref);
+    return cat 
+      ? { name: cat.name, href: `/category/${cat.slug || cat.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}` } 
+      : { name: ref, href: `/category/${ref}` };
+  });
+
+  let finalCategories = resolvedCategories;
+  if (finalCategories.length === 0) {
+    const fallbackCat = categories.find((c) => c.id === product.category || c.slug === product.category);
+    finalCategories = [
+      fallbackCat 
+        ? { name: fallbackCat.name, href: `/category/${fallbackCat.slug || fallbackCat.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}` } 
+        : { name: product.category, href: `/category/${product.category}` }
+    ];
+  }
+
   const handleAddToCart = async () => {
     if (!keycloak.authenticated) {
       keycloak.login();
@@ -135,8 +190,8 @@ export function ProductView() {
           <div className="flex items-center gap-2 text-sm text-gray-600">
             <Link to="/" className="hover:text-[#2874f0]">Home</Link>
             <span>/</span>
-            <Link to={`/category/${product.category}`} className="hover:text-[#2874f0] capitalize">
-              {product.category}
+            <Link to={finalCategories.length > 0 ? finalCategories[0].href : `/category/${product.category}`} className="hover:text-[#2874f0] capitalize">
+              {finalCategories.length > 0 ? finalCategories[0].name : product.category}
             </Link>
             <span>/</span>
             <span className="text-gray-900">{product.name}</span>
@@ -307,13 +362,40 @@ export function ProductView() {
             <div className="bg-white rounded-lg p-6">
               <h2 className="text-xl mb-4">Specifications</h2>
               <div className="space-y-3 text-sm">
-                <div className="flex border-b border-gray-100 pb-2">
-                  <span className="w-32 text-gray-600">Brand</span>
-                  <span className="text-gray-900">{product.brand}</span>
+                <div className="flex border-b border-gray-100 pb-2 items-center">
+                  <span className="w-32 text-gray-600 font-medium">Brand</span>
+                  <span className="text-gray-900 font-semibold">
+                    {brandHref !== '#' ? (
+                      <a 
+                        href={brandHref} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="text-[#2874f0] hover:text-blue-800 hover:underline transition"
+                      >
+                        {product.brand}
+                      </a>
+                    ) : (
+                      product.brand
+                    )}
+                  </span>
                 </div>
-                <div className="flex border-b border-gray-100 pb-2">
-                  <span className="w-32 text-gray-600">Category</span>
-                  <span className="text-gray-900 capitalize">{product.category}</span>
+                <div className="flex border-b border-gray-100 pb-2 items-center">
+                  <span className="w-32 text-gray-600 font-medium">Category</span>
+                  <span className="text-gray-900 flex flex-wrap items-center font-semibold">
+                    {finalCategories.map((cat, idx) => (
+                      <span key={idx} className="flex items-center">
+                        <a 
+                          href={cat.href} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="text-[#2874f0] hover:text-blue-800 hover:underline transition capitalize"
+                        >
+                          {cat.name}
+                        </a>
+                        {idx < finalCategories.length - 1 && <span className="mr-1.5 text-gray-400 font-normal">,</span>}
+                      </span>
+                    ))}
+                  </span>
                 </div>
                 <div className="flex border-b border-gray-100 pb-2">
                   <span className="w-32 text-gray-600">In Stock</span>

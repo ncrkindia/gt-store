@@ -236,7 +236,7 @@ export function Orders() {
                         />
                         <div className="flex-1">
                           <Link
-                            to={item.productData?.slug ? `/p/${item.productData.slug}` : `/product/${item.productId}`}
+                            to={`/p/${item.productData?.slug || item.productData?.name?.toLowerCase().replace(/[^a-z0-9]+/g, '-') || 'view'}`}
                             className="hover:text-[#2874f0] transition"
                           >
                             <h4 className="mb-1">{item.productData?.name || 'Loading Product Name...'}</h4>

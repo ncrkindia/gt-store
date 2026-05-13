@@ -227,7 +227,7 @@ export function Home() {
             {systemCategories.map((category) => (
               <Link
                 key={category.id}
-                to={`/category/${category.slug || category.id}`}
+                to={`/category/${category.slug || category.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
                 className="flex flex-col items-center gap-3 p-4 rounded-2xl hover:bg-gradient-to-br hover:from-indigo-50 hover:to-purple-50 transition-all duration-300 group"
               >
                 <div className="w-20 h-20 rounded-2xl overflow-hidden border-2 border-gray-200 bg-white group-hover:border-indigo-500 group-hover:shadow-lg transition-all duration-300 group-hover:scale-110 flex items-center justify-center relative">
@@ -264,7 +264,7 @@ export function Home() {
             {systemBrands.map((brand) => (
               <Link
                 key={brand.id}
-                to={`/brand/${brand.slug || brand.id}`}
+                to={`/brand/${brand.slug || brand.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
                 className="flex flex-col items-center gap-3 p-4 rounded-2xl hover:bg-gradient-to-br hover:from-pink-50 hover:to-purple-50 transition-all duration-300 group"
               >
                 <div className="w-20 h-20 rounded-2xl overflow-hidden border-2 border-gray-200 bg-white group-hover:border-pink-500 group-hover:shadow-lg transition-all duration-300 group-hover:scale-110 flex items-center justify-center p-3">

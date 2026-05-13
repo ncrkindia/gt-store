@@ -333,7 +333,7 @@ export function Cart() {
               {enrichedItems.map((item: any) => (
                 <div key={item.productId} className="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition border border-gray-100">
                   <div className="flex gap-4">
-                    <Link to={item.product.slug ? `/p/${item.product.slug}` : `/product/${item.productId}`} className="flex-shrink-0">
+                    <Link to={`/p/${item.product.slug || item.product.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`} className="flex-shrink-0">
                       <img
                         src={item.product.image || 'https://via.placeholder.com/150'}
                         alt={item.product.name}
@@ -344,7 +344,7 @@ export function Cart() {
                     <div className="flex-1">
                       <div className="flex justify-between mb-2">
                         <Link
-                          to={item.product.slug ? `/p/${item.product.slug}` : `/product/${item.productId}`}
+                          to={`/p/${item.product.slug || item.product.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
                           className="text-lg font-semibold hover:text-indigo-600 transition"
                         >
                           {item.product.name}
