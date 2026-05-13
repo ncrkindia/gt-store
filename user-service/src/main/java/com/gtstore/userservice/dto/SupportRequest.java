@@ -3,6 +3,7 @@ package com.gtstore.userservice.dto;
 public class SupportRequest {
     private String name;
     private String email;
+    private String mobile;
     private String subject;
     private String message;
     private String ticketNumber;
@@ -10,9 +11,10 @@ public class SupportRequest {
     // Default constructor for Jackson
     public SupportRequest() {}
 
-    public SupportRequest(String name, String email, String subject, String message, String ticketNumber) {
+    public SupportRequest(String name, String email, String mobile, String subject, String message, String ticketNumber) {
         this.name = name;
         this.email = email;
+        this.mobile = mobile;
         this.subject = subject;
         this.message = message;
         this.ticketNumber = ticketNumber;
@@ -24,6 +26,9 @@ public class SupportRequest {
 
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }
+
+    public String getMobile() { return mobile; }
+    public void setMobile(String mobile) { this.mobile = mobile; }
 
     public String getSubject() { return subject; }
     public void setSubject(String subject) { this.subject = subject; }

@@ -4,7 +4,7 @@ import { useKeycloak } from "@react-keycloak/web";
 import { toast } from "sonner";
 import { 
   MessageSquare, Clock, CheckCircle2, AlertCircle, Send, Lock, 
-  User, Mail, HelpCircle, RefreshCcw, Calendar, FileText, ShieldAlert
+  User, Mail, Phone, HelpCircle, RefreshCcw, Calendar, FileText, ShieldAlert
 } from "lucide-react";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; icon: any }> = {
@@ -234,6 +234,12 @@ export default function SupportPage() {
                       <Mail className="w-4 h-4 text-slate-400" />
                       <a href={`mailto:${selectedTicket.email}`} className="hover:text-indigo-600 transition hover:underline">{selectedTicket.email}</a>
                     </div>
+                    {selectedTicket.mobile && (
+                      <div className="flex items-center gap-2 border-l border-slate-200 pl-6">
+                        <Phone className="w-4 h-4 text-slate-400" />
+                        <a href={`tel:${selectedTicket.mobile}`} className="hover:text-indigo-600 transition hover:underline">{selectedTicket.mobile}</a>
+                      </div>
+                    )}
                   </div>
                 </div>
 

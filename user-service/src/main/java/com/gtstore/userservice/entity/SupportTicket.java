@@ -23,6 +23,9 @@ public class SupportTicket {
     @Column(nullable = false)
     private String email;
 
+    @Column(nullable = true)
+    private String mobile;
+
     @Column(nullable = false)
     private String subject;
 
@@ -87,6 +90,9 @@ public class SupportTicket {
 
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }
+
+    public String getMobile() { return mobile; }
+    public void setMobile(String mobile) { this.mobile = mobile; }
 
     public String getSubject() { return subject; }
     public void setSubject(String subject) { this.subject = subject; }

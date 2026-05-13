@@ -1,17 +1,45 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import apiClient from "../../api/axios";
 import { MessageCircle, Mail, Phone, Send, Loader2 } from "lucide-react";
 import { StaticPageLayout } from "../components/StaticPageLayout";
 import { toast } from "sonner";
+import { useKeycloak } from "@react-keycloak/web";
 
 export function Support() {
+  const { keycloak, initialized } = useKeycloak();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
+    mobile: "",
     subject: "",
     message: "",
   });
+
+  useEffect(() => {
+    const loadProfileDetails = async () => {
+      if (initialized && keycloak.authenticated && keycloak.tokenParsed) {
+        setFormData(prev => ({
+          ...prev,
+          name: keycloak.tokenParsed?.name || keycloak.tokenParsed?.preferred_username || "",
+          email: keycloak.tokenParsed?.email || "",
+        }));
+
+        try {
+          const { data } = await apiClient.get("/users/me");
+          if (data?.user?.phone) {
+            setFormData(prev => ({ ...prev, mobile: data.user.phone }));
+          }
+        } catch (err) {
+          console.warn("Optional pre-fill fetch failed", err);
+        }
+      }
+    };
+    
+    loadProfileDetails();
+  }, [initialized, keycloak.authenticated, keycloak.tokenParsed]);
+
+  const isAutofilled = !!(keycloak.authenticated && keycloak.tokenParsed);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,7 +47,11 @@ export function Support() {
     try {
       await apiClient.post("/users/support", formData);
       toast.success("Your message has been sent! We'll get back to you soon.");
-      setFormData({ name: "", email: "", subject: "", message: "" });
+      setFormData(prev => ({
+        ...prev,
+        subject: "",
+        message: ""
+      }));
     } catch (error) {
       console.error("Support submission error:", error);
       toast.error("Failed to send message. Please try again later.");
@@ -44,7 +76,8 @@ export function Support() {
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     required
-                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:border-transparent transition"
+                    disabled={isAutofilled}
+                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:border-transparent transition disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
                     placeholder="John Doe"
                   />
                 </div>
@@ -56,8 +89,20 @@ export function Support() {
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     required
-                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:border-transparent transition"
+                    disabled={isAutofilled}
+                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:border-transparent transition disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
                     placeholder="john@example.com"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Mobile Number (Optional)</label>
+                  <input
+                    type="tel"
+                    value={formData.mobile}
+                    onChange={(e) => setFormData({ ...formData, mobile: e.target.value })}
+                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:border-transparent transition"
+                    placeholder="e.g. +91 9876543210"
                   />
                 </div>
 

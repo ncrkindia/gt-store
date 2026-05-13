@@ -55,6 +55,7 @@ public class UserController {
         SupportTicket ticket = new SupportTicket();
         ticket.setName(request.getName());
         ticket.setEmail(request.getEmail());
+        ticket.setMobile(request.getMobile());
         ticket.setSubject(request.getSubject());
         ticket.setDescription(request.getMessage());
         
