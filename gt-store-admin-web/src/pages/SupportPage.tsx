@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
+import { Link, useParams, useNavigate } from "react-router-dom";
 import apiClient from "../api/axios";
 import { useKeycloak } from "@react-keycloak/web";
 import { toast } from "sonner";
 import { 
   MessageSquare, Clock, CheckCircle2, AlertCircle, Send, Lock, 
-  User, Mail, Phone, HelpCircle, RefreshCcw, Calendar, FileText, ShieldAlert
+  User, Mail, Phone, HelpCircle, RefreshCcw, Calendar, FileText, ShieldAlert,
+  Link2, Link2Off, ShoppingBag, ArrowUpRight
 } from "lucide-react";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; icon: any }> = {
@@ -15,6 +17,9 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; 
 };
 
 export default function SupportPage() {
+  const { ticketNumber } = useParams<{ ticketNumber?: string }>();
+  const navigate = useNavigate();
+
   const { keycloak, initialized } = useKeycloak();
   const [tickets, setTickets] = useState<any[]>([]);
   const [selectedTicket, setSelectedTicket] = useState<any | null>(null);
@@ -23,7 +28,12 @@ export default function SupportPage() {
   const [isInternal, setIsInternal] = useState(false);
   const [sendEmail, setSendEmail] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [activeTab, setActiveTab] = useState<"conversation" | "audit">("conversation");
+  const [activeTab, setActiveTab] = useState<"conversation" | "audit" | "orders">("conversation");
+
+  // Order linking states
+  const [newOrderIdInput, setNewOrderIdInput] = useState("");
+  const [linkingLoading, setLinkingLoading] = useState(false);
+  const [linkedOrdersCache, setLinkedOrdersCache] = useState<Record<string, any>>({});
 
   const fetchTickets = async (selectId?: number) => {
     if (!keycloak.authenticated) return;
@@ -36,8 +46,22 @@ export default function SupportPage() {
       if (selectId) {
         const updated = data.find((t: any) => t.id === selectId);
         if (updated) setSelectedTicket(updated);
-      } else if (data.length > 0 && !selectedTicket) {
-        setSelectedTicket(data[0]);
+      } else if (data.length > 0) {
+        // Priority: Read ticket number from URL param
+        if (ticketNumber) {
+          const matched = data.find((t: any) => t.ticketNumber === ticketNumber);
+          if (matched) {
+            setSelectedTicket(matched);
+          } else {
+            // Fallback if parameter is invalid
+            setSelectedTicket(data[0]);
+            navigate(`/support/${data[0].ticketNumber}`, { replace: true });
+          }
+        } else {
+          // Set first ticket and redirect URL so user can bookmark it
+          setSelectedTicket(data[0]);
+          navigate(`/support/${data[0].ticketNumber}`, { replace: true });
+        }
       }
     } catch (e) {
       console.error("Failed to fetch support tickets", e);
@@ -52,6 +76,97 @@ export default function SupportPage() {
       fetchTickets();
     }
   }, [initialized, keycloak.authenticated]);
+
+  useEffect(() => {
+    if (tickets.length > 0 && ticketNumber) {
+      const matched = tickets.find((t: any) => t.ticketNumber === ticketNumber);
+      if (matched && matched.id !== selectedTicket?.id) {
+        setSelectedTicket(matched);
+        setActiveTab("conversation"); // Reset tab context when switching ticket via URL
+      }
+    }
+  }, [ticketNumber, tickets]);
+
+  const fetchLinkedOrderDetails = async (orderIds: string[]) => {
+    if (!orderIds || orderIds.length === 0) return;
+    
+    const newCache: Record<string, any> = { ...linkedOrdersCache };
+    let updated = false;
+
+    await Promise.all(
+      orderIds.map(async (oid) => {
+        // Avoid refetching if already cached
+        if (newCache[oid]) return;
+        try {
+          const res = await apiClient.get(`/api/orders/all/${oid}`);
+          newCache[oid] = res.data;
+          updated = true;
+        } catch (err) {
+          newCache[oid] = { id: oid, error: true, status: "UNKNOWN" };
+          updated = true;
+        }
+      })
+    );
+
+    if (updated) {
+      setLinkedOrdersCache(newCache);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedTicket && selectedTicket.linkedOrderIds) {
+      fetchLinkedOrderDetails(selectedTicket.linkedOrderIds);
+    }
+  }, [selectedTicket]);
+
+  const handleLinkOrder = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedTicket || !newOrderIdInput.trim()) return;
+
+    const orderId = newOrderIdInput.trim();
+    // Simple UUID validation
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(orderId)) {
+      toast.error("Please enter a valid Order UUID");
+      return;
+    }
+
+    const currentLinks = selectedTicket.linkedOrderIds || [];
+    if (currentLinks.includes(orderId)) {
+      toast.error("This order is already linked to this ticket");
+      return;
+    }
+
+    setLinkingLoading(true);
+    try {
+      const updatedList = [...currentLinks, orderId];
+      await apiClient.put(`/api/users/admin/support/tickets/${selectedTicket.id}/link-orders`, updatedList);
+      toast.success("Order successfully linked!");
+      setNewOrderIdInput("");
+      fetchTickets(selectedTicket.id);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to link order to ticket");
+    } finally {
+      setLinkingLoading(false);
+    }
+  };
+
+  const handleUnlinkOrder = async (orderId: string) => {
+    if (!selectedTicket) return;
+    
+    try {
+      const currentLinks = selectedTicket.linkedOrderIds || [];
+      const updatedList = currentLinks.filter((oid: string) => oid !== orderId);
+      
+      await apiClient.put(`/api/users/admin/support/tickets/${selectedTicket.id}/link-orders`, updatedList);
+      toast.success("Order unlinked successfully");
+      fetchTickets(selectedTicket.id);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to unlink order");
+    }
+  };
 
   const handleStatusChange = async (ticketId: number, newStatus: string) => {
     try {
@@ -167,10 +282,7 @@ export default function SupportPage() {
                 return (
                   <button
                     key={ticket.id}
-                    onClick={() => {
-                      setSelectedTicket(ticket);
-                      setActiveTab("conversation");
-                    }}
+                    onClick={() => navigate(`/support/${ticket.ticketNumber}`)}
                     className={`w-full text-left p-4 hover:bg-slate-50 transition duration-200 flex flex-col gap-2 relative ${isSelected ? 'bg-indigo-50/50 border-l-4 border-indigo-600 hover:bg-indigo-50/70 pl-3' : ''}`}
                   >
                     <div className="flex items-start justify-between w-full gap-2">
@@ -243,8 +355,8 @@ export default function SupportPage() {
                   </div>
                 </div>
 
-                {/* Tab Bar: Discussion vs Audit */}
-                <div className="border-b border-slate-100 bg-slate-50/40 flex px-6 shrink-0">
+                {/* Tab Bar: Discussion vs Audit vs Orders */}
+                <div className="border-b border-slate-100 bg-slate-50/40 flex px-6 shrink-0 gap-2">
                   <button
                     onClick={() => setActiveTab("conversation")}
                     className={`py-3 px-4 text-sm font-bold border-b-2 transition ${activeTab === 'conversation' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
@@ -257,13 +369,22 @@ export default function SupportPage() {
                   >
                     Audit History Logs
                   </button>
+                  <button
+                    onClick={() => setActiveTab("orders")}
+                    className={`py-3 px-4 text-sm font-bold border-b-2 transition flex items-center gap-2 ${activeTab === 'orders' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                  >
+                    Linked Orders 
+                    <span className={`px-2 py-0.5 text-[10px] font-black rounded-full ${selectedTicket.linkedOrderIds?.length > 0 ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-200 text-slate-500'}`}>
+                      {selectedTicket.linkedOrderIds?.length || 0}
+                    </span>
+                  </button>
                 </div>
 
                 {/* Main Chat Content Pane */}
-                <div className="flex-1 overflow-y-auto bg-slate-50/50 p-6 flex flex-col gap-6">
+                <div className="flex-1 overflow-y-auto bg-slate-50/50 p-6">
                   
-                  {activeTab === "conversation" ? (
-                    <>
+                  {activeTab === "conversation" && (
+                    <div className="flex flex-col gap-6">
                       {/* Original Query Post (Initial Ticket Body) */}
                       <div className="bg-white border border-indigo-100 rounded-2xl p-5 shadow-sm relative ring-1 ring-indigo-600/5">
                         <div className="absolute top-0 left-0 -translate-x-1/3 translate-y-4 w-2 h-2 rounded-full bg-indigo-500" />
@@ -319,13 +440,13 @@ export default function SupportPage() {
                           </div>
                         );
                       })}
-                    </>
-                  ) : (
-                    /* Audit History Timeline Tab */
+                    </div>
+                  )}
+
+                  {activeTab === "audit" && (
                     <div className="space-y-6 pl-4 border-l-2 border-slate-200 ml-2">
                       {selectedTicket.audits?.map((audit: any, idx: number) => (
                         <div key={audit.id || idx} className="relative">
-                          {/* Point marker */}
                           <div className="absolute -left-[25px] top-1 w-4 h-4 rounded-full bg-white border-2 border-indigo-500 flex items-center justify-center">
                             <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
                           </div>
@@ -344,6 +465,108 @@ export default function SupportPage() {
                           </div>
                         </div>
                       ))}
+                    </div>
+                  )}
+
+                  {activeTab === "orders" && (
+                    <div className="space-y-6 max-w-screen-md">
+                      {/* Add Order Mapping Section */}
+                      <div className="bg-white border border-indigo-50 rounded-2xl p-5 shadow-xs ring-1 ring-indigo-600/5">
+                        <h3 className="text-sm font-black text-slate-800 mb-3 flex items-center gap-2">
+                          <Link2 className="w-4 h-4 text-indigo-600" /> Associate Reference Order
+                        </h3>
+                        <form onSubmit={handleLinkOrder} className="flex gap-2">
+                          <input 
+                            type="text"
+                            value={newOrderIdInput}
+                            onChange={(e) => setNewOrderIdInput(e.target.value)}
+                            placeholder="Paste GT Order UUID here..."
+                            className="flex-1 bg-slate-50 border border-slate-200 text-sm font-mono font-bold text-slate-700 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          />
+                          <button 
+                            type="submit"
+                            disabled={linkingLoading || !newOrderIdInput.trim()}
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black uppercase tracking-wider px-6 rounded-xl shadow-md hover:shadow-indigo-600/20 transition disabled:opacity-50 flex items-center gap-2"
+                          >
+                            {linkingLoading ? "Mapping..." : "Map ID"}
+                          </button>
+                        </form>
+                      </div>
+
+                      {/* Grid Ledger Items */}
+                      <div className="flex flex-col gap-3">
+                        <h3 className="text-xs uppercase font-black text-slate-400 tracking-wider flex items-center gap-2 px-1 mb-1">
+                          <ShoppingBag className="w-3.5 h-3.5" /> Linked Platform Orders
+                        </h3>
+                        
+                        {(!selectedTicket.linkedOrderIds || selectedTicket.linkedOrderIds.length === 0) ? (
+                          <div className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-3xl p-12 text-center flex flex-col items-center justify-center">
+                            <Link2Off className="w-10 h-10 text-slate-300 mb-3 animate-bounce duration-1000" />
+                            <p className="text-sm text-slate-700 font-black">No order mappings found.</p>
+                            <p className="text-[11px] text-slate-400 font-medium mt-1">Paste a valid GT transaction ID to construct an analytical bridge.</p>
+                          </div>
+                        ) : (
+                          <div className="grid gap-3">
+                            {selectedTicket.linkedOrderIds.map((orderId: string) => {
+                              const ord = linkedOrdersCache[orderId];
+                              
+                              return (
+                                <div key={orderId} className="bg-white border border-slate-200 rounded-2xl p-4 shadow-2xs hover:shadow-sm transition group flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                                  <div className="space-y-1.5 flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <span className="text-[9px] uppercase font-black bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200/50 tracking-wider">GT ORDER</span>
+                                      {ord && !ord.error && (
+                                        <span className="text-[9px] font-black tracking-wider uppercase bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded border border-emerald-200">
+                                          {ord.status}
+                                        </span>
+                                      )}
+                                      {ord?.error && (
+                                        <span className="text-[9px] font-black tracking-wider uppercase bg-rose-50 text-rose-600 px-1.5 py-0.5 rounded border border-rose-100">
+                                          UNREACHABLE
+                                        </span>
+                                      )}
+                                    </div>
+                                    
+                                    <Link 
+                                      to={`/orders/${orderId}`} 
+                                      className="text-xs font-black text-indigo-600 font-mono flex items-center gap-1 hover:underline break-all"
+                                    >
+                                      {orderId} <ArrowUpRight className="w-3 h-3 opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition duration-200" />
+                                    </Link>
+                                    
+                                    {ord && !ord.error && ord.updatedAt && (
+                                      <p className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
+                                        <Clock className="w-3 h-3 text-slate-300" /> Last Update: {new Date(ord.updatedAt).toLocaleString()}
+                                      </p>
+                                    )}
+                                    {!ord && (
+                                      <p className="text-[10px] font-black text-amber-500 flex items-center gap-1 animate-pulse">
+                                        <RefreshCcw className="w-3 h-3 animate-spin" /> Synchronizing telemetry...
+                                      </p>
+                                    )}
+                                  </div>
+                                  
+                                  <div className="flex items-center gap-2 shrink-0 ml-auto md:ml-0">
+                                    <Link 
+                                      to={`/orders/${orderId}`}
+                                      className="bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-800 font-black text-[11px] px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-3xs"
+                                    >
+                                      View Tracker
+                                    </Link>
+                                    <button 
+                                      onClick={() => handleUnlinkOrder(orderId)}
+                                      className="hover:bg-rose-50 border border-transparent hover:border-rose-100 text-slate-400 hover:text-rose-500 p-2 rounded-xl transition"
+                                      title="Unlink ID Reference"
+                                    >
+                                      <Link2Off className="w-4 h-4" />
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>

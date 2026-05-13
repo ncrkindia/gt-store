@@ -66,6 +66,10 @@ public class Order {
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderItem> items = new ArrayList<>();
 
+    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("createdAt DESC")
+    private List<OrderAudit> audits = new ArrayList<>();
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
@@ -85,6 +89,11 @@ public class Order {
     public void removeItem(OrderItem item) {
         items.remove(item);
         item.setOrder(null);
+    }
+
+    public void addAudit(OrderAudit audit) {
+        audits.add(audit);
+        audit.setOrder(this);
     }
 
     // Getters and Setters
@@ -126,4 +135,7 @@ public class Order {
 
     public List<OrderItem> getItems() { return items; }
     public void setItems(List<OrderItem> items) { this.items = items; }
+
+    public List<OrderAudit> getAudits() { return audits; }
+    public void setAudits(List<OrderAudit> audits) { this.audits = audits; }
 }

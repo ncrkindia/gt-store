@@ -3,6 +3,7 @@ package com.gtstore.orderservice.controller;
 import com.gtstore.orderservice.dto.*;
 import com.gtstore.orderservice.entity.Order;
 import com.gtstore.orderservice.entity.OrderItem;
+import com.gtstore.orderservice.entity.OrderAudit;
 import com.gtstore.orderservice.repository.OrderRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -111,6 +112,15 @@ public class OrderController {
             }
         }
         order.setTotalAmount(totalAmount);
+
+        OrderAudit audit = new OrderAudit();
+        audit.setAction("ORDER_CREATED");
+        audit.setDescription("Order initiated via Checkout. Payment Method: " + order.getPaymentMethod());
+        audit.setPerformedBy(email);
+        audit.setPerformedByName(name != null ? name : "Customer");
+        audit.setPerformedByEmail(email);
+        order.addAudit(audit);
+
         Order saved = orderRepository.save(order);
 
         // 3. Initiate Payment (Only if NOT COD)
@@ -184,10 +194,29 @@ public class OrderController {
     @PutMapping("/{id}/status")
     public ResponseEntity<?> updateStatus(
             @PathVariable UUID id,
-            @RequestParam String status) {
+            @RequestParam String status,
+            @RequestParam(required = false) String details,
+            @RequestHeader(value = "X-User-Name", required = false) String actorName,
+            @RequestHeader(value = "X-User-Email", required = false) String actorEmail) {
         return orderRepository.findById(id)
                 .map(order -> {
+                    String oldStatus = order.getStatus();
                     order.setStatus(status.toUpperCase());
+
+                    OrderAudit audit = new OrderAudit();
+                    audit.setAction("STATUS_UPDATED");
+                    
+                    String auditDesc = "Status transitioned from " + oldStatus + " to " + status.toUpperCase();
+                    if (details != null && !details.trim().isEmpty()) {
+                        auditDesc += ". Action Details: " + details.trim();
+                    }
+                    
+                    audit.setDescription(auditDesc);
+                    audit.setPerformedBy(actorEmail != null ? actorEmail : "ADMIN");
+                    audit.setPerformedByName(actorName != null ? actorName : "System Administrator");
+                    audit.setPerformedByEmail(actorEmail);
+                    order.addAudit(audit);
+
                     Order saved = orderRepository.save(order);
                     
                     // Emit specific event topics
@@ -258,6 +287,13 @@ public class OrderController {
             }
             
             order.setStatus("CANCELLED_BY_CUSTOMER");
+            
+            OrderAudit audit = new OrderAudit();
+            audit.setAction("ORDER_CANCELLED");
+            audit.setDescription("Cancelled by customer via portal");
+            audit.setPerformedBy(email);
+            order.addAudit(audit);
+
             Order saved = orderRepository.save(order);
             
             OrderEvent event = new OrderEvent();
@@ -289,5 +325,15 @@ public class OrderController {
     @GetMapping("/all")
     public ResponseEntity<List<Order>> getAllOrders() {
         return ResponseEntity.ok(orderRepository.findAllByOrderByCreatedAtDesc());
+    }
+
+    /**
+     * Admin-only: Retrieve details of a specific order by ID.
+     */
+    @GetMapping("/all/{id}")
+    public ResponseEntity<Order> getOrderByIdAdmin(@PathVariable UUID id) {
+        return orderRepository.findById(id)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 }

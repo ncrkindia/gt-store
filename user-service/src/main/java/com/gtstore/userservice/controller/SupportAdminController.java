@@ -137,4 +137,37 @@ public class SupportAdminController {
             return ResponseEntity.ok(saved);
         }).orElse(ResponseEntity.notFound().build());
     }
+
+    /**
+     * PUT update linked order IDs for a support ticket.
+     */
+    @PutMapping("/tickets/{id}/link-orders")
+    @Transactional
+    public ResponseEntity<?> updateLinkedOrders(
+            @PathVariable Long id,
+            @RequestBody List<String> orderIds,
+            @RequestHeader(value = "X-User-Email", required = false) String adminEmail) {
+        
+        return ticketRepository.findById(id).map(ticket -> {
+            List<String> oldOrders = ticket.getLinkedOrderIds();
+            ticket.setLinkedOrderIds(orderIds);
+
+            SupportAudit audit = new SupportAudit();
+            audit.setAction("ORDERS_LINKED");
+            audit.setDescription("Linked orders updated. Previous list: " + oldOrders + ", New count: " + orderIds.size());
+            audit.setPerformedBy(adminEmail != null ? adminEmail : "ADMIN_SUPPORT");
+            ticket.addAudit(audit);
+
+            SupportTicket saved = ticketRepository.save(ticket);
+            return ResponseEntity.ok(saved);
+        }).orElse(ResponseEntity.notFound().build());
+    }
+
+    /**
+     * GET all support tickets linked to a specific Order ID.
+     */
+    @GetMapping("/tickets/by-order/{orderId}")
+    public ResponseEntity<List<SupportTicket>> getTicketsForOrder(@PathVariable String orderId) {
+        return ResponseEntity.ok(ticketRepository.findTicketsByOrderId(orderId));
+    }
 }

@@ -11,6 +11,7 @@ import Documentation from './pages/Documentation';
 import ReviewsPage from './pages/ReviewsPage';
 import ShippingPage from './pages/ShippingPage';
 import SupportPage from './pages/SupportPage';
+import OrderDetailPage from './pages/OrderDetailPage';
 import Sidebar from './components/Sidebar';
 import { AdminHeader } from './components/AdminHeader';
 import { AdminFooter } from './components/AdminFooter';
@@ -93,8 +94,10 @@ function App() {
                 <Route path="/banners" element={<BannersPage />} />
                 <Route path="/inventory" element={<InventoryPage />} />
                 <Route path="/orders" element={<OrdersPage />} />
+                <Route path="/orders/:id" element={<OrderDetailPage />} />
                 <Route path="/reviews" element={<ReviewsPage />} />
                 <Route path="/support" element={<SupportPage />} />
+                <Route path="/support/:ticketNumber" element={<SupportPage />} />
                 <Route path="/shipping" element={<ShippingPage />} />
                 <Route path="/documentation" element={<Documentation />} />
               </Routes>

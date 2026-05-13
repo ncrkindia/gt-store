@@ -1,4 +1,5 @@
 import { useState, useEffect, Fragment } from 'react';
+import { Link } from 'react-router-dom';
 import apiClient from '../api/axios';
 import { useKeycloak } from '@react-keycloak/web';
 import { formatPrice } from '../lib/formatPrice';
@@ -133,7 +134,11 @@ const OrdersPage = () => {
                                         {expandedOrderId === o.id ? '▼' : '▶'}
                                     </button>
                                 </td>
-                                <td className="mono-text">{o.id.substring(0, 8)}...</td>
+                                <td className="mono-text">
+                                    <Link to={`/orders/${o.id}`} className="font-bold text-indigo-600 hover:underline">
+                                        {o.id.substring(0, 8)}...
+                                    </Link>
+                                </td>
                                 <td>{o.userId}</td>
                                 <td className="price-text">{formatPrice(o.totalAmount)}</td>
                                 <td>

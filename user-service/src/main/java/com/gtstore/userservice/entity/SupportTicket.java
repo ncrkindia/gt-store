@@ -51,6 +51,11 @@ public class SupportTicket {
     @OrderBy("createdAt DESC")
     private List<SupportAudit> audits = new ArrayList<>();
 
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "support_ticket_orders", joinColumns = @JoinColumn(name = "ticket_id"))
+    @Column(name = "order_id")
+    private List<String> linkedOrderIds = new ArrayList<>();
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
@@ -114,4 +119,7 @@ public class SupportTicket {
 
     public List<SupportAudit> getAudits() { return audits; }
     public void setAudits(List<SupportAudit> audits) { this.audits = audits; }
+
+    public List<String> getLinkedOrderIds() { return linkedOrderIds; }
+    public void setLinkedOrderIds(List<String> linkedOrderIds) { this.linkedOrderIds = linkedOrderIds; }
 }
