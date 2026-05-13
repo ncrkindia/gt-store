@@ -55,7 +55,9 @@ const fetchProducts = async () => {
       brand: p.brand || 'Generic',
       category: (p.categoryIds && p.categoryIds.length > 0) ? p.categoryIds[0] : 'all',
       inStock: p.inStock !== undefined ? p.inStock : true,
-      features: p.features || []
+      features: p.features || [],
+      promoted: p.promoted,
+      promotionPriority: p.promotionPriority
     };
   });
 };
@@ -131,6 +133,11 @@ export function Home() {
   const topRated = products.filter(p => p.rating > 0).length > 0
     ? products.filter(p => p.rating > 0).sort((a, b) => b.rating - a.rating).slice(0, 6)
     : products.slice(0, 6);
+
+  const promotedPicks = products
+    .filter(p => p.promoted === true)
+    .sort((a, b) => (b.promotionPriority || 0) - (a.promotionPriority || 0))
+    .slice(0, 6);
 
   return (
     <div>
@@ -325,6 +332,38 @@ export function Home() {
           </div>
         </div>
       </section>
+
+      {promotedPicks.length > 0 && (
+        <section className="max-w-screen-xl mx-auto px-4 py-10 animate-in fade-in duration-500">
+          <div className="bg-gradient-to-br from-amber-50/20 via-white to-amber-100/30 rounded-3xl shadow-xl p-8 border-2 border-amber-200/70 relative overflow-hidden group">
+            <div className="absolute -top-24 -right-24 w-48 h-48 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full blur-3xl opacity-10 group-hover:opacity-20 transition duration-700 pointer-events-none" />
+            
+            <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+              <div>
+                <div className="flex items-center gap-2">
+                   <span className="text-[10px] font-black bg-amber-500 text-white px-2.5 py-1 rounded-full shadow-xs tracking-wider uppercase">Platform Exclusive</span>
+                </div>
+                <h2 className="text-3xl font-black bg-gradient-to-r from-amber-600 via-orange-600 to-rose-600 bg-clip-text text-transparent mt-2 flex items-center gap-2">
+                   <span>⭐ Promoted Picks</span>
+                </h2>
+                <p className="text-sm text-amber-900/60 mt-1 font-bold">Curated catalog leaders selected for performance and quality.</p>
+              </div>
+              <Link
+                to="/category/all"
+                className="bg-amber-500 hover:bg-amber-600 text-white font-black px-6 py-2.5 rounded-2xl text-sm flex items-center gap-2 shrink-0 group shadow-md shadow-amber-200/50 transition hover:shadow-lg hover:-translate-y-0.5 active:scale-95"
+              >
+                Explore More
+                <span className="group-hover:translate-x-1 transition-transform">→</span>
+              </Link>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+              {promotedPicks.map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       <section className="max-w-screen-xl mx-auto px-4 py-10">
         <div className="bg-gradient-to-br from-white to-amber-50/50 rounded-3xl shadow-xl p-8 border border-amber-100">

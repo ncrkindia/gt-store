@@ -48,6 +48,9 @@ public class Product {
     private Integer gstPercentage = 18; // Default 18% tax
 
     private List<Review> reviews = new java.util.ArrayList<>();
+    
+    private Boolean promoted = false;
+    private Integer promotionPriority = 0;
 
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
@@ -79,6 +82,11 @@ public class Product {
     public void setInStock(Boolean inStock) { this.inStock = inStock; }
     public List<Review> getReviews() { return reviews; }
     public void setReviews(List<Review> reviews) { this.reviews = reviews; }
+    
+    public Boolean getPromoted() { return promoted != null ? promoted : false; }
+    public void setPromoted(Boolean promoted) { this.promoted = promoted; }
+    public Integer getPromotionPriority() { return promotionPriority != null ? promotionPriority : 0; }
+    public void setPromotionPriority(Integer promotionPriority) { this.promotionPriority = promotionPriority; }
 
     public Integer getGstPercentage() { 
         return (gstPercentage != null) ? gstPercentage : 18; 

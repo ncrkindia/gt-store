@@ -23,6 +23,8 @@ interface Product {
     inStock: boolean;
     gstPercentage?: number;
     slug?: string;
+    promoted?: boolean;
+    promotionPriority?: number;
 }
 
 const getStorefrontUrl = () => {
@@ -71,7 +73,9 @@ const ProductsPage = () => {
         features: [],
         images: [],
         inStock: true,
-        gstPercentage: 18
+        gstPercentage: 18,
+        promoted: false,
+        promotionPriority: 0
     };
     const [formData, setFormData] = useState<Omit<Product, 'id'>>(emptyProduct);
     const [featureInput, setFeatureInput] = useState('');
@@ -190,7 +194,9 @@ const ProductsPage = () => {
             features: p.features || [],
             images: p.images || [],
             inStock: p.inStock !== undefined ? p.inStock : true,
-            gstPercentage: p.gstPercentage || 18
+            gstPercentage: p.gstPercentage || 18,
+            promoted: p.promoted !== undefined ? p.promoted : false,
+            promotionPriority: p.promotionPriority !== undefined ? p.promotionPriority : 0
         });
         setEditingId(p.id);
         setIsModalOpen(true);
@@ -489,7 +495,6 @@ const ProductsPage = () => {
                                 </div>
                             </div>
                         </div>
-
                         {/* Lifecycle Details */}
                         <div className="flex items-center justify-between bg-slate-50/40 p-5 border border-slate-100 rounded-2xl">
                             <div className="flex flex-col">
@@ -504,6 +509,42 @@ const ProductsPage = () => {
                                 <option value="true">🟢 In Stock</option>
                                 <option value="false">🔴 Out of Stock</option>
                             </select>
+                        </div>
+
+                        {/* Promotion Attributes */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-amber-50/30 p-5 border border-amber-100 rounded-2xl shadow-3xs">
+                            <div className="flex items-center justify-between">
+                                <div className="flex flex-col pr-4">
+                                    <label className="text-sm font-extrabold text-amber-900 flex items-center gap-1.5">
+                                        <span>⭐ Featured Promotion</span>
+                                    </label>
+                                    <span className="text-[11px] text-amber-700 font-medium mt-0.5">Highlights product on storefront Homepage grids and raises listing priority.</span>
+                                </div>
+                                <select 
+                                    className="bg-white border border-amber-200 text-amber-800 font-bold px-4 py-2 rounded-xl shadow-2xs focus:ring-amber-500 outline-none"
+                                    value={formData.promoted ? "true" : "false"}
+                                    onChange={e => setFormData({ ...formData, promoted: e.target.value === "true" })}
+                                >
+                                    <option value="false">Standard Product</option>
+                                    <option value="true">🔥 Promoted Picks</option>
+                                </select>
+                            </div>
+                            {formData.promoted && (
+                                <div className="flex items-center justify-between border-t md:border-t-0 md:border-l border-amber-100 pt-4 md:pt-0 md:pl-5 animate-in fade-in duration-200">
+                                    <div className="flex flex-col pr-4">
+                                        <label className="text-sm font-bold text-slate-800">Promotion Priority Score</label>
+                                        <span className="text-[11px] text-slate-500 font-medium mt-0.5">Defines rendering hierarchy (higher score = placed first).</span>
+                                    </div>
+                                    <input 
+                                        type="number" 
+                                        min={0} 
+                                        max={999} 
+                                        className="w-24 font-black text-center bg-white border border-amber-200 text-amber-700 h-10 rounded-xl"
+                                        value={formData.promotionPriority ?? 0} 
+                                        onChange={e => setFormData({ ...formData, promotionPriority: parseInt(e.target.value) || 0 })} 
+                                    />
+                                </div>
+                            )}
                         </div>
 
                         <div className="flex justify-end items-center gap-3 border-t border-slate-100 pt-6 mt-8">
@@ -580,9 +621,10 @@ const ProductsPage = () => {
                                         href={`${getStorefrontUrl()}${p.slug ? `/p/${p.slug}` : `/product/${p.id}`}`} 
                                         target="_blank" 
                                         rel="noopener noreferrer" 
-                                        className="font-medium text-indigo-600 hover:text-indigo-800 hover:underline"
+                                        className="font-bold text-indigo-600 hover:text-indigo-800 hover:underline flex items-center gap-1.5"
                                     >
-                                        {p.name}
+                                        {p.promoted && <span className="text-[10px] font-black bg-amber-100 text-amber-800 border border-amber-300 rounded px-1.5 py-0.5 flex items-center gap-0.5 shadow-2xs select-none shrink-0" title={`Promotion Priority Score: ${p.promotionPriority}`}>⭐ {p.promotionPriority}</span>}
+                                        <span>{p.name}</span>
                                     </a>
                                 </div>
                             </td>

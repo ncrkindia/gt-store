@@ -16,6 +16,8 @@ export interface Product {
   features: string[];
   ratingBreakdown?: Record<number, number>;
   reviewsList?: Review[];
+  promoted?: boolean;
+  promotionPriority?: number;
 }
 
 export interface Review {
