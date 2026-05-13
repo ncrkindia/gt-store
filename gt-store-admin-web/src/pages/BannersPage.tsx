@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import apiClient from '../api/axios';
 import { useKeycloak } from '@react-keycloak/web';
-import { Upload, X } from 'lucide-react';
+import { Upload, X, ChevronLeft } from 'lucide-react';
 
 const getImageUrl = (url: string | undefined): string => {
     if (!url) return '';
@@ -118,6 +118,92 @@ const BannersPage = () => {
 
     if (loading) return <div className="loading">Loading Banners...</div>;
 
+    if (isModalOpen) {
+        return (
+            <div className="page-container glass-card">
+                <header className="page-header border-b border-slate-200 pb-4 mb-6 flex items-center gap-4">
+                    <button 
+                        type="button" 
+                        onClick={() => setIsModalOpen(false)}
+                        className="p-2 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 shadow-2xs transition flex items-center justify-center"
+                    >
+                        <ChevronLeft size={20} />
+                    </button>
+                    <div>
+                        <h1 className="text-2xl font-black text-slate-900">{editingId ? 'Edit Banner Promo' : 'Construct Campaign Banner'}</h1>
+                        <p className="text-slate-500 text-sm font-medium">Design marketing creatives, discounts, and external redirect nodes.</p>
+                    </div>
+                </header>
+
+                <div className="max-w-4xl bg-white rounded-3xl border border-slate-200 p-8 shadow-sm">
+                    <form onSubmit={handleSave} className="space-y-6">
+                        <div className="form-group border border-slate-100 rounded-2xl p-6 bg-slate-50/50">
+                            <label className="block text-sm font-bold text-slate-700 mb-3">Creatives / Banner Asset</label>
+                            {formData.imageUrl && (
+                                <div className="mb-4 relative aspect-[21/9] w-full max-w-2xl bg-gray-900 rounded-2xl border border-slate-200 overflow-hidden group">
+                                    <img src={getImageUrl(formData.imageUrl)} className="w-full h-full object-cover" />
+                                    <button type="button" onClick={() => setFormData({...formData, imageUrl: ''})} className="absolute top-3 right-3 bg-red-500 text-white rounded-full p-1.5 shadow-md hover:bg-red-600 transition"><X size={14}/></button>
+                                </div>
+                            )}
+                            <div className="relative cursor-pointer">
+                                <input type="file" className="absolute inset-0 opacity-0 cursor-pointer z-10" onChange={handleImageUpload} disabled={uploadingImage} />
+                                <div className="border-2 border-dashed border-slate-300 rounded-2xl p-8 text-center bg-white hover:border-indigo-500 hover:bg-indigo-50/30 transition duration-200">
+                                    <Upload className="mx-auto mb-2 text-slate-400" size={24} />
+                                    <span className="text-base font-bold text-slate-800 block">{uploadingImage ? 'Uploading Asset...' : 'Select Banner Graphic'}</span>
+                                    <span className="text-xs text-slate-500 mt-1 block">Recommended aspect ratio: 21:9 (e.g. 1920x820)</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="form-group">
+                                <label className="block text-sm font-bold text-slate-700 mb-2">Redirection link</label>
+                                <input className="w-full" value={formData.linkUrl} onChange={e => setFormData({ ...formData, linkUrl: e.target.value })} placeholder="/category/electronics" />
+                            </div>
+                            <div className="form-group">
+                                <label className="block text-sm font-bold text-slate-700 mb-2">Display Order (Sort)</label>
+                                <input className="w-full" type="number" value={formData.displayOrder} onChange={e => setFormData({ ...formData, displayOrder: parseInt(e.target.value) })} />
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="form-group">
+                                <label className="block text-sm font-bold text-slate-700 mb-2">Headline Title</label>
+                                <input className="w-full" value={formData.headline} onChange={e => setFormData({ ...formData, headline: e.target.value })} placeholder="e.g. Festive Season Blowout" />
+                            </div>
+                            <div className="form-group">
+                                <label className="block text-sm font-bold text-slate-700 mb-2">Discount Tagline</label>
+                                <input className="w-full" value={formData.discount} onChange={e => setFormData({ ...formData, discount: e.target.value })} placeholder="Flat 25% Off" />
+                            </div>
+                        </div>
+
+                        <div className="form-group">
+                            <label className="block text-sm font-bold text-slate-700 mb-2">Descriptive Copy</label>
+                            <textarea 
+                                className="w-full min-h-[100px]"
+                                value={formData.description} 
+                                onChange={e => setFormData({ ...formData, description: e.target.value })} 
+                                placeholder="Explain terms, highlights, and duration..."
+                            />
+                        </div>
+
+                        <div className="flex items-center gap-2.5 bg-indigo-50/40 p-4 rounded-2xl border border-indigo-100/30 w-fit">
+                            <input type="checkbox" id="active" checked={formData.active} onChange={e => setFormData({ ...formData, active: e.target.checked })} className="w-5 h-5 rounded-md text-indigo-600 border-slate-300 focus:ring-indigo-500 cursor-pointer" />
+                            <label htmlFor="active" className="text-sm font-bold text-indigo-900 cursor-pointer">Set Campaign Status to Active</label>
+                        </div>
+
+                        <div className="flex justify-end items-center gap-3 border-t border-slate-100 pt-6 mt-8">
+                            <button type="button" onClick={() => setIsModalOpen(false)} className="btn-secondary py-2.5 px-6">Discard Changes</button>
+                            <button type="submit" className="btn-primary py-2.5 px-8" disabled={uploadingImage}>
+                                {editingId ? 'Commit Edits' : 'Publish Creative'}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="page-container glass-card">
             <header className="page-header">
@@ -154,69 +240,6 @@ const BannersPage = () => {
                 ))}
             </div>
 
-            {isModalOpen && (
-                <div className="modal-overlay">
-                    <div className="modal glass-card">
-                        <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-xl font-bold">{editingId ? 'Edit Banner' : 'Create Banner'}</h2>
-                            <button onClick={() => setIsModalOpen(false)}><X /></button>
-                        </div>
-                        <form onSubmit={handleSave} className="space-y-4">
-                            <div className="form-group">
-                                <label>Banner Image</label>
-                                {formData.imageUrl && (
-                                    <div className="mb-2 relative aspect-[21/9] w-full bg-gray-900 rounded overflow-hidden">
-                                        <img src={getImageUrl(formData.imageUrl)} className="w-full h-full object-cover" />
-                                        <button type="button" onClick={() => setFormData({...formData, imageUrl: ''})} className="absolute top-2 right-2 bg-red-600 rounded-full p-1"><X size={12}/></button>
-                                    </div>
-                                )}
-                                <div className="relative cursor-pointer">
-                                    <input type="file" className="absolute opacity-0 w-full h-full cursor-pointer" onChange={handleImageUpload} disabled={uploadingImage} />
-                                    <div className="border-2 border-dashed border-gray-600 rounded p-4 text-center hover:bg-white transition">
-                                        <Upload className="mx-auto mb-1" size={20} />
-                                        <span>{uploadingImage ? 'Uploading...' : 'Upload Banner Image'}</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="form-group">
-                                <label>Link URL (optional)</label>
-                                <input value={formData.linkUrl} onChange={e => setFormData({ ...formData, linkUrl: e.target.value })} placeholder="/category/electronics" />
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="form-group">
-                                    <label>Headline (e.g. Special Offer)</label>
-                                    <input value={formData.headline} onChange={e => setFormData({ ...formData, headline: e.target.value })} placeholder="Special Offer" />
-                                </div>
-                                <div className="form-group">
-                                    <label>Discount (e.g. Flat 10%)</label>
-                                    <input value={formData.discount} onChange={e => setFormData({ ...formData, discount: e.target.value })} placeholder="Flat 10% Off" />
-                                </div>
-                            </div>
-                            <div className="form-group">
-                                <label>Description</label>
-                                <textarea 
-                                    value={formData.description} 
-                                    onChange={e => setFormData({ ...formData, description: e.target.value })} 
-                                    placeholder="Festival offer till 15th Apr"
-                                    className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-sm h-20"
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label>Display Order</label>
-                                <input type="number" value={formData.displayOrder} onChange={e => setFormData({ ...formData, displayOrder: parseInt(e.target.value) })} />
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <input type="checkbox" id="active" checked={formData.active} onChange={e => setFormData({ ...formData, active: e.target.checked })} className="rounded bg-gray-800 border-gray-700" />
-                                <label htmlFor="active" className="text-sm font-medium">Banner is Active</label>
-                            </div>
-                            <div className="form-buttons pt-4">
-                                <button type="button" onClick={() => setIsModalOpen(false)} className="btn-secondary mr-2">Cancel</button>
-                                <button type="submit" className="btn-primary" disabled={uploadingImage}>Save Banner</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
         </div>
     );
 };

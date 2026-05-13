@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import apiClient from '../api/axios';
 import { useKeycloak } from '@react-keycloak/web';
-import { Upload, X } from 'lucide-react';
+import { Upload, X, ChevronLeft } from 'lucide-react';
 
 const getImageUrl = (url: string | undefined): string => {
     if (!url) return '';
@@ -109,6 +109,68 @@ const BrandsPage = () => {
 
     if (loading) return <div className="loading">Loading Brands...</div>;
 
+    if (isModalOpen) {
+        return (
+            <div className="page-container glass-card">
+                <header className="page-header border-b border-slate-200 pb-4 mb-6 flex items-center gap-4">
+                    <button 
+                        type="button" 
+                        onClick={() => setIsModalOpen(false)}
+                        className="p-2 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 shadow-2xs transition flex items-center justify-center"
+                    >
+                        <ChevronLeft size={20} />
+                    </button>
+                    <div>
+                        <h1 className="text-2xl font-black text-slate-900">{editingId ? 'Edit Brand Profile' : 'New Brand Account'}</h1>
+                        <p className="text-slate-500 text-sm font-medium">Configure identity assets and descriptive parameters.</p>
+                    </div>
+                </header>
+
+                <div className="max-w-3xl bg-white rounded-3xl border border-slate-200 p-8 shadow-sm">
+                    <form onSubmit={handleSave} className="space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="form-group">
+                                <label className="block text-sm font-bold text-slate-700 mb-2">Brand Name</label>
+                                <input className="w-full" required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="ASUS ROG" />
+                            </div>
+                            <div className="form-group">
+                                <label className="block text-sm font-bold text-slate-700 mb-2">URL Slug</label>
+                                <input className="w-full" required value={formData.slug} onChange={e => setFormData({ ...formData, slug: e.target.value })} placeholder="asus-rog" />
+                            </div>
+                        </div>
+                        <div className="form-group">
+                            <label className="block text-sm font-bold text-slate-700 mb-2">Bio/Description</label>
+                            <textarea className="w-full min-h-[100px]" value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} rows={3} placeholder="Enter manufacturer overview..." />
+                        </div>
+                        <div className="form-group border border-slate-100 rounded-2xl p-6 bg-slate-50/50">
+                            <label className="block text-sm font-bold text-slate-700 mb-3">Logo Artifact</label>
+                            {formData.imageUrl && (
+                                <div className="mb-4 relative w-32 h-32 bg-white p-3 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-center group">
+                                    <img src={getImageUrl(formData.imageUrl)} className="w-full h-full object-contain" />
+                                    <button type="button" onClick={() => setFormData({...formData, imageUrl: ''})} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1.5 shadow-md hover:bg-red-600 transition"><X size={14}/></button>
+                                </div>
+                            )}
+                            <div className="relative cursor-pointer max-w-xs">
+                                <input type="file" className="absolute inset-0 opacity-0 cursor-pointer z-10" onChange={handleImageUpload} disabled={uploadingImage} />
+                                <div className="border-2 border-dashed border-slate-300 rounded-2xl p-6 text-center bg-white hover:border-indigo-500 hover:bg-indigo-50/30 transition duration-200">
+                                    <Upload className="mx-auto mb-2 text-slate-400" size={22} />
+                                    <span className="text-sm font-bold text-slate-800 block">{uploadingImage ? 'Uploading Assets...' : 'Upload Identifier'}</span>
+                                    <span className="text-xs text-slate-500 mt-1 block">Supports WebP, PNG & JPG</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="flex justify-end items-center gap-3 border-t border-slate-100 pt-6 mt-8">
+                            <button type="button" onClick={() => setIsModalOpen(false)} className="btn-secondary py-2.5 px-6">Cancel Operations</button>
+                            <button type="submit" className="btn-primary py-2.5 px-8" disabled={uploadingImage}>
+                                {editingId ? 'Push Updates' : 'Construct Ledger'}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="page-container glass-card">
             <header className="page-header">
@@ -150,50 +212,6 @@ const BrandsPage = () => {
                 </tbody>
             </table>
 
-            {isModalOpen && (
-                <div className="modal-overlay">
-                    <div className="modal glass-card">
-                        <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-xl font-bold">{editingId ? 'Edit Brand' : 'Create Brand'}</h2>
-                            <button onClick={() => setIsModalOpen(false)}><X /></button>
-                        </div>
-                        <form onSubmit={handleSave} className="space-y-4">
-                            <div className="form-group">
-                                <label>Brand Name</label>
-                                <input required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} />
-                            </div>
-                            <div className="form-group">
-                                <label>Slug</label>
-                                <input required value={formData.slug} onChange={e => setFormData({ ...formData, slug: e.target.value })} />
-                            </div>
-                            <div className="form-group">
-                                <label>Description</label>
-                                <textarea value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} rows={3} />
-                            </div>
-                            <div className="form-group">
-                                <label>Logo / Brand Image</label>
-                                {formData.imageUrl && (
-                                    <div className="mb-2 relative w-24 h-24 bg-white p-2 rounded border border-gray-600">
-                                        <img src={getImageUrl(formData.imageUrl)} className="w-full h-full object-contain" />
-                                        <button type="button" onClick={() => setFormData({...formData, imageUrl: ''})} className="absolute -top-2 -right-2 bg-red-600 rounded-full p-1"><X size={12}/></button>
-                                    </div>
-                                )}
-                                <div className="relative cursor-pointer">
-                                    <input type="file" className="absolute opacity-0 w-full h-full cursor-pointer" onChange={handleImageUpload} disabled={uploadingImage} />
-                                    <div className="border-2 border-dashed border-gray-600 rounded p-4 text-center hover:bg-white transition">
-                                        <Upload className="mx-auto mb-1" size={20} />
-                                        <span>{uploadingImage ? 'Uploading...' : 'Upload Logo'}</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="form-buttons pt-4">
-                                <button type="button" onClick={() => setIsModalOpen(false)} className="btn-secondary mr-2">Cancel</button>
-                                <button type="submit" className="btn-primary" disabled={uploadingImage}>Save Brand</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
         </div>
     );
 };
