@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useKeycloak } from '@react-keycloak/web';
 import Dashboard from './pages/Dashboard';
 import ProductsPage from './pages/ProductsPage';
@@ -17,6 +18,51 @@ import { AdminHeader } from './components/AdminHeader';
 import { AdminFooter } from './components/AdminFooter';
 import { Toaster } from 'sonner';
 import { ShieldAlert } from 'lucide-react';
+const PageTitleManager = () => {
+  const location = useLocation();
+
+  useEffect(() => {
+    const path = location.pathname;
+    let title = "Admin Portal | GT Store";
+
+    if (path.includes("/dashboard")) {
+      title = "Dashboard | GT Admin";
+    } else if (path.includes("/products")) {
+      title = "Product Management | GT Admin";
+    } else if (path.includes("/categories")) {
+      title = "Categories | GT Admin";
+    } else if (path.includes("/brands")) {
+      title = "Brands Manager | GT Admin";
+    } else if (path.includes("/banners")) {
+      title = "Banner Promos | GT Admin";
+    } else if (path.includes("/inventory")) {
+      title = "Inventory Analytics | GT Admin";
+    } else if (path.includes("/orders/")) {
+      const parts = path.split("/orders/");
+      const ordId = parts[1] ? parts[1].substring(0, 8) : "";
+      title = `Order #${ordId.toUpperCase()} | GT Admin`;
+    } else if (path.includes("/orders")) {
+      title = "Sales Orders Ledger | GT Admin";
+    } else if (path.includes("/reviews")) {
+      title = "Reviews & Ratings | GT Admin";
+    } else if (path.includes("/support/")) {
+      const parts = path.split("/support/");
+      const tkt = parts[1] ? parts[1] : "";
+      title = `Ticket ${tkt.toUpperCase()} | GT Admin`;
+    } else if (path.includes("/support")) {
+      title = "Support Center | GT Admin";
+    } else if (path.includes("/shipping")) {
+      title = "Shipping Modules | GT Admin";
+    } else if (path.includes("/documentation")) {
+      title = "Documentation | GT Admin";
+    }
+
+    document.title = title;
+  }, [location]);
+
+  return null;
+};
+
 
 function App() {
   const { keycloak, initialized } = useKeycloak();
@@ -69,6 +115,7 @@ function App() {
 
   return (
     <BrowserRouter basename="/admin">
+      <PageTitleManager />
       <div className="min-h-screen flex flex-col bg-slate-50">
         <Toaster position="top-center" richColors />
         
