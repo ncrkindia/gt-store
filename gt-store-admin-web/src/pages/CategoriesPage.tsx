@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import apiClient from '../api/axios';
 import { useKeycloak } from '@react-keycloak/web';
-import { Upload, X, ChevronLeft } from 'lucide-react';
+import { Upload, X, ChevronLeft, Search } from 'lucide-react';
 
 const getImageUrl = (url: string | undefined): string => {
     if (!url) return '';
@@ -18,6 +18,17 @@ interface Category {
     parentId?: string;
 }
 
+const getStorefrontUrl = () => {
+    const { hostname, port, protocol } = window.location;
+    if (port === '4002') {
+        return `${protocol}//${hostname}:4000`;
+    }
+    if (hostname.includes('slpro.in')) {
+        return 'https://gtstore.slpro.in';
+    }
+    return `${protocol}//${hostname}${port ? `:${port}` : ''}`;
+};
+
 const CategoriesPage = () => {
     const { initialized } = useKeycloak();
     const [categories, setCategories] = useState<Category[]>([]);
@@ -28,12 +39,13 @@ const CategoriesPage = () => {
     const emptyCategory: Omit<Category, 'id'> = {
         name: '',
         slug: '',
-        icon: 'Package',
+        icon: '📦',
         imageUrl: '',
         parentId: ''
     };
     const [formData, setFormData] = useState<Omit<Category, 'id'>>(emptyCategory);
     const [uploadingImage, setUploadingImage] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
 
     const fetchCategories = async () => {
         if (!initialized) return;
@@ -73,7 +85,7 @@ const CategoriesPage = () => {
         setFormData({
             name: c.name,
             slug: c.slug,
-            icon: c.icon || 'Package',
+            icon: c.icon || '📦',
             imageUrl: c.imageUrl || '',
             parentId: c.parentId || ''
         });
@@ -141,10 +153,41 @@ const CategoriesPage = () => {
                                 <input className="w-full" required value={formData.slug} onChange={e => setFormData({ ...formData, slug: e.target.value })} placeholder="gaming-laptops" />
                             </div>
                         </div>
-                        <div className="form-group">
-                            <label className="block text-sm font-bold text-slate-700 mb-2">Lucide Icon Key</label>
-                            <input className="w-full max-w-md" value={formData.icon} onChange={e => setFormData({ ...formData, icon: e.target.value })} placeholder="Package" />
-                            <p className="text-xs text-slate-400 mt-1.5">Enter a valid Lucide-react icon name to use in navigation panels.</p>
+                        <div className="form-group border border-slate-100 bg-slate-50/30 p-6 rounded-2xl space-y-4">
+                            <div>
+                                <label className="block text-sm font-black text-slate-700 mb-1">Dynamic Emoji Identifier</label>
+                                <p className="text-xs text-slate-400 mb-3">Used as high-impact visual headers across both Desktop storefront and Mobile clients.</p>
+                                <div className="flex items-center gap-3">
+                                    <input 
+                                        className="w-20 text-2xl text-center font-sans h-12 border-2 border-indigo-100 focus:border-indigo-500 rounded-xl" 
+                                        required 
+                                        maxLength={4}
+                                        value={formData.icon} 
+                                        onChange={e => setFormData({ ...formData, icon: e.target.value })} 
+                                        placeholder="📦" 
+                                    />
+                                    <input 
+                                        className="flex-1 h-12 border border-slate-200 bg-slate-50 text-slate-500 font-mono text-xs px-4 rounded-xl pointer-events-none" 
+                                        value={`Glyph Format: ${formData.icon}`} 
+                                        disabled 
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-[10px] font-bold tracking-widest uppercase text-slate-400 mb-2">Common Assets</label>
+                                <div className="flex flex-wrap gap-2">
+                                    {['💻', '📱', '🎧', '📦', '👕', '💄', '🏠', '👟', '🔋', '⌚', '🎮', '🧩'].map(emo => (
+                                        <button
+                                            key={emo}
+                                            type="button"
+                                            onClick={() => setFormData({ ...formData, icon: emo })}
+                                            className={`w-10 h-10 text-lg rounded-lg border transition-all flex items-center justify-center hover:scale-110 ${formData.icon === emo ? 'bg-indigo-50 border-indigo-300 shadow-xs' : 'bg-white border-slate-200 hover:border-slate-300'}`}
+                                        >
+                                            {emo}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
                         </div>
                         <div className="form-group border border-slate-100 rounded-2xl p-6 bg-slate-50/50">
                             <label className="block text-sm font-bold text-slate-700 mb-3">Category Thumbnail</label>
@@ -175,6 +218,12 @@ const CategoriesPage = () => {
         );
     }
 
+    const filteredCategories = categories.filter(c => 
+        c.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        c.slug?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        c.id?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
     return (
         <div className="page-container glass-card">
             <header className="page-header">
@@ -188,6 +237,25 @@ const CategoriesPage = () => {
                 </button>
             </header>
 
+            <div className="mb-6 bg-white border border-slate-200 p-4 rounded-2xl flex items-center gap-3 shadow-xs">
+                <div className="relative flex-1">
+                    <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input 
+                        type="text"
+                        placeholder="Search categories by Name, Slug, or ID..."
+                        className="w-full pl-11 pr-10 py-2.5 bg-slate-50 border border-slate-200 focus:bg-white rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500 outline-none transition hover:border-slate-300 shadow-2xs"
+                        value={searchTerm}
+                        onChange={e => setSearchTerm(e.target.value)}
+                    />
+                    {searchTerm && (
+                        <button type="button" onClick={() => setSearchTerm('')} className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-slate-200 rounded-md transition"><X size={14} className="text-slate-500"/></button>
+                    )}
+                </div>
+                <span className="text-xs font-extrabold text-slate-500 bg-slate-100 border border-slate-200 px-4 py-2.5 rounded-xl shrink-0 flex items-center gap-2">
+                    {filteredCategories.length} Total Items Listed
+                </span>
+            </div>
+
             <table className="admin-table">
                 <thead>
                     <tr>
@@ -199,20 +267,38 @@ const CategoriesPage = () => {
                     </tr>
                 </thead>
                 <tbody>
-                    {categories.map(c => (
+                    {filteredCategories.map(c => (
                         <tr key={c.id}>
                             <td>
                                 {c.imageUrl && <img src={getImageUrl(c.imageUrl)} className="w-10 h-10 rounded object-cover border border-gray-700" alt="" />}
                             </td>
-                            <td className="font-bold">{c.name}</td>
+                            <td>
+                                <a 
+                                    href={`${getStorefrontUrl()}/category/${c.slug || c.id}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="font-bold text-indigo-600 hover:text-indigo-800 hover:underline"
+                                >
+                                    {c.name}
+                                </a>
+                            </td>
                             <td>{c.slug}</td>
-                            <td>{c.icon}</td>
+                            <td className="text-xl font-sans text-center select-none">{c.icon}</td>
                             <td>
                                 <button onClick={() => handleEdit(c)} className="btn-icon">Edit</button>
                                 <button onClick={() => handleDelete(c.id)} className="btn-icon btn-delete">Delete</button>
                             </td>
                         </tr>
                     ))}
+                    {filteredCategories.length === 0 && (
+                        <tr>
+                            <td colSpan={5} className="text-center py-10">
+                                <div className="text-slate-400 font-bold text-sm italic">
+                                    No categories found matching your search criteria
+                                </div>
+                            </td>
+                        </tr>
+                    )}
                 </tbody>
             </table>
 

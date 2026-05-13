@@ -21,6 +21,8 @@ public interface ProductRepository extends MongoRepository<Product, String> {
     @org.springframework.data.mongodb.repository.Query("{ 'reviews.status': ?0 }")
     java.util.List<Product> findByReviewsStatus(String status);
 
+    Page<Product> findByBrandIgnoreCase(String brand, Pageable pageable);
+
     java.util.Optional<Product> findBySlug(String slug);
     boolean existsBySlug(String slug);
 }

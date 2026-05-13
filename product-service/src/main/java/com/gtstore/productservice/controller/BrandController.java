@@ -42,8 +42,40 @@ public class BrandController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    private void generateSlug(Brand brand) {
+        if (brand.getName() == null || brand.getName().trim().isEmpty()) {
+            return;
+        }
+        String base = brand.getName().toLowerCase().trim()
+                .replaceAll("[^a-z0-9]+", "-")
+                .replaceAll("^-|-$", "");
+        
+        if (base.isEmpty()) {
+            base = "brand";
+        }
+
+        String uniqueSlug = base;
+        int counter = 1;
+        
+        while (true) {
+            java.util.Optional<Brand> existing = brandRepository.findBySlug(uniqueSlug);
+            if (existing.isEmpty() || existing.get().getId() != null && existing.get().getId().equals(brand.getId())) {
+                break;
+            }
+            uniqueSlug = base + "-" + (++counter);
+            if (counter > 100) {
+                uniqueSlug = base + "-" + java.util.UUID.randomUUID().toString().substring(0, 5);
+                break;
+            }
+        }
+        brand.setSlug(uniqueSlug);
+    }
+
     @PostMapping
     public ResponseEntity<Brand> createBrand(@RequestBody Brand brand) {
+        if (brand.getSlug() == null || brand.getSlug().trim().isEmpty()) {
+            generateSlug(brand);
+        }
         Brand saved = brandRepository.save(brand);
         return ResponseEntity.status(HttpStatus.CREATED).body(saved);
     }
@@ -54,6 +86,9 @@ public class BrandController {
             return ResponseEntity.notFound().build();
         }
         brand.setId(id);
+        if (brand.getSlug() == null || brand.getSlug().trim().isEmpty()) {
+            generateSlug(brand);
+        }
         return ResponseEntity.ok(brandRepository.save(brand));
     }
 

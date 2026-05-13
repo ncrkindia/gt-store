@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import apiClient from '../api/axios';
 import { useKeycloak } from '@react-keycloak/web';
-import { Upload, X, Plus, ChevronLeft } from 'lucide-react';
+import { Upload, X, Plus, ChevronLeft, Check, ChevronDown, Search } from 'lucide-react';
 import { formatPrice } from '../lib/formatPrice';
 
 const getImageUrl = (url: string | undefined): string => {
@@ -22,6 +22,31 @@ interface Product {
     images: string[];
     inStock: boolean;
     gstPercentage?: number;
+    slug?: string;
+}
+
+const getStorefrontUrl = () => {
+    const { hostname, port, protocol } = window.location;
+    if (port === '4002') {
+        return `${protocol}//${hostname}:4000`;
+    }
+    if (hostname.includes('slpro.in')) {
+        return 'https://gtstore.slpro.in';
+    }
+    return `${protocol}//${hostname}${port ? `:${port}` : ''}`;
+};
+
+interface Brand {
+    id: string;
+    name: string;
+    slug: string;
+}
+
+interface Category {
+    id: string;
+    name: string;
+    slug: string;
+    icon?: string;
 }
 
 const ProductsPage = () => {
@@ -29,6 +54,10 @@ const ProductsPage = () => {
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    
+    // Relational Catalog Assets
+    const [allBrands, setAllBrands] = useState<Brand[]>([]);
+    const [allCategories, setAllCategories] = useState<Category[]>([]);
     
     // For handling edits vs creates
     const [editingId, setEditingId] = useState<string | null>(null);
@@ -48,25 +77,74 @@ const ProductsPage = () => {
     const [featureInput, setFeatureInput] = useState('');
     const [uploadingImage, setUploadingImage] = useState(false);
 
+    // Form Element Helper States for Filtering/Search
+    const [brandSearch, setBrandSearch] = useState('');
+    const [isBrandDropdownOpen, setIsBrandDropdownOpen] = useState(false);
+    const [categorySearch, setCategorySearch] = useState('');
+    const [searchTerm, setSearchTerm] = useState('');
+    
+    const brandDropdownRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleOutsideClick = (event: MouseEvent) => {
+            if (brandDropdownRef.current && !brandDropdownRef.current.contains(event.target as Node)) {
+                setIsBrandDropdownOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleOutsideClick);
+        return () => document.removeEventListener('mousedown', handleOutsideClick);
+    }, []);
+
     const fetchProducts = async () => {
         if (!initialized) return;
         try {
-            const response = await apiClient.get('/api/products');
+            const response = await apiClient.get('/api/products?size=1000');
             const data = Array.isArray(response.data.content) ? response.data.content : (Array.isArray(response.data) ? response.data : []);
             setProducts(data);
-            setLoading(false);
         } catch (error) {
             console.error('Error fetching products:', error);
-            setLoading(false);
         }
     };
 
+    const fetchMetadata = async () => {
+        if (!initialized) return;
+        try {
+            const [brandsRes, categoriesRes] = await Promise.all([
+                apiClient.get('/api/brands'),
+                apiClient.get('/api/categories')
+            ]);
+            setAllBrands(brandsRes.data || []);
+            setAllCategories(categoriesRes.data || []);
+        } catch (error) {
+            console.error('Error fetching meta resources:', error);
+        }
+    };
+
+    const initializeData = async () => {
+        setLoading(true);
+        await Promise.all([fetchProducts(), fetchMetadata()]);
+        setLoading(false);
+    };
+
     useEffect(() => {
-        fetchProducts();
+        if (initialized) {
+            initializeData();
+        }
     }, [initialized]);
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
+        
+        // Enforce relation constraints
+        if (!formData.brand) {
+            alert('Constraint Violation: Selection of an active Brand is required.');
+            return;
+        }
+        if (formData.categoryIds.length === 0) {
+            alert('Constraint Violation: Tagging at least one valid Category is required.');
+            return;
+        }
+
         try {
             let savedProduct;
             if (editingId) {
@@ -88,20 +166,27 @@ const ProductsPage = () => {
             setEditingId(null);
             setFormData(emptyProduct);
             fetchProducts();
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error saving product', error);
-            alert('Error saving product');
+            const errorMsg = error.response?.data?.message || 'Error saving product due to constraints';
+            alert(`Transaction Terminated: ${errorMsg}`);
         }
     };
 
     const handleEdit = (p: Product) => {
+        // Defensive UI Resilience: Resolve any legacy slug references in categories into ObjectIDs
+        const normalizedCategoryIds = (p.categoryIds || []).map(ref => {
+            const matched = allCategories.find(cat => cat.id === ref || cat.slug === ref);
+            return matched ? matched.id : ref;
+        });
+
         setFormData({
             name: p.name,
             description: p.description || '',
             price: p.price,
             salePrice: p.salePrice || undefined,
             brand: p.brand || '',
-            categoryIds: p.categoryIds || [],
+            categoryIds: normalizedCategoryIds,
             features: p.features || [],
             images: p.images || [],
             inStock: p.inStock !== undefined ? p.inStock : true,
@@ -136,6 +221,17 @@ const ProductsPage = () => {
         setFormData(prev => ({ ...prev, images: prev.images.filter((_, i) => i !== index) }));
     };
 
+    const toggleCategoryMapping = (catId: string) => {
+        setFormData(prev => {
+            const exists = prev.categoryIds.includes(catId);
+            if (exists) {
+                return { ...prev, categoryIds: prev.categoryIds.filter(c => c !== catId) };
+            } else {
+                return { ...prev, categoryIds: [...prev.categoryIds, catId] };
+            }
+        });
+    };
+
     const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!e.target.files || e.target.files.length === 0) return;
         const file = e.target.files[0];
@@ -160,7 +256,7 @@ const ProductsPage = () => {
         }
     };
 
-    if (loading) return <div className="loading">Loading Products...</div>;
+    if (loading) return <div className="loading">Loading Product Core & Relations...</div>;
 
     if (isModalOpen) {
         return (
@@ -174,8 +270,8 @@ const ProductsPage = () => {
                         <ChevronLeft size={20} />
                     </button>
                     <div>
-                        <h1 className="text-2xl font-black text-slate-900">{editingId ? 'Edit Product Pipeline' : 'Onboard New Product'}</h1>
-                        <p className="text-slate-500 text-sm font-medium">Manage inventory profile, pricing tiers, categories, and multimedia.</p>
+                        <h1 className="text-2xl font-black text-slate-900">{editingId ? 'Modify Catalog SKU' : 'Initiate Product Record'}</h1>
+                        <p className="text-slate-500 text-sm font-medium">Tag associated hardware manufacturers and cluster categories securely.</p>
                     </div>
                 </header>
 
@@ -184,12 +280,63 @@ const ProductsPage = () => {
                         {/* Product Core Details */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="form-group">
-                                <label className="block text-sm font-bold text-slate-700 mb-2">Product Name</label>
+                                <label className="block text-sm font-extrabold text-slate-700 mb-2">Commercial Product Name</label>
                                 <input className="w-full" required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="e.g. NVIDIA GeForce RTX 4080 SUPER" />
                             </div>
-                            <div className="form-group">
-                                <label className="block text-sm font-bold text-slate-700 mb-2">Brand / Manufacturer</label>
-                                <input className="w-full" value={formData.brand} onChange={e => setFormData({ ...formData, brand: e.target.value })} placeholder="e.g. NVIDIA" />
+                             <div className="form-group relative" ref={brandDropdownRef}>
+                                <label className="block text-sm font-extrabold text-slate-700 mb-2">Assigned Brand <span className="text-rose-500 font-bold">*</span></label>
+                                <div 
+                                    onClick={() => setIsBrandDropdownOpen(!isBrandDropdownOpen)}
+                                    className="w-full bg-white font-semibold py-2.5 px-4 border border-slate-200 rounded-xl shadow-2xs text-slate-700 cursor-pointer flex items-center justify-between transition hover:border-slate-300 select-none h-[42px]"
+                                >
+                                    <span className={formData.brand ? "text-slate-800 font-bold text-sm" : "text-slate-400 text-sm"}>
+                                        {formData.brand || "Select System Brand..."}
+                                    </span>
+                                    <ChevronDown size={16} className={`text-slate-400 transition-transform ${isBrandDropdownOpen ? 'rotate-180' : ''}`} />
+                                </div>
+
+                                {isBrandDropdownOpen && (
+                                    <div className="absolute z-[60] top-full left-0 right-0 mt-1.5 bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150">
+                                        <div className="p-2 border-b border-slate-100 bg-slate-50/50 flex items-center gap-2">
+                                            <Search size={14} className="text-slate-400 ml-2 shrink-0" />
+                                            <input 
+                                                type="text"
+                                                autoFocus
+                                                placeholder="Search catalog brands..."
+                                                className="w-full bg-transparent border-0 p-1.5 text-xs focus:ring-0 outline-none font-medium"
+                                                value={brandSearch}
+                                                onChange={e => setBrandSearch(e.target.value)}
+                                            />
+                                            {brandSearch && (
+                                                <button type="button" onClick={() => setBrandSearch('')} className="p-1 hover:bg-slate-200 rounded-md transition"><X size={12} className="text-slate-400"/></button>
+                                            )}
+                                        </div>
+                                        <div className="max-h-48 overflow-y-auto p-1.5 space-y-0.5">
+                                            {allBrands.filter(b => b.name.toLowerCase().includes(brandSearch.toLowerCase())).length === 0 ? (
+                                                <div className="text-[11px] font-bold text-slate-400 text-center py-4">No brands match criteria</div>
+                                            ) : (
+                                                allBrands
+                                                    .filter(b => b.name.toLowerCase().includes(brandSearch.toLowerCase()))
+                                                    .map(b => (
+                                                        <button
+                                                            key={b.id}
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setFormData({ ...formData, brand: b.name });
+                                                                setIsBrandDropdownOpen(false);
+                                                                setBrandSearch('');
+                                                            }}
+                                                            className={`w-full text-left px-3 py-2 rounded-lg text-xs font-bold transition flex items-center justify-between ${formData.brand === b.name ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' : 'text-slate-600 border border-transparent hover:bg-slate-50'}`}
+                                                        >
+                                                            <span>{b.name}</span>
+                                                            {formData.brand === b.name && <Check size={12} strokeWidth={4} />}
+                                                        </button>
+                                                    ))
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                                <p className="text-[10px] text-slate-400 mt-1 font-medium">Brands must be registered within the Brand Management terminal.</p>
                             </div>
                         </div>
 
@@ -209,9 +356,73 @@ const ProductsPage = () => {
                             </div>
                         </div>
 
-                        <div className="form-group">
-                            <label className="block text-sm font-bold text-slate-700 mb-2">Category Mappings (Comma separated)</label>
-                            <input className="w-full" value={formData.categoryIds.join(', ')} onChange={e => setFormData({ ...formData, categoryIds: e.target.value.split(',').map(s=>s.trim()).filter(Boolean) })} placeholder="graphics-cards, computing, hardware" />
+                        {/* Relational Categories Matrix */}
+                        <div className="form-group border border-slate-100 bg-slate-50/30 rounded-2xl p-6">
+                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4 border-b border-slate-100 pb-3">
+                                <div>
+                                    <label className="block text-sm font-extrabold text-slate-900">Active Category Clusters <span className="text-rose-500 font-bold">*</span></label>
+                                    <p className="text-[10px] text-slate-400 mt-0.5 font-medium">At least one existing system category must be selected.</p>
+                                </div>
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <div className="relative flex-1 sm:flex-none min-w-[140px]">
+                                        <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                                        <input 
+                                            type="text"
+                                            placeholder="Filter categories..."
+                                            className="pl-8 pr-7 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold focus:ring-2 focus:ring-indigo-500 outline-none w-full sm:w-36 transition-all hover:border-slate-300 focus:sm:w-52 shadow-2xs"
+                                            value={categorySearch}
+                                            onChange={e => setCategorySearch(e.target.value)}
+                                        />
+                                        {categorySearch && (
+                                            <button type="button" onClick={() => setCategorySearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 hover:bg-slate-100 rounded transition"><X size={10} className="text-slate-400"/></button>
+                                        )}
+                                    </div>
+                                    <span className="text-[11px] font-extrabold text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100 flex-shrink-0">
+                                        {formData.categoryIds.length} Clusters Mapped
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mt-3">
+                                {allCategories.filter(cat => cat.name.toLowerCase().includes(categorySearch.toLowerCase())).map(cat => {
+                                    // Map mapping to id OR slug based on match, typically IDs are safe
+                                    const isMapped = formData.categoryIds.includes(cat.id) || formData.categoryIds.includes(cat.slug);
+                                    // Use id string as default tracking identifier
+                                    const targetRef = cat.id;
+                                    
+                                    return (
+                                        <button
+                                            type="button"
+                                            key={cat.id}
+                                            onClick={() => toggleCategoryMapping(targetRef)}
+                                            className={`flex items-center gap-2.5 p-3 rounded-xl text-xs font-extrabold transition cursor-pointer text-left border ${
+                                                isMapped 
+                                                    ? "bg-indigo-600 text-white border-indigo-600 shadow-sm shadow-indigo-200" 
+                                                    : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-slate-300"
+                                            }`}
+                                        >
+                                            <div className={`w-4 h-4 rounded flex items-center justify-center shrink-0 ${isMapped ? "bg-white text-indigo-600" : "bg-slate-100 border border-slate-200 text-transparent"}`}>
+                                                <Check size={10} strokeWidth={4} />
+                                            </div>
+                                            <span className="truncate flex-1">
+                                                {cat.icon && <span className="mr-1.5 text-sm select-none">{cat.icon}</span>}
+                                                {cat.name}
+                                            </span>
+                                        </button>
+                                    );
+                                })}
+                                {allCategories.length > 0 && allCategories.filter(cat => cat.name.toLowerCase().includes(categorySearch.toLowerCase())).length === 0 && (
+                                    <div className="col-span-full py-6 text-center text-[11px] font-bold text-slate-400 italic border border-dashed border-slate-200 rounded-xl">
+                                        No matching clusters found for "{categorySearch}"
+                                    </div>
+                                )}
+                                {allCategories.length === 0 && (
+                                    <div className="col-span-full bg-rose-50 text-rose-600 p-4 rounded-xl border border-rose-100 text-xs font-bold text-center">
+                                        Critical Missing Asset: No active Categories established. Register Categories first.
+                                    </div>
+                                )}
+                            </div>
+                            <p className="text-[10px] text-slate-400 mt-3 font-medium">At least one existing system category must be selected to allow structural indexing.</p>
                         </div>
 
                         <div className="form-group">
@@ -242,7 +453,7 @@ const ProductsPage = () => {
                                 ))}
                                 {formData.features.length === 0 && (
                                      <p className="text-xs text-slate-400 italic">No key highlights logged yet.</p>
-                                )}
+                                 )}
                             </div>
                         </div>
 
@@ -307,6 +518,12 @@ const ProductsPage = () => {
         );
     }
 
+    const filteredProducts = products.filter(p => 
+        p.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        p.slug?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        p.id?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
     return (
         <div className="page-container glass-card">
             <header className="page-header">
@@ -320,6 +537,25 @@ const ProductsPage = () => {
                 </button>
             </header>
 
+            <div className="mb-6 bg-white border border-slate-200 p-4 rounded-2xl flex items-center gap-3 shadow-xs">
+                <div className="relative flex-1">
+                    <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input 
+                        type="text"
+                        placeholder="Search products by Name, Slug, or ID..."
+                        className="w-full pl-11 pr-10 py-2.5 bg-slate-50 border border-slate-200 focus:bg-white rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500 outline-none transition hover:border-slate-300 shadow-2xs"
+                        value={searchTerm}
+                        onChange={e => setSearchTerm(e.target.value)}
+                    />
+                    {searchTerm && (
+                        <button type="button" onClick={() => setSearchTerm('')} className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-slate-200 rounded-md transition"><X size={14} className="text-slate-500"/></button>
+                    )}
+                </div>
+                <span className="text-xs font-extrabold text-slate-500 bg-slate-100 border border-slate-200 px-4 py-2.5 rounded-xl shrink-0 flex items-center gap-2">
+                    {filteredProducts.length} Total Items Listed
+                </span>
+            </div>
+
             <table className="admin-table">
                 <thead>
                     <tr>
@@ -332,7 +568,7 @@ const ProductsPage = () => {
                     </tr>
                 </thead>
                 <tbody>
-                    {products.map(p => (
+                    {filteredProducts.map(p => (
                         <tr key={p.id}>
                             <td>{p.id.substring(0, 8)}...</td>
                             <td>
@@ -340,7 +576,14 @@ const ProductsPage = () => {
                                     {p.images && p.images.length > 0 && (
                                         <img src={getImageUrl(p.images[0])} alt="" className="w-8 h-8 rounded object-cover" />
                                     )}
-                                    <span className="font-medium text-slate-800">{p.name}</span>
+                                    <a 
+                                        href={`${getStorefrontUrl()}${p.slug ? `/p/${p.slug}` : `/product/${p.id}`}`} 
+                                        target="_blank" 
+                                        rel="noopener noreferrer" 
+                                        className="font-medium text-indigo-600 hover:text-indigo-800 hover:underline"
+                                    >
+                                        {p.name}
+                                    </a>
                                 </div>
                             </td>
                             <td>
@@ -359,6 +602,15 @@ const ProductsPage = () => {
                             </td>
                         </tr>
                     ))}
+                    {filteredProducts.length === 0 && (
+                        <tr>
+                            <td colSpan={6} className="text-center py-10">
+                                <div className="text-slate-400 font-bold text-sm italic">
+                                    No products found matching your search criteria
+                                </div>
+                            </td>
+                        </tr>
+                    )}
                 </tbody>
             </table>
 

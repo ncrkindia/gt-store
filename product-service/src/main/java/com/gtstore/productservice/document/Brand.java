@@ -9,6 +9,7 @@ public class Brand {
     @Id
     private String id;
     private String name;
+    @org.springframework.data.mongodb.core.index.Indexed(unique = true)
     private String slug;
     private String imageUrl;
     private String description;

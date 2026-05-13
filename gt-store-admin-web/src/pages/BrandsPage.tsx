@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import apiClient from '../api/axios';
 import { useKeycloak } from '@react-keycloak/web';
-import { Upload, X, ChevronLeft } from 'lucide-react';
+import { Upload, X, ChevronLeft, Search } from 'lucide-react';
 
 const getImageUrl = (url: string | undefined): string => {
     if (!url) return '';
@@ -16,6 +16,17 @@ interface Brand {
     imageUrl?: string;
     description?: string;
 }
+
+const getStorefrontUrl = () => {
+    const { hostname, port, protocol } = window.location;
+    if (port === '4002') {
+        return `${protocol}//${hostname}:4000`;
+    }
+    if (hostname.includes('slpro.in')) {
+        return 'https://gtstore.slpro.in';
+    }
+    return `${protocol}//${hostname}${port ? `:${port}` : ''}`;
+};
 
 const BrandsPage = () => {
     const { initialized } = useKeycloak();
@@ -32,6 +43,7 @@ const BrandsPage = () => {
     };
     const [formData, setFormData] = useState<Omit<Brand, 'id'>>(emptyBrand);
     const [uploadingImage, setUploadingImage] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
 
     const fetchBrands = async () => {
         if (!initialized) return;
@@ -171,6 +183,12 @@ const BrandsPage = () => {
         );
     }
 
+    const filteredBrands = brands.filter(b => 
+        b.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        b.slug?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        b.id?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
     return (
         <div className="page-container glass-card">
             <header className="page-header">
@@ -184,6 +202,25 @@ const BrandsPage = () => {
                 </button>
             </header>
 
+            <div className="mb-6 bg-white border border-slate-200 p-4 rounded-2xl flex items-center gap-3 shadow-xs">
+                <div className="relative flex-1">
+                    <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input 
+                        type="text"
+                        placeholder="Search brands by Name, Slug, or ID..."
+                        className="w-full pl-11 pr-10 py-2.5 bg-slate-50 border border-slate-200 focus:bg-white rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500 outline-none transition hover:border-slate-300 shadow-2xs"
+                        value={searchTerm}
+                        onChange={e => setSearchTerm(e.target.value)}
+                    />
+                    {searchTerm && (
+                        <button type="button" onClick={() => setSearchTerm('')} className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-slate-200 rounded-md transition"><X size={14} className="text-slate-500"/></button>
+                    )}
+                </div>
+                <span className="text-xs font-extrabold text-slate-500 bg-slate-100 border border-slate-200 px-4 py-2.5 rounded-xl shrink-0 flex items-center gap-2">
+                    {filteredBrands.length} Total Items Listed
+                </span>
+            </div>
+
             <table className="admin-table">
                 <thead>
                     <tr>
@@ -195,12 +232,21 @@ const BrandsPage = () => {
                     </tr>
                 </thead>
                 <tbody>
-                    {brands.map(b => (
+                    {filteredBrands.map(b => (
                         <tr key={b.id}>
                             <td>
                                 {b.imageUrl && <img src={getImageUrl(b.imageUrl)} className="w-10 h-10 rounded object-contain bg-white p-1" alt="" />}
                             </td>
-                            <td className="font-bold">{b.name}</td>
+                            <td>
+                                <a 
+                                    href={`${getStorefrontUrl()}/brand/${b.slug || b.id}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="font-bold text-indigo-600 hover:text-indigo-800 hover:underline"
+                                >
+                                    {b.name}
+                                </a>
+                            </td>
                             <td>{b.slug}</td>
                             <td className="max-w-xs truncate text-gray-400">{b.description}</td>
                             <td>
@@ -209,6 +255,15 @@ const BrandsPage = () => {
                             </td>
                         </tr>
                     ))}
+                    {filteredBrands.length === 0 && (
+                        <tr>
+                            <td colSpan={5} className="text-center py-10">
+                                <div className="text-slate-400 font-bold text-sm italic">
+                                    No brands found matching your search criteria
+                                </div>
+                            </td>
+                        </tr>
+                    )}
                 </tbody>
             </table>
 

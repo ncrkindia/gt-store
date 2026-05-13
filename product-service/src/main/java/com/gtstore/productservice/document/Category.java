@@ -10,6 +10,7 @@ public class Category {
     private String id;
     
     private String name;
+    @org.springframework.data.mongodb.core.index.Indexed(unique = true)
     private String slug;
     private String icon;
     private String imageUrl;

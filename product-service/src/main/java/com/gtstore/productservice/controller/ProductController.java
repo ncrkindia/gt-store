@@ -3,6 +3,7 @@ package com.gtstore.productservice.controller;
 import com.gtstore.productservice.document.Product;
 import com.gtstore.productservice.repository.ProductRepository;
 import com.gtstore.productservice.repository.CategoryRepository;
+import com.gtstore.productservice.repository.BrandRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -32,6 +33,9 @@ public class ProductController {
     private CategoryRepository categoryRepository;
 
     @Autowired
+    private BrandRepository brandRepository;
+
+    @Autowired
     private org.springframework.kafka.core.KafkaTemplate<String, Object> kafkaTemplate;
 
     private static final String TOPIC_UPSERT = "product.upserted";
@@ -41,6 +45,7 @@ public class ProductController {
     public Page<Product> getAllProducts(
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String categoryId,
+            @RequestParam(required = false) String brand,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         
@@ -53,6 +58,8 @@ public class ProductController {
             resultPage = productRepository.findAllBy(textCriteria, pageable);
         } else if (categoryId != null && !categoryId.trim().isEmpty()) {
             resultPage = productRepository.findByCategoryIdsContaining(categoryId, pageable);
+        } else if (brand != null && !brand.trim().isEmpty()) {
+            resultPage = productRepository.findByBrandIgnoreCase(brand, pageable);
         } else {
             resultPage = productRepository.findAll(pageable);
         }
@@ -163,9 +170,37 @@ public class ProductController {
         product.setSlug(uniqueSlug);
     }
 
+    private void validateProduct(Product product) {
+        if (product.getBrand() == null || product.getBrand().trim().isEmpty()) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                HttpStatus.BAD_REQUEST, "Product brand is required."
+            );
+        }
+        boolean brandExists = brandRepository.findByNameIgnoreCase(product.getBrand().trim()).isPresent();
+        if (!brandExists) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                HttpStatus.BAD_REQUEST, "Target brand '" + product.getBrand() + "' is not registered in catalog system."
+            );
+        }
+        if (product.getCategoryIds() == null || product.getCategoryIds().isEmpty()) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                HttpStatus.BAD_REQUEST, "Product registration requires at least one Category association."
+            );
+        }
+        for (String catId : product.getCategoryIds()) {
+            boolean exists = categoryRepository.findById(catId).isPresent() || categoryRepository.findBySlug(catId).isPresent();
+            if (!exists) {
+                throw new org.springframework.web.server.ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Referenced Category ID/Slug '" + catId + "' is unrecognized."
+                );
+            }
+        }
+    }
+
     // Secured endpoints (requires Keycloak JWT token with write roles ideally)
     @PostMapping
     public ResponseEntity<Product> createProduct(@RequestBody Product product) {
+        validateProduct(product);
         if (product.getSlug() == null || product.getSlug().trim().isEmpty()) {
             generateSlug(product);
         }
@@ -180,6 +215,7 @@ public class ProductController {
             return ResponseEntity.notFound().build();
         }
         product.setId(id);
+        validateProduct(product);
         // Generate if not set in input payload or exists implicitly blank
         if (product.getSlug() == null || product.getSlug().trim().isEmpty()) {
             generateSlug(product);
