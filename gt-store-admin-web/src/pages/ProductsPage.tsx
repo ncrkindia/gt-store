@@ -511,6 +511,11 @@ const ProductsPage = () => {
                             </select>
                         </div>
 
+                        {/* 
+                          * Feature Injection: Promoted Products Configuration Portal
+                          * Conditionally shows Priority Score input only if product is explicitly promoted.
+                          * High visual contrast design highlights promotion system metadata.
+                          */}
                         {/* Promotion Attributes */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-amber-50/30 p-5 border border-amber-100 rounded-2xl shadow-3xs">
                             <div className="flex items-center justify-between">

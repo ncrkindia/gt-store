@@ -134,6 +134,11 @@ export function Home() {
     ? products.filter(p => p.rating > 0).sort((a, b) => b.rating - a.rating).slice(0, 6)
     : products.slice(0, 6);
 
+  /**
+   * Dynamic Feature Rail: Promoted Picks
+   * Isolates explicit featured items only, ranking by admin-assigned Priority Scores,
+   * and capping layout grid items to maintain strict visual rhythm.
+   */
   const promotedPicks = products
     .filter(p => p.promoted === true)
     .sort((a, b) => (b.promotionPriority || 0) - (a.promotionPriority || 0))

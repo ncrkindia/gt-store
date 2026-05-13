@@ -50,6 +50,11 @@ public class ProductController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         
+        
+        // Core Feature Expansion: Priority promotions sorting tier.
+        // Dynamically injects an explicit Sort composite:
+        // 1. Promoted products (true) always bubble up first.
+        // 2. Product priority scores (higher) define exact item sequence placement inside the promoted shelf.
         Sort sort = Sort.by(Sort.Direction.DESC, "promoted")
                         .and(Sort.by(Sort.Direction.DESC, "promotionPriority"));
         Pageable pageable = PageRequest.of(page, size, sort);

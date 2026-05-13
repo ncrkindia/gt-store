@@ -49,7 +49,16 @@ public class Product {
 
     private List<Review> reviews = new java.util.ArrayList<>();
     
+    /**
+     * Flag indicating whether this product is featured in the Storefront Homepage 'Promoted Picks' section.
+     * If true, this product receives priority rendering across global catalog queries.
+     */
     private Boolean promoted = false;
+
+    /**
+     * Sorting score for the promotion hierarchy. High priority values (e.g., 100) place
+     * the product higher in the catalog sorting array compared to lower values.
+     */
     private Integer promotionPriority = 0;
 
     public String getId() { return id; }
