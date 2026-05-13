@@ -1,11 +1,32 @@
 import { Link } from "react-router";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { ProductCard } from "../components/ProductCard";
-import { categories } from "../data/mockData";
 import { useState } from "react";
 import { useQuery } from '@tanstack/react-query';
 import apiClient from '../../api/axios';
 import type { Product } from '../types';
+
+interface Category {
+  id: string;
+  name: string;
+  slug: string;
+  imageUrl?: string;
+  icon?: string;
+}
+
+interface Brand {
+  id: string;
+  name: string;
+  slug: string;
+  imageUrl?: string;
+  description?: string;
+}
+
+const getImageUrl = (url: string | undefined): string => {
+    if (!url) return "https://images.unsplash.com/photo-1472851294608-062f824d296e?auto=format&fit=crop&q=60&w=300";
+    if (url.startsWith('/')) return `https://gts-api.slpro.in${url}`;
+    return url;
+};
 
 const fetchProducts = async () => {
   const res = await apiClient.get('products');
@@ -49,6 +70,16 @@ const fetchActiveBanners = async () => {
   }
 };
 
+const fetchCategories = async () => {
+  const res = await apiClient.get('categories');
+  return res.data || [];
+};
+
+const fetchBrands = async () => {
+  const res = await apiClient.get('brands');
+  return res.data || [];
+};
+
 export function Home() {
   const [currentBanner, setCurrentBanner] = useState(0);
 
@@ -60,6 +91,16 @@ export function Home() {
   const { data: products = [] } = useQuery<Product[]>({
     queryKey: ['products'],
     queryFn: fetchProducts
+  });
+
+  const { data: systemCategories = [] } = useQuery<Category[]>({
+    queryKey: ['categories'],
+    queryFn: fetchCategories
+  });
+
+  const { data: systemBrands = [] } = useQuery<Brand[]>({
+    queryKey: ['brands'],
+    queryFn: fetchBrands
   });
 
   const nextBanner = () => {
@@ -167,26 +208,74 @@ export function Home() {
 
       <section className="max-w-screen-xl mx-auto px-4 py-10">
         <div className="bg-white rounded-3xl shadow-xl p-8 border border-gray-100">
-          <h2 className="text-3xl font-bold mb-8 bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Shop by Category</h2>
+          <h2 className="text-3xl font-bold mb-8 bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent flex items-center gap-2">
+             <span>Shop by Category</span>
+          </h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8 gap-6">
-            {categories.map((category) => (
+            {systemCategories.map((category) => (
               <Link
                 key={category.id}
-                to={`/category/${category.id}`}
+                to={`/category/${category.slug || category.id}`}
                 className="flex flex-col items-center gap-3 p-4 rounded-2xl hover:bg-gradient-to-br hover:from-indigo-50 hover:to-purple-50 transition-all duration-300 group"
               >
-                <div className="w-20 h-20 rounded-2xl overflow-hidden border-2 border-gray-200 group-hover:border-indigo-500 group-hover:shadow-lg transition-all duration-300 group-hover:scale-110">
-                  <img
-                    src={category.image}
-                    alt={category.name}
-                    className="w-full h-full object-cover"
-                  />
+                <div className="w-20 h-20 rounded-2xl overflow-hidden border-2 border-gray-200 bg-white group-hover:border-indigo-500 group-hover:shadow-lg transition-all duration-300 group-hover:scale-110 flex items-center justify-center relative">
+                  {category.imageUrl ? (
+                    <img
+                      src={getImageUrl(category.imageUrl)}
+                      alt={category.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                     <div className="w-full h-full bg-indigo-50 flex items-center justify-center text-2xl font-extrabold text-indigo-600 select-none">
+                       {category.name.slice(0, 2).toUpperCase()}
+                     </div>
+                  )}
                 </div>
-                <span className="text-xs text-center font-medium group-hover:text-indigo-600 transition">
+                <span className="text-xs text-center font-bold text-gray-700 group-hover:text-indigo-600 transition">
                   {category.name}
                 </span>
               </Link>
             ))}
+            {systemCategories.length === 0 && (
+               <div className="col-span-full py-12 text-center text-gray-400 font-semibold italic">
+                  Synchronizing Category matrices...
+               </div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      <section className="max-w-screen-xl mx-auto px-4 py-5">
+        <div className="bg-white rounded-3xl shadow-xl p-8 border border-gray-100">
+          <h2 className="text-3xl font-bold mb-8 bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">Shop by Brand</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8 gap-6">
+            {systemBrands.map((brand) => (
+              <Link
+                key={brand.id}
+                to={`/brand/${brand.slug || brand.id}`}
+                className="flex flex-col items-center gap-3 p-4 rounded-2xl hover:bg-gradient-to-br hover:from-pink-50 hover:to-purple-50 transition-all duration-300 group"
+              >
+                <div className="w-20 h-20 rounded-2xl overflow-hidden border-2 border-gray-200 bg-white group-hover:border-pink-500 group-hover:shadow-lg transition-all duration-300 group-hover:scale-110 flex items-center justify-center p-3">
+                  {brand.imageUrl ? (
+                    <img
+                      src={getImageUrl(brand.imageUrl)}
+                      alt={brand.name}
+                      className="max-w-full max-h-full object-contain"
+                    />
+                  ) : (
+                    <span className="text-2xl font-extrabold text-pink-500 select-none">{brand.name.slice(0, 2).toUpperCase()}</span>
+                  )}
+                </div>
+                <span className="text-xs text-center font-bold text-gray-700 group-hover:text-pink-600 transition">
+                  {brand.name}
+                </span>
+              </Link>
+            ))}
+            {systemBrands.length === 0 && (
+               <div className="col-span-full py-12 text-center text-gray-400 font-semibold italic">
+                  Synchronizing Brand matrices...
+               </div>
+            )}
           </div>
         </div>
       </section>

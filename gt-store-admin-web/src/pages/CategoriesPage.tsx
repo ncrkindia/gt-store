@@ -13,7 +13,6 @@ interface Category {
     id: string;
     name: string;
     slug: string;
-    icon: string;
     imageUrl?: string;
     parentId?: string;
 }
@@ -39,7 +38,6 @@ const CategoriesPage = () => {
     const emptyCategory: Omit<Category, 'id'> = {
         name: '',
         slug: '',
-        icon: '📦',
         imageUrl: '',
         parentId: ''
     };
@@ -85,7 +83,6 @@ const CategoriesPage = () => {
         setFormData({
             name: c.name,
             slug: c.slug,
-            icon: c.icon || '📦',
             imageUrl: c.imageUrl || '',
             parentId: c.parentId || ''
         });
@@ -151,42 +148,6 @@ const CategoriesPage = () => {
                             <div className="form-group">
                                 <label className="block text-sm font-bold text-slate-700 mb-2">URL Slug</label>
                                 <input className="w-full" required value={formData.slug} onChange={e => setFormData({ ...formData, slug: e.target.value })} placeholder="gaming-laptops" />
-                            </div>
-                        </div>
-                        <div className="form-group border border-slate-100 bg-slate-50/30 p-6 rounded-2xl space-y-4">
-                            <div>
-                                <label className="block text-sm font-black text-slate-700 mb-1">Dynamic Emoji Identifier</label>
-                                <p className="text-xs text-slate-400 mb-3">Used as high-impact visual headers across both Desktop storefront and Mobile clients.</p>
-                                <div className="flex items-center gap-3">
-                                    <input 
-                                        className="w-20 text-2xl text-center font-sans h-12 border-2 border-indigo-100 focus:border-indigo-500 rounded-xl" 
-                                        required 
-                                        maxLength={4}
-                                        value={formData.icon} 
-                                        onChange={e => setFormData({ ...formData, icon: e.target.value })} 
-                                        placeholder="📦" 
-                                    />
-                                    <input 
-                                        className="flex-1 h-12 border border-slate-200 bg-slate-50 text-slate-500 font-mono text-xs px-4 rounded-xl pointer-events-none" 
-                                        value={`Glyph Format: ${formData.icon}`} 
-                                        disabled 
-                                    />
-                                </div>
-                            </div>
-                            <div>
-                                <label className="block text-[10px] font-bold tracking-widest uppercase text-slate-400 mb-2">Common Assets</label>
-                                <div className="flex flex-wrap gap-2">
-                                    {['💻', '📱', '🎧', '📦', '👕', '💄', '🏠', '👟', '🔋', '⌚', '🎮', '🧩'].map(emo => (
-                                        <button
-                                            key={emo}
-                                            type="button"
-                                            onClick={() => setFormData({ ...formData, icon: emo })}
-                                            className={`w-10 h-10 text-lg rounded-lg border transition-all flex items-center justify-center hover:scale-110 ${formData.icon === emo ? 'bg-indigo-50 border-indigo-300 shadow-xs' : 'bg-white border-slate-200 hover:border-slate-300'}`}
-                                        >
-                                            {emo}
-                                        </button>
-                                    ))}
-                                </div>
                             </div>
                         </div>
                         <div className="form-group border border-slate-100 rounded-2xl p-6 bg-slate-50/50">
@@ -262,7 +223,6 @@ const CategoriesPage = () => {
                         <th>Image</th>
                         <th>Name</th>
                         <th>Slug</th>
-                        <th>Icon</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -283,7 +243,6 @@ const CategoriesPage = () => {
                                 </a>
                             </td>
                             <td>{c.slug}</td>
-                            <td className="text-xl font-sans text-center select-none">{c.icon}</td>
                             <td>
                                 <button onClick={() => handleEdit(c)} className="btn-icon">Edit</button>
                                 <button onClick={() => handleDelete(c.id)} className="btn-icon btn-delete">Delete</button>
@@ -292,7 +251,7 @@ const CategoriesPage = () => {
                     ))}
                     {filteredCategories.length === 0 && (
                         <tr>
-                            <td colSpan={5} className="text-center py-10">
+                            <td colSpan={4} className="text-center py-10">
                                 <div className="text-slate-400 font-bold text-sm italic">
                                     No categories found matching your search criteria
                                 </div>
