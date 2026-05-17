@@ -22,6 +22,8 @@ public class Review {
     // Up to 5 image URLs
     private List<String> images;
 
+    private String orderId;
+
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
     public String getUserName() { return userName; }
@@ -36,4 +38,6 @@ public class Review {
     public void setStatus(String status) { this.status = status; }
     public List<String> getImages() { return images; }
     public void setImages(List<String> images) { this.images = images; }
+    public String getOrderId() { return orderId; }
+    public void setOrderId(String orderId) { this.orderId = orderId; }
 }

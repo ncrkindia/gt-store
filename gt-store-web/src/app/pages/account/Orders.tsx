@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router";
-import { Package, Truck, CheckCircle, XCircle } from "lucide-react";
+import { Package, Truck, CheckCircle, XCircle, Star } from "lucide-react";
 import apiClient from "../../../api/axios";
 import { useKeycloak } from "@react-keycloak/web";
 import { formatPrice } from "../../../lib/formatPrice";
@@ -26,6 +26,7 @@ export function Orders() {
   const [reviewOrderVisible, setReviewOrderVisible] = useState<string | null>(null);
   const [reviewProductId, setReviewProductId] = useState<string>("");
   const [reviewRating, setReviewRating] = useState<number>(5);
+  const [hoverRating, setHoverRating] = useState<number>(0);
   const [reviewComment, setReviewComment] = useState("");
   const [reviewImages, setReviewImages] = useState<string[]>([]);
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -103,13 +104,15 @@ export function Orders() {
         await apiClient.post(`/products/${reviewProductId}/reviews`, {
             rating: reviewRating,
             comment: reviewComment,
-            images: reviewImages
+            images: reviewImages,
+            orderId: reviewOrderVisible
         });
         toast.success("Review submitted successfully!");
         setReviewOrderVisible(null);
         setReviewComment("");
         setReviewRating(5);
         setReviewImages([]);
+        fetchOrders();
     } catch (e) {
         console.error(e);
         toast.error("Failed to submit review.");
@@ -244,9 +247,37 @@ export function Orders() {
                           <p className="text-sm text-gray-600">Quantity: {item.quantity}</p>
                           <p className="text-sm mt-1">{formatPrice(item.price)}</p>
                         </div>
-                         {order.status.toUpperCase() === "DELIVERED" && <div>
-                             <button onClick={() => { setReviewOrderVisible(order.id); setReviewProductId(item.productId); }} className="px-3 py-1 border border-gray-300 text-sm hover:bg-gray-50 rounded">Review Product</button>
-                         </div>}
+                         {order.status.toUpperCase() === "DELIVERED" && (
+                           <div>
+                             {(() => {
+                               const existingReview = item.productData?.reviews?.find(
+                                 (r: any) => r.orderId === order.id
+                               );
+                               if (existingReview) {
+                                 return (
+                                   <span className="text-sm font-semibold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100 inline-flex items-center gap-1">
+                                     <CheckCircle className="w-4 h-4" /> Reviewed
+                                   </span>
+                                 );
+                               }
+                               return (
+                                 <button
+                                   onClick={() => {
+                                     setReviewOrderVisible(order.id);
+                                     setReviewProductId(item.productId);
+                                     setReviewRating(5);
+                                     setHoverRating(0);
+                                     setReviewComment("");
+                                     setReviewImages([]);
+                                   }}
+                                   className="px-3 py-1 bg-white hover:bg-indigo-50 border border-indigo-200 text-indigo-600 text-sm font-medium rounded-lg transition-all shadow-sm hover:shadow"
+                                 >
+                                   Review Product
+                                 </button>
+                               );
+                             })()}
+                           </div>
+                         )}
                       </div>
                     ))}
                   </div>
@@ -292,8 +323,27 @@ export function Orders() {
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
             <h3 className="text-xl font-bold mb-4">Write a Review</h3>
             <div className="mb-4">
-                <label className="block text-sm font-medium mb-1">Rating (1-5)</label>
-                <input type="number" min="1" max="5" value={reviewRating} onChange={e => setReviewRating(Number(e.target.value))} className="w-full px-3 py-2 border border-gray-300 rounded"/>
+                <label className="block text-sm font-medium mb-1 text-gray-700">Rating</label>
+                <div className="flex gap-2 my-2">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                        <button
+                            key={star}
+                            type="button"
+                            onClick={() => setReviewRating(star)}
+                            onMouseEnter={() => setHoverRating(star)}
+                            onMouseLeave={() => setHoverRating(0)}
+                            className="focus:outline-none transition-all duration-150 transform hover:scale-110"
+                        >
+                            <Star
+                                className={`w-8 h-8 ${
+                                    star <= (hoverRating || reviewRating)
+                                        ? "fill-amber-400 text-amber-400"
+                                        : "text-gray-300 hover:text-amber-300"
+                                }`}
+                            />
+                        </button>
+                    ))}
+                </div>
             </div>
             <div className="mb-6">
                 <label className="block text-sm font-medium mb-1">Comment</label>

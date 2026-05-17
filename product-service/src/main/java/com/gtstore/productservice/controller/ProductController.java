@@ -263,24 +263,40 @@ public class ProductController {
         if (email == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         
         return productRepository.findById(id).map(product -> {
-            review.setDate(java.time.LocalDateTime.now());
-            review.setUserName(name != null ? name : email);
-            if (review.getId() == null) {
-                review.setId(java.util.UUID.randomUUID().toString());
-            }
-            
             // Limit images to 5
             if (review.getImages() != null && review.getImages().size() > 5) {
                 review.setImages(review.getImages().subList(0, 5));
             }
             
-            // Set status to PENDING for async processing
-            review.setStatus("PENDING");
-
-            if (product.getReviews() == null) {
-                product.setReviews(new java.util.ArrayList<>());
+            com.gtstore.productservice.document.Review existingReview = null;
+            if (product.getReviews() != null && review.getOrderId() != null) {
+                for (com.gtstore.productservice.document.Review r : product.getReviews()) {
+                    if (review.getOrderId().equals(r.getOrderId())) {
+                        existingReview = r;
+                        break;
+                    }
+                }
             }
-            product.getReviews().add(review);
+
+            if (existingReview != null) {
+                existingReview.setRating(review.getRating());
+                existingReview.setComment(review.getComment());
+                existingReview.setImages(review.getImages());
+                existingReview.setDate(java.time.LocalDateTime.now());
+                existingReview.setStatus("PENDING");
+                review.setId(existingReview.getId()); // Use the same review ID for event payload
+            } else {
+                review.setDate(java.time.LocalDateTime.now());
+                review.setUserName(name != null ? name : email);
+                if (review.getId() == null) {
+                    review.setId(java.util.UUID.randomUUID().toString());
+                }
+                review.setStatus("PENDING");
+                if (product.getReviews() == null) {
+                    product.setReviews(new java.util.ArrayList<>());
+                }
+                product.getReviews().add(review);
+            }
             
             Product updated = productRepository.save(product);
             

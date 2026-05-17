@@ -3,11 +3,13 @@ import { useParams, Link, useNavigate } from "react-router";
 import {
   Package, Truck, CheckCircle2, XCircle,
   ChevronLeft, Calendar, CreditCard, MapPin,
-  ArrowRight, Clock, Tag, Info, FileDown, Loader2
+  ArrowRight, Clock, Tag, Info, FileDown, Loader2,
+  Star, CheckCircle
 } from "lucide-react";
 import apiClient from "../../../api/axios";
 import { useKeycloak } from "@react-keycloak/web";
 import { formatPrice } from "../../../lib/formatPrice";
+import { toast } from "sonner";
 
 const API_BASE = "https://gts-api.slpro.in";
 
@@ -30,6 +32,93 @@ export function OrderDetails() {
   const [shipment, setShipment] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
+
+  // Review Modal State
+  const [reviewOrderVisible, setReviewOrderVisible] = useState<string | null>(null);
+  const [reviewProductId, setReviewProductId] = useState<string>("");
+  const [reviewRating, setReviewRating] = useState<number>(5);
+  const [hoverRating, setHoverRating] = useState<number>(0);
+  const [reviewComment, setReviewComment] = useState("");
+  const [reviewImages, setReviewImages] = useState<string[]>([]);
+  const [uploadingImage, setUploadingImage] = useState(false);
+
+  const loadData = async () => {
+    try {
+      // 1. Fetch Order
+      const { data: orderData } = await apiClient.get(`/orders/${id}`);
+
+      // 2. Fetch Item details
+      const productIds = orderData.items?.map((i: any) => i.productId) || [];
+      if (productIds.length > 0) {
+        const pMapResp = await apiClient.post('/products/bulk', productIds);
+        const map = new Map(pMapResp.data.map((p: any) => [p.id, p]));
+        orderData.items.forEach((i: any) => {
+          i.productData = map.get(i.productId);
+        });
+      }
+      setOrder(orderData);
+
+      // 3. Fetch optional Shipment data
+      try {
+        const { data: shipData } = await apiClient.get(`/shipping/order/${id}`);
+        setShipment(shipData);
+      } catch (e) {
+        // Shipment might not exist yet, ignore fail silently
+        setShipment(null);
+      }
+
+    } catch (err) {
+      console.error("Failed to load order details", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    if (reviewImages.length >= 5) {
+      toast.error("You can only upload up to 5 images.");
+      return;
+    }
+    const file = e.target.files[0];
+    const formData = new FormData();
+    formData.append("file", file);
+    
+    setUploadingImage(true);
+    try {
+      const { data } = await apiClient.post("/media/upload", formData, {
+        headers: { "Content-Type": "multipart/form-data" }
+      });
+      setReviewImages(prev => [...prev, data.fileName || data.url]);
+      toast.success("Image uploaded!");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to upload image.");
+    } finally {
+      setUploadingImage(false);
+      e.target.value = ''; // clear input
+    }
+  };
+
+  const submitReview = async () => {
+    try {
+        await apiClient.post(`/products/${reviewProductId}/reviews`, {
+            rating: reviewRating,
+            comment: reviewComment,
+            images: reviewImages,
+            orderId: id
+        });
+        toast.success("Review submitted successfully!");
+        setReviewOrderVisible(null);
+        setReviewComment("");
+        setReviewRating(5);
+        setReviewImages([]);
+        loadData();
+    } catch (e) {
+        console.error(e);
+        toast.error("Failed to submit review.");
+    }
+  };
 
   const handleDownloadInvoice = async () => {
     setDownloading(true);
@@ -58,40 +147,7 @@ export function OrderDetails() {
       keycloak.login();
       return;
     }
-
-    const loadData = async () => {
-      setLoading(true);
-      try {
-        // 1. Fetch Order
-        const { data: orderData } = await apiClient.get(`/orders/${id}`);
-
-        // 2. Fetch Item details
-        const productIds = orderData.items?.map((i: any) => i.productId) || [];
-        if (productIds.length > 0) {
-          const pMapResp = await apiClient.post('/products/bulk', productIds);
-          const map = new Map(pMapResp.data.map((p: any) => [p.id, p]));
-          orderData.items.forEach((i: any) => {
-            i.productData = map.get(i.productId);
-          });
-        }
-        setOrder(orderData);
-
-        // 3. Fetch optional Shipment data
-        try {
-          const { data: shipData } = await apiClient.get(`/shipping/order/${id}`);
-          setShipment(shipData);
-        } catch (e) {
-          // Shipment might not exist yet, ignore fail silently
-          setShipment(null);
-        }
-
-      } catch (err) {
-        console.error("Failed to load order details", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
+    setLoading(true);
     loadData();
   }, [id, initialized, keycloak.authenticated]);
 
@@ -239,6 +295,52 @@ export function OrderDetails() {
                       <span>×</span>
                       <span>{formatPrice(item.price)}</span>
                     </div>
+                    {isDelivered && (
+                      <div className="mt-2">
+                        {(() => {
+                          const existingReview = item.productData?.reviews?.find(
+                            (r: any) => r.orderId === id
+                          );
+                          if (existingReview) {
+                            return (
+                              <div className="flex items-center gap-3">
+                                <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100 inline-flex items-center gap-1">
+                                  <CheckCircle className="w-3.5 h-3.5" /> Reviewed
+                                </span>
+                                <button
+                                  onClick={() => {
+                                    setReviewOrderVisible(id || null);
+                                    setReviewProductId(item.productId);
+                                    setReviewRating(existingReview.rating);
+                                    setHoverRating(0);
+                                    setReviewComment(existingReview.comment || "");
+                                    setReviewImages(existingReview.images || []);
+                                  }}
+                                  className="text-xs text-indigo-600 hover:text-indigo-800 font-bold hover:underline"
+                                >
+                                  Edit Review
+                                </button>
+                              </div>
+                            );
+                          }
+                          return (
+                            <button
+                              onClick={() => {
+                                setReviewOrderVisible(id || null);
+                                setReviewProductId(item.productId);
+                                setReviewRating(5);
+                                setHoverRating(0);
+                                setReviewComment("");
+                                setReviewImages([]);
+                              }}
+                              className="px-3 py-1 bg-white hover:bg-indigo-50 border border-indigo-200 text-indigo-600 text-xs font-bold rounded-lg transition-all shadow-sm hover:shadow"
+                            >
+                              Review Product
+                            </button>
+                          );
+                        })()}
+                      </div>
+                    )}
                   </div>
                   <div className="text-right font-black text-gray-900 whitespace-nowrap">
                     {formatPrice(item.price * item.quantity)}
@@ -295,6 +397,66 @@ export function OrderDetails() {
           </div>
         </div>
       </div>
+
+       {/* Review Modal */}
+       {reviewOrderVisible && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 border border-gray-100 transform scale-100 transition-all">
+            <h3 className="text-xl font-bold mb-4 text-gray-900 flex items-center gap-2">
+              <Star className="w-6 h-6 text-amber-500 fill-amber-500" />
+              Write a Review
+            </h3>
+            <div className="mb-4">
+                <label className="block text-sm font-semibold mb-2 text-gray-700">Rating</label>
+                <div className="flex gap-2">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                        <button
+                            key={star}
+                            type="button"
+                            onClick={() => setReviewRating(star)}
+                            onMouseEnter={() => setHoverRating(star)}
+                            onMouseLeave={() => setHoverRating(0)}
+                            className="focus:outline-none transition-all duration-150 transform hover:scale-110"
+                        >
+                            <Star
+                                className={`w-8 h-8 ${
+                                    star <= (hoverRating || reviewRating)
+                                        ? "fill-amber-400 text-amber-400"
+                                        : "text-gray-300 hover:text-amber-300"
+                                }`}
+                            />
+                        </button>
+                    ))}
+                </div>
+            </div>
+            <div className="mb-6">
+                <label className="block text-sm font-semibold mb-2 text-gray-700">Comment</label>
+                <textarea rows={4} value={reviewComment} onChange={e => setReviewComment(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm outline-none transition-all" placeholder="What did you think of this product?"></textarea>
+            </div>
+            <div className="mb-4">
+                <label className="block text-sm font-semibold mb-2 text-gray-700">Add Images (Up to 5)</label>
+                <div className="flex flex-wrap gap-2 mb-2">
+                    {reviewImages.map((img, i) => (
+                        <div key={i} className="relative w-16 h-16 border rounded-xl overflow-hidden shadow-sm">
+                           <img src={resolveImg(img)} className="w-full h-full object-cover" alt="Review upload" />
+                           <button onClick={() => setReviewImages(reviewImages.filter((_, idx) => idx !== i))} className="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white w-5 h-5 flex items-center justify-center rounded-full text-xs font-bold shadow-md">×</button>
+                        </div>
+                    ))}
+                    {reviewImages.length < 5 && (
+                        <div className="w-16 h-16 border-2 border-dashed border-gray-300 rounded-xl flex items-center justify-center relative bg-gray-50 hover:bg-gray-100 transition-all cursor-pointer">
+                            {uploadingImage ? <span className="text-xs text-gray-500 font-medium">...</span> : <span className="text-2xl text-gray-400 font-light">+</span>}
+                            <input type="file" accept="image/*" onChange={handleImageUpload} disabled={uploadingImage} className="absolute inset-0 opacity-0 cursor-pointer" />
+                        </div>
+                    )}
+                </div>
+            </div>
+            <div className="flex gap-3 justify-end pt-4 border-t border-gray-100">
+                <button onClick={() => { setReviewOrderVisible(null); setReviewImages([]); }} className="px-4 py-2 border border-gray-200 text-gray-700 hover:bg-gray-50 font-semibold rounded-xl text-sm transition-all">Cancel</button>
+                <button onClick={submitReview} className="px-5 py-2 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 shadow-md hover:shadow-lg transition-all text-sm">Submit Review</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
