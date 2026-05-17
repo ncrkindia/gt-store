@@ -116,7 +116,18 @@ export function ProductView() {
     queryFn: fetchBrands
   });
 
+  const { data: wishlist = [], refetch: refetchWishlist } = useQuery<any[]>({
+    queryKey: ['wishlist'],
+    queryFn: async () => {
+      const res = await apiClient.get('/users/me/wishlist');
+      return res.data || [];
+    },
+    enabled: !!keycloak.authenticated
+  });
+
   const product = products.find((p) => (id && p.id === id) || (slug && p.slug === slug));
+
+  const isWishlisted = wishlist.some((item: any) => item.productId === product?.id);
 
   if (isLoading) {
     return <div className="max-w-screen-xl mx-auto px-4 py-16 text-center text-xl">Loading product...</div>;
@@ -165,6 +176,26 @@ export function ProductView() {
         : { name: product.category, href: `/category/${product.category}` }
     ];
   }
+
+  const handleToggleWishlist = async () => {
+    if (!keycloak.authenticated) {
+      keycloak.login();
+      return;
+    }
+    try {
+      if (isWishlisted) {
+        await apiClient.delete(`/users/me/wishlist/${product.id}`);
+        toast.success('Removed from wishlist!');
+      } else {
+        await apiClient.post('/users/me/wishlist', { productId: product.id });
+        toast.success('Added to wishlist!');
+      }
+      refetchWishlist();
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to update wishlist.');
+    }
+  };
 
   const handleAddToCart = async () => {
     if (!keycloak.authenticated) {
@@ -304,9 +335,12 @@ export function ProductView() {
               </div>
 
               <div className="flex items-center gap-4 mb-6">
-                <button className="flex items-center gap-2 text-gray-700 hover:text-[#2874f0] transition cursor-pointer">
-                  <Heart className="w-5 h-5" />
-                  Add to Wishlist
+                <button 
+                  onClick={handleToggleWishlist}
+                  className="flex items-center gap-2 text-gray-700 hover:text-rose-600 transition cursor-pointer"
+                >
+                  <Heart className={`w-5 h-5 transition-transform duration-300 hover:scale-110 ${isWishlisted ? 'fill-rose-500 text-rose-500' : 'text-gray-700'}`} />
+                  {isWishlisted ? 'Wishlisted' : 'Add to Wishlist'}
                 </button>
                 <button 
                   onClick={() => {

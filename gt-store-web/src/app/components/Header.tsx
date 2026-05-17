@@ -56,6 +56,35 @@ export function Header() {
     return acc + item.quantity;
   }, 0) || 0;
 
+  const { data: wishlist = [] } = useQuery<any[]>({
+    queryKey: ['wishlist'],
+    queryFn: async () => {
+      const res = await apiClient.get('/users/me/wishlist');
+      return res.data || [];
+    },
+    enabled: !!keycloak.authenticated
+  });
+
+  const wishlistProductIds = wishlist.map((item: any) => item.productId) || [];
+
+  const { data: wishlistProductsData } = useQuery({
+    queryKey: ['products-bulk-wishlist-header', wishlistProductIds],
+    queryFn: async () => {
+      if (wishlistProductIds.length === 0) return [];
+      const res = await apiClient.post('/products/bulk', wishlistProductIds);
+      return res.data || [];
+    },
+    enabled: wishlistProductIds.length > 0
+  });
+
+  const wishlistQuantity = wishlist.reduce((acc: number, item: any) => {
+    if (wishlistProductsData) {
+      const product = wishlistProductsData.find((p: any) => p.id === item.productId);
+      if (!product) return acc; // Exclude unlisted products
+    }
+    return acc + 1;
+  }, 0);
+
   // Debounced suggestions — fires 2 seconds after user stops typing
   const fetchSuggestions = useCallback((q: string) => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -212,6 +241,16 @@ export function Header() {
                   <span className="text-sm font-medium">Login</span>
                 </button>
               )}
+
+              <Link to="/account/wishlist" className="relative flex items-center gap-2 bg-white/20 backdrop-blur-sm hover:bg-white/30 px-4 py-2.5 rounded-xl transition">
+                <Heart className="w-5 h-5" />
+                <span className="text-sm font-medium">Wishlist</span>
+                {wishlistQuantity > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[10px] w-5 h-5 flex items-center justify-center rounded-full border-2 border-indigo-700">
+                    {wishlistQuantity}
+                  </span>
+                )}
+              </Link>
 
               <Link to="/cart" className="relative flex items-center gap-2 bg-white/20 backdrop-blur-sm hover:bg-white/30 px-4 py-2.5 rounded-xl transition">
                 <ShoppingCart className="w-5 h-5" />
