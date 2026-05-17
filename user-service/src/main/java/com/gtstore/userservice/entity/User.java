@@ -27,6 +27,9 @@ public class User {
 
     private String birthday;
 
+    @Column(name = "loyalty_points", precision = 10, scale = 2)
+    private java.math.BigDecimal loyaltyPoints = java.math.BigDecimal.ZERO;
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
@@ -62,4 +65,6 @@ public class User {
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+    public java.math.BigDecimal getLoyaltyPoints() { return loyaltyPoints != null ? loyaltyPoints : java.math.BigDecimal.ZERO; }
+    public void setLoyaltyPoints(java.math.BigDecimal loyaltyPoints) { this.loyaltyPoints = loyaltyPoints; }
 }

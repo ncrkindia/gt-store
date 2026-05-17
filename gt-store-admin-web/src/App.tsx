@@ -13,6 +13,8 @@ import ReviewsPage from './pages/ReviewsPage';
 import ShippingPage from './pages/ShippingPage';
 import SupportPage from './pages/SupportPage';
 import OrderDetailPage from './pages/OrderDetailPage';
+import CouponsPage from './pages/CouponsPage';
+import LoyaltyPage from './pages/LoyaltyPage';
 import Sidebar from './components/Sidebar';
 import { AdminHeader } from './components/AdminHeader';
 import { AdminFooter } from './components/AdminFooter';
@@ -146,6 +148,8 @@ function App() {
                 <Route path="/support" element={<SupportPage />} />
                 <Route path="/support/:ticketNumber" element={<SupportPage />} />
                 <Route path="/shipping" element={<ShippingPage />} />
+                <Route path="/coupons" element={<CouponsPage />} />
+                <Route path="/loyalty" element={<LoyaltyPage />} />
                 <Route path="/documentation" element={<Documentation />} />
               </Routes>
 

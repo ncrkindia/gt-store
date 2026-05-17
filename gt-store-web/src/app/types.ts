@@ -19,6 +19,7 @@ export interface Product {
   reviewsList?: Review[];
   promoted?: boolean;
   promotionPriority?: number;
+  gstPercentage?: number;
 }
 
 export interface Review {

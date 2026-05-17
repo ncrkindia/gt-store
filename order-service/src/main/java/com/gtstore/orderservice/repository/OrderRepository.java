@@ -13,4 +13,6 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
     List<Order> findAllByOrderByCreatedAtDesc();
     java.util.Optional<Order> findByOrderNumber(String orderNumber);
     List<Order> findByOrderNumberIsNull();
+    List<Order> findByUserIdAndCouponCodeIgnoreCaseAndStatusNot(String userId, String couponCode, String status);
+    List<Order> findByUserIdAndCouponCodeIgnoreCaseAndStatusNotAndCreatedAtAfter(String userId, String couponCode, String status, java.time.LocalDateTime dateTime);
 }

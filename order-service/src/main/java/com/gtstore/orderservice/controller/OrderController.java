@@ -44,6 +44,21 @@ public class OrderController {
     @Autowired
     private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
 
+    @Autowired
+    private PromotionService promotionService;
+
+    @PostMapping("/calculate")
+    public ResponseEntity<com.gtstore.orderservice.dto.CheckoutCalculationResponse> calculateOrder(
+            @RequestHeader(value = "X-User-Email", required = false) String email,
+            @RequestBody com.gtstore.orderservice.dto.CheckoutCalculationRequest request) {
+        if (email == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        boolean isCod = false;
+        com.gtstore.orderservice.dto.CheckoutCalculationResponse calc = promotionService.calculateCheckout(request, email, isCod);
+        return ResponseEntity.ok(calc);
+    }
+
     @jakarta.annotation.PostConstruct
     public void init() {
         try {
@@ -146,21 +161,45 @@ public class OrderController {
         order.setCustomerPhone(orderRequest.getCustomerPhone());
         order.setCustomerName(orderRequest.getCustomerName() != null ? orderRequest.getCustomerName() : name);
 
-        BigDecimal totalAmount = BigDecimal.ZERO;
-
+        // Build Secure Calculation Request
+        com.gtstore.orderservice.dto.CheckoutCalculationRequest calcReq = new com.gtstore.orderservice.dto.CheckoutCalculationRequest();
+        calcReq.setCouponCode(orderRequest.getCouponCode());
+        calcReq.setLoyaltyPointsToUse(orderRequest.getLoyaltyPointsUsed());
+        
+        List<com.gtstore.orderservice.dto.OrderItemDto> dtoList = new java.util.ArrayList<>();
         if (orderRequest.getItems() != null) {
             for (OrderItem itemReq : orderRequest.getItems()) {
-                OrderItem item = new OrderItem();
-                item.setProductId(itemReq.getProductId());
-                item.setVariantId(itemReq.getVariantId());
-                item.setQuantity(itemReq.getQuantity());
-                item.setPrice(itemReq.getPrice());
+                com.gtstore.orderservice.dto.OrderItemDto dto = new com.gtstore.orderservice.dto.OrderItemDto();
+                dto.setProductId(itemReq.getProductId());
+                dto.setVariantId(itemReq.getVariantId());
+                dto.setQuantity(itemReq.getQuantity());
+                dto.setPrice(itemReq.getPrice());
+                dtoList.add(dto);
+            }
+        }
+        calcReq.setItems(dtoList);
 
-                totalAmount = totalAmount.add(item.getPrice().multiply(BigDecimal.valueOf(item.getQuantity())));
+        com.gtstore.orderservice.dto.CheckoutCalculationResponse calcRes = promotionService.calculateCheckout(calcReq, email, isCod);
+        
+        order.setTotalAmount(calcRes.getFinalPayable());
+        order.setDiscountAmount(calcRes.getProductDiscounts().add(calcRes.getCartDiscounts()));
+        order.setTaxAmount(calcRes.getTaxes());
+        order.setShippingCharge(calcRes.getShippingCharge());
+        order.setCodCharge(calcRes.getCodCharge());
+        order.setCouponCode(orderRequest.getCouponCode());
+        order.setLoyaltyPointsUsed(calcRes.getLoyaltyPointsUsed());
+
+        if (orderRequest.getItems() != null) {
+            for (com.gtstore.orderservice.dto.CheckoutCalculationResponse.CalculatedItemDto cItem : calcRes.getItems()) {
+                OrderItem item = new OrderItem();
+                item.setProductId(cItem.getProductId());
+                // find variant from original
+                orderRequest.getItems().stream().filter(i -> i.getProductId().equals(cItem.getProductId())).findFirst().ifPresent(i -> item.setVariantId(i.getVariantId()));
+                item.setQuantity(cItem.getQuantity());
+                item.setPrice(cItem.getDiscountedPrice()); // Use secure discounted price!
                 order.addItem(item);
             }
         }
-        order.setTotalAmount(totalAmount);
 
         OrderAudit audit = new OrderAudit();
         audit.setAction("ORDER_CREATED");
@@ -173,11 +212,32 @@ public class OrderController {
         Order saved = orderRepository.save(order);
         String extOrderId = saved.getOrderNumber() != null ? saved.getOrderNumber() : saved.getId().toString();
 
+        // Loyalty Processing
+        try {
+            java.util.Map<String, Object> earnReq = new java.util.HashMap<>();
+            earnReq.put("email", email);
+            earnReq.put("orderId", extOrderId);
+            earnReq.put("totalAmount", order.getTotalAmount() != null ? order.getTotalAmount() : BigDecimal.ZERO);
+            earnReq.put("shippingCharge", order.getShippingCharge() != null ? order.getShippingCharge() : BigDecimal.ZERO);
+            earnReq.put("codCharge", order.getCodCharge() != null ? order.getCodCharge() : BigDecimal.ZERO);
+            restTemplate.postForEntity("http://user-service:4004/api/users/loyalty/earn", earnReq, Void.class);
+
+            if (order.getLoyaltyPointsUsed() != null && order.getLoyaltyPointsUsed().compareTo(BigDecimal.ZERO) > 0) {
+                java.util.Map<String, Object> redeemReq = new java.util.HashMap<>();
+                redeemReq.put("email", email);
+                redeemReq.put("orderId", extOrderId);
+                redeemReq.put("pointsUsed", order.getLoyaltyPointsUsed());
+                restTemplate.postForEntity("http://user-service:4004/api/users/loyalty/redeem", redeemReq, Void.class);
+            }
+        } catch (Exception ex) {
+            log.error("Failed to process loyalty points for order {}", extOrderId, ex);
+        }
+
         // 3. Initiate Payment (Only if NOT COD)
         if (!"COD".equalsIgnoreCase(saved.getPaymentMethod())) {
             PaymentRequest paymentRequest = new PaymentRequest();
             paymentRequest.setOrderId(extOrderId);
-            paymentRequest.setAmount(totalAmount);
+            paymentRequest.setAmount(order.getTotalAmount());
             paymentRequest.setGateway("RAZORPAY");
 
             try {
@@ -423,5 +483,10 @@ public class OrderController {
         return orderOpt
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<java.util.Map<String, String>> handleIllegalArgument(IllegalArgumentException e) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(java.util.Map.of("error", "Bad Request", "message", e.getMessage()));
     }
 }

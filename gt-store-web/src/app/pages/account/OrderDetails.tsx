@@ -4,7 +4,7 @@ import {
   Package, Truck, CheckCircle2, XCircle,
   ChevronLeft, Calendar, CreditCard, MapPin,
   ArrowRight, Clock, Tag, Info, FileDown, Loader2,
-  Star, CheckCircle
+  Star, CheckCircle, ShoppingBag
 } from "lucide-react";
 import apiClient from "../../../api/axios";
 import { useKeycloak } from "@react-keycloak/web";
@@ -375,6 +375,46 @@ export function OrderDetails() {
               <p className="font-medium text-gray-800 mt-3 flex items-center gap-2">
                 <span className="text-gray-400 font-normal">Tel:</span> {order.customerPhone || 'Not provided'}
               </p>
+            </div>
+          </div>
+
+          {/* Payment Summary */}
+          <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm">
+            <h3 className="text-md font-bold text-gray-900 flex items-center gap-2 mb-4">
+              <ShoppingBag size={18} className="text-indigo-600" />
+              Payment Summary
+            </h3>
+            <div className="space-y-3 text-sm">
+              <div className="flex justify-between text-gray-600">
+                <span>Subtotal</span>
+                <span className="font-semibold">{formatPrice((order.totalAmount || 0) + (order.discountAmount || 0) + (order.loyaltyPointsUsed || 0) - (order.taxAmount || 0) - (order.shippingCharge || 0) - (order.codCharge || 0))}</span>
+              </div>
+              {order.discountAmount > 0 && (
+                <div className="flex justify-between text-emerald-600">
+                  <span>Discount {order.couponCode ? `(${order.couponCode})` : ''}</span>
+                  <span className="font-semibold">- {formatPrice(order.discountAmount)}</span>
+                </div>
+              )}
+              {order.loyaltyPointsUsed > 0 && (
+                <div className="flex justify-between text-amber-600">
+                  <span>Loyalty Points Used</span>
+                  <span className="font-semibold">- {formatPrice(order.loyaltyPointsUsed)}</span>
+                </div>
+              )}
+              {order.taxAmount > 0 && (
+                <div className="flex justify-between text-gray-600">
+                  <span>Taxes</span>
+                  <span className="font-semibold">+ {formatPrice(order.taxAmount)}</span>
+                </div>
+              )}
+              <div className="flex justify-between text-gray-600">
+                <span>Shipping & COD Fees</span>
+                <span className="font-semibold">+ {formatPrice((order.shippingCharge || 0) + (order.codCharge || 0))}</span>
+              </div>
+              <div className="border-t border-gray-100 pt-3 flex justify-between text-base font-black text-gray-900">
+                <span>Total Paid</span>
+                <span>{formatPrice(order.totalAmount)}</span>
+              </div>
             </div>
           </div>
 

@@ -60,6 +60,24 @@ public class Order {
     @Column(name = "customer_name")
     private String customerName;
 
+    @Column(name = "coupon_code")
+    private String couponCode;
+
+    @Column(name = "loyalty_points_used", precision = 10, scale = 2)
+    private BigDecimal loyaltyPointsUsed;
+
+    @Column(name = "discount_amount", precision = 10, scale = 2)
+    private BigDecimal discountAmount;
+
+    @Column(name = "tax_amount", precision = 10, scale = 2)
+    private BigDecimal taxAmount;
+
+    @Column(name = "shipping_charge", precision = 10, scale = 2)
+    private BigDecimal shippingCharge;
+
+    @Column(name = "cod_charge", precision = 10, scale = 2)
+    private BigDecimal codCharge;
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
@@ -143,4 +161,17 @@ public class Order {
 
     public List<OrderAudit> getAudits() { return audits; }
     public void setAudits(List<OrderAudit> audits) { this.audits = audits; }
+
+    public String getCouponCode() { return couponCode; }
+    public void setCouponCode(String couponCode) { this.couponCode = couponCode; }
+    public BigDecimal getLoyaltyPointsUsed() { return loyaltyPointsUsed; }
+    public void setLoyaltyPointsUsed(BigDecimal loyaltyPointsUsed) { this.loyaltyPointsUsed = loyaltyPointsUsed; }
+    public BigDecimal getDiscountAmount() { return discountAmount; }
+    public void setDiscountAmount(BigDecimal discountAmount) { this.discountAmount = discountAmount; }
+    public BigDecimal getTaxAmount() { return taxAmount; }
+    public void setTaxAmount(BigDecimal taxAmount) { this.taxAmount = taxAmount; }
+    public BigDecimal getShippingCharge() { return shippingCharge; }
+    public void setShippingCharge(BigDecimal shippingCharge) { this.shippingCharge = shippingCharge; }
+    public BigDecimal getCodCharge() { return codCharge; }
+    public void setCodCharge(BigDecimal codCharge) { this.codCharge = codCharge; }
 }

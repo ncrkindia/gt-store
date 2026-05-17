@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation } from "react-router";
-import { User, Package, Heart, MapPin, Settings } from "lucide-react";
+import { User, Package, Heart, MapPin, Settings, Star, Tag } from "lucide-react";
 import { useKeycloak } from "@react-keycloak/web";
 
 export function Account() {
@@ -10,6 +10,8 @@ export function Account() {
   const menuItems = [
     { path: "/account", label: "Profile", icon: User },
     { path: "/account/orders", label: "Orders", icon: Package },
+    { path: "/account/loyalty", label: "Loyalty Points", icon: Star },
+    { path: "/account/coupons", label: "My Coupons", icon: Tag },
     { path: "/account/wishlist", label: "Wishlist", icon: Heart },
     { path: "/account/addresses", label: "Addresses", icon: MapPin },
   ];

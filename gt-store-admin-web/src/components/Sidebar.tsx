@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import { 
     LayoutDashboard, Package, Tags, Bookmark, 
-    Image, ClipboardList, Boxes, FileText, AlertCircle, Truck, MessageSquare
+    Image, ClipboardList, Boxes, FileText, AlertCircle, Truck, MessageSquare, Percent, Award
 } from 'lucide-react';
 
 const Sidebar = () => {
@@ -16,6 +16,8 @@ const Sidebar = () => {
         { to: "/inventory", label: "Inventory Management", icon: Boxes },
         { to: "/orders", label: "Sales Orders", icon: ClipboardList },
         { to: "/shipping", label: "Logistics Dispatch", icon: Truck },
+        { to: "/coupons", label: "Coupons & Promos", icon: Percent },
+        { to: "/loyalty", label: "Loyalty Program", icon: Award },
         { divider: true },
         { to: "/reviews", label: "Review Moderation", icon: AlertCircle },
         { to: "/support", label: "Support Tickets", icon: MessageSquare },

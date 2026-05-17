@@ -1,5 +1,5 @@
 import { Link } from "react-router";
-import { Trash2, Plus, Minus, ShoppingBag, Tag, MapPin, ChevronRight, CheckCircle2 } from "lucide-react";
+import { Trash2, Plus, Minus, ShoppingBag, Tag, MapPin, ChevronRight, CheckCircle2, Info, ChevronDown, ChevronUp } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '../../api/axios';
@@ -46,7 +46,8 @@ const fetchProductsBulk = async (ids: string[]) => {
       brand: p.brand || 'Generic',
       category: (p.categoryIds && p.categoryIds.length > 0) ? p.categoryIds[0] : 'all',
       inStock: p.inStock !== undefined ? p.inStock : true,
-      features: p.features || []
+      features: p.features || [],
+      gstPercentage: p.gstPercentage !== undefined ? p.gstPercentage : 18
     };
   });
 };
@@ -57,6 +58,12 @@ export function Cart() {
   
   const { keycloak } = useKeycloak();
   const queryClient = useQueryClient();
+
+  const [couponCodeInput, setCouponCodeInput] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState('');
+  const [pointsToUseInput, setPointsToUseInput] = useState<number>(0);
+  const [appliedPoints, setAppliedPoints] = useState<number>(0);
+  const [showAllCoupons, setShowAllCoupons] = useState(false);
 
   const { data: cart, isLoading: isCartLoading } = useQuery({
     queryKey: ['cart'],
@@ -106,9 +113,177 @@ export function Cart() {
     };
   }).filter(Boolean) as any[];
 
-  const subtotal = enrichedItems.reduce((acc: number, item: any) => acc + (item.product.price * item.quantity), 0);
-  const shipping = subtotal > 0 && subtotal <= 50 ? 10 : 0;
-  const total = subtotal + shipping;
+  const { data: calculation, isLoading: isCalculating } = useQuery({
+    queryKey: ['orderCalculation', cart?.items, appliedCoupon, appliedPoints],
+    queryFn: async () => {
+      if (!cart || !cart.items || cart.items.length === 0) return null;
+      const payload = {
+        items: cart.items.map((i: any) => ({
+          productId: i.productId,
+          quantity: i.quantity,
+          price: 0 // Server will determine true price
+        })),
+        couponCode: appliedCoupon,
+        loyaltyPointsToUse: appliedPoints
+      };
+      const res = await apiClient.post('/orders/calculate', payload);
+      return res.data;
+    },
+    enabled: !!cart && !!cart.items && cart.items.length > 0
+  });
+
+  const subtotal = calculation?.baseSubtotal || 0;
+  const shipping = calculation?.shippingCharge || 0;
+  const total = calculation?.finalPayable || 0;
+
+  // Available Coupons querying
+  const { data: coupons = [] } = useQuery<any[]>({
+    queryKey: ['coupons'],
+    queryFn: async () => {
+      const res = await apiClient.get('/orders/coupons');
+      return Array.isArray(res.data) ? res.data : [];
+    },
+    enabled: !!keycloak.authenticated
+  });
+
+  const isCouponApplicable = (coupon: any) => {
+    if (!coupon.active) return false;
+    
+    const now = new Date();
+    if (coupon.startDate && new Date(coupon.startDate) > now) return false;
+    if (coupon.expiryDate && new Date(coupon.expiryDate) < now) return false;
+    
+    // Min order value check
+    if (coupon.minOrderValue && subtotal < coupon.minOrderValue) return false;
+    
+    // User specific check
+    if (coupon.applicableUserIds && coupon.applicableUserIds.trim().length > 0) {
+      const email = keycloak.tokenParsed?.email || '';
+      const userId = keycloak.tokenParsed?.sub || '';
+      const allowed = coupon.applicableUserIds.split(',').map((s: string) => s.trim().toLowerCase());
+      const hasAccess = allowed.includes(email.toLowerCase()) || allowed.includes(userId.toLowerCase());
+      if (!hasAccess) return false;
+    }
+    
+    // Min quantity check
+    if (coupon.minQuantity && coupon.minQuantity > 0) {
+      const applicableProdIds = coupon.applicableProductIds 
+        ? coupon.applicableProductIds.split(',').map((s: string) => s.trim()) 
+        : [];
+      
+      const totalQty = enrichedItems.reduce((sum, item) => {
+        const matches = applicableProdIds.length === 0 || applicableProdIds.includes(item.productId);
+        return sum + (matches ? item.quantity : 0);
+      }, 0);
+      
+      if (totalQty < coupon.minQuantity) return false;
+    }
+    
+    return true;
+  };
+
+  const estimateDiscount = (coupon: any) => {
+    if (!isCouponApplicable(coupon)) return 0;
+    
+    const isPercent = coupon.discountType.includes("PERCENT");
+    const isCart = coupon.discountType.includes("CART");
+    const val = Number(coupon.discountValue);
+    
+    if (isCart) {
+      if (isPercent) {
+        let discount = subtotal * (val / 100);
+        if (coupon.maxDiscountCap) {
+          discount = Math.min(discount, Number(coupon.maxDiscountCap));
+        }
+        return discount;
+      } else {
+        return Math.min(val, subtotal);
+      }
+    } else {
+      // Product specific
+      const applicableProdIds = coupon.applicableProductIds 
+        ? coupon.applicableProductIds.split(',').map((s: string) => s.trim()) 
+        : [];
+      
+      let applicableAmt = enrichedItems.reduce((sum, item) => {
+        const matches = applicableProdIds.length === 0 || applicableProdIds.includes(item.productId);
+        return sum + (matches ? (item.product.price * item.quantity) : 0);
+      }, 0);
+      
+      if (isPercent) {
+        let discount = applicableAmt * (val / 100);
+        if (coupon.maxDiscountCap) {
+          discount = Math.min(discount, Number(coupon.maxDiscountCap));
+        }
+        return discount;
+      } else {
+        return Math.min(val, applicableAmt);
+      }
+    }
+  };
+
+  const getCouponHumanDescription = (coupon: any) => {
+    const isPercent = coupon.discountType.includes("PERCENT");
+    const isCart = coupon.discountType.includes("CART");
+    const val = Number(coupon.discountValue);
+
+    let desc = "";
+    if (isPercent) {
+      desc = `${val}% OFF`;
+      if (coupon.maxDiscountCap) {
+        desc += ` up to ₹${coupon.maxDiscountCap}`;
+      }
+    } else {
+      desc = `Flat ₹${val} OFF`;
+    }
+
+    if (isCart) {
+      desc += " on entire order value.";
+    } else {
+      desc += " on selected promotional products.";
+    }
+
+    const rules = [];
+    if (coupon.minOrderValue) {
+      rules.push(`Valid on orders above ₹${coupon.minOrderValue}`);
+    }
+    if (coupon.minQuantity && coupon.minQuantity > 1) {
+      rules.push(`Requires at least ${coupon.minQuantity} items`);
+    }
+    if (coupon.applicableUserIds) {
+      rules.push("Exclusive user-only offer");
+    }
+
+    return {
+      main: desc,
+      rules: rules.length > 0 ? rules.join(" • ") : "No special order conditions."
+    };
+  };
+
+  const activeCoupons = coupons.filter((c: any) => {
+    if (!c.active) return false;
+    const now = new Date();
+    if (c.expiryDate && new Date(c.expiryDate) < now) return false;
+    return true;
+  });
+
+  const sortedCoupons = [...activeCoupons].sort((a: any, b: any) => {
+    const appA = isCouponApplicable(a) ? 1 : 0;
+    const appB = isCouponApplicable(b) ? 1 : 0;
+    if (appA !== appB) return appB - appA;
+    
+    const saveA = estimateDiscount(a);
+    const saveB = estimateDiscount(b);
+    return saveB - saveA;
+  });
+
+  const visibleCoupons = showAllCoupons ? sortedCoupons : sortedCoupons.slice(0, 5);
+
+  const gstItems = calculation?.items || [];
+  const totalTaxable = gstItems.reduce((sum: number, item: any) => sum + (item.taxableAmount || 0), 0);
+  const totalGst = gstItems.reduce((sum: number, item: any) => sum + (item.gstAmount || 0), 0);
+  const totalCgst = totalGst / 2;
+  const totalSgst = totalGst / 2;
 
   const updateQuantityMutation = useMutation({
     mutationFn: ({ productId, delta }: { productId: string, delta: number }) =>
@@ -140,6 +315,8 @@ export function Cart() {
       shippingAddressId: selectedAddress.id,
       paymentMethod,
       items: itemsWithPrice,
+      couponCode: appliedCoupon || null,
+      loyaltyPointsUsed: appliedPoints || 0,
       // Address Snapshot
       shippingLine1: selectedAddress.line1,
       shippingLine2: selectedAddress.line2,
@@ -392,20 +569,265 @@ export function Cart() {
           </div>
 
           <div className="lg:sticky lg:top-24 h-fit space-y-4">
-            <div className="bg-gradient-to-br from-white to-purple-50/50 rounded-2xl p-6 shadow-xl border border-purple-100">
+            {/* Promo Code Section */}
+            <div className="bg-white rounded-2xl p-6 shadow-md border border-gray-100">
+              <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                <Tag className="w-5 h-5 text-indigo-600" />
+                Apply Coupon
+              </h3>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Enter Coupon Code"
+                  value={couponCodeInput}
+                  onChange={(e) => setCouponCodeInput(e.target.value)}
+                  className="flex-1 border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                />
+                <button
+                  onClick={() => setAppliedCoupon(couponCodeInput)}
+                  className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-indigo-700 transition"
+                  disabled={isCalculating}
+                >
+                  Apply
+                </button>
+              </div>
+              {appliedCoupon && (
+                <div className="mt-2 text-sm text-emerald-600 flex justify-between">
+                  <span>Coupon Applied: <strong>{appliedCoupon}</strong></span>
+                  <button onClick={() => { setAppliedCoupon(''); setCouponCodeInput(''); }} className="text-red-500 underline text-xs">Remove</button>
+                </div>
+              )}
+
+              {/* Available Coupons list */}
+              {sortedCoupons.length > 0 && (
+                <div className="mt-6 border-t border-gray-100 pt-4 space-y-3">
+                  <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Available Coupons</h4>
+                  
+                  <div className="space-y-2">
+                    {visibleCoupons.map((coupon) => {
+                      const applicable = isCouponApplicable(coupon);
+                      const saving = estimateDiscount(coupon);
+                      const isApplied = appliedCoupon === coupon.code;
+                      const humanDesc = getCouponHumanDescription(coupon);
+                      
+                      return (
+                        <div 
+                          key={coupon.id} 
+                          className={`p-3 rounded-xl border flex items-center justify-between gap-3 transition relative group ${
+                            applicable 
+                              ? isApplied 
+                                ? 'border-emerald-500 bg-emerald-50/30' 
+                                : 'border-indigo-100 bg-indigo-50/10 hover:border-indigo-300'
+                              : 'border-gray-200 bg-gray-50/50 opacity-60'
+                          }`}
+                        >
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className={`font-mono text-xs font-black px-2 py-0.5 rounded tracking-wide ${
+                                applicable
+                                  ? 'bg-indigo-50 text-indigo-700 border border-indigo-100/50'
+                                  : 'bg-gray-200 text-gray-500'
+                              }`}>
+                                {coupon.code}
+                              </span>
+                              
+                              {applicable && saving > 0 && (
+                                <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">
+                                  Save ₹{saving}
+                                </span>
+                              )}
+                              
+                              {/* Hoverable Info Icon for Description */}
+                              <div className="relative inline-block cursor-help group/info">
+                                <Info className="w-3.5 h-3.5 text-gray-400 hover:text-indigo-600 transition" />
+                                <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover/info:block z-20 w-56 bg-slate-900 text-white text-[11px] p-2.5 rounded-lg shadow-xl leading-relaxed">
+                                  <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-900" />
+                                  <p className="font-bold mb-1 text-indigo-400">{humanDesc.main}</p>
+                                  <p className="text-gray-300">{humanDesc.rules}</p>
+                                  {!applicable && coupon.minOrderValue && subtotal < coupon.minOrderValue && (
+                                    <p className="mt-1.5 text-rose-400 font-bold">Add ₹{coupon.minOrderValue - subtotal} more to qualify</p>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <p className="text-[10px] text-gray-500 mt-1 truncate">
+                              {humanDesc.main}
+                            </p>
+                          </div>
+                          
+                          <button
+                            onClick={() => {
+                              if (applicable) {
+                                if (isApplied) {
+                                  setAppliedCoupon('');
+                                  setCouponCodeInput('');
+                                } else {
+                                  setAppliedCoupon(coupon.code);
+                                  setCouponCodeInput(coupon.code);
+                                }
+                              }
+                            }}
+                            disabled={!applicable}
+                            className={`px-3 py-1 rounded-lg text-xs font-bold transition shrink-0 cursor-pointer ${
+                              applicable
+                                ? isApplied
+                                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm'
+                                  : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm'
+                                : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                            }`}
+                          >
+                            {isApplied ? 'Applied' : 'Apply'}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  
+                  {/* Expand / Collapse Button */}
+                  {sortedCoupons.length > 5 && (
+                    <button
+                      onClick={() => setShowAllCoupons(!showAllCoupons)}
+                      className="w-full py-2 flex items-center justify-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-800 font-bold transition cursor-pointer"
+                    >
+                      {showAllCoupons ? (
+                        <>
+                          Show Less <ChevronUp size={14} />
+                        </>
+                      ) : (
+                        <>
+                          Show More ({sortedCoupons.length - 5} options) <ChevronDown size={14} />
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Loyalty Points Section */}
+            {user?.loyaltyPoints > 0 && (
+              <div className="bg-white rounded-2xl p-6 shadow-md border border-gray-100">
+                <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                  <span className="text-amber-500 text-xl">★</span>
+                  GT Loyalty Points
+                </h3>
+                <p className="text-sm text-gray-600 mb-3">You have <strong>{user.loyaltyPoints}</strong> points available.</p>
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    min="0"
+                    max={user.loyaltyPoints}
+                    value={pointsToUseInput}
+                    onChange={(e) => setPointsToUseInput(Number(e.target.value))}
+                    className="flex-1 border-gray-300 rounded-lg shadow-sm focus:border-amber-500 focus:ring-amber-500"
+                  />
+                  <button
+                    onClick={() => setAppliedPoints(pointsToUseInput)}
+                    className="bg-amber-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-amber-600 transition"
+                    disabled={isCalculating}
+                  >
+                    Redeem
+                  </button>
+                </div>
+                {appliedPoints > 0 && (
+                  <div className="mt-2 text-sm text-emerald-600 flex justify-between">
+                    <span>Redeeming: <strong>{appliedPoints} pts</strong></span>
+                    <button onClick={() => { setAppliedPoints(0); setPointsToUseInput(0); }} className="text-red-500 underline text-xs">Cancel</button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="bg-gradient-to-br from-white to-purple-50/50 rounded-2xl p-6 shadow-xl border border-purple-100 relative">
+              {isCalculating && (
+                <div className="absolute inset-0 bg-white/70 flex items-center justify-center rounded-2xl z-10 backdrop-blur-sm">
+                  <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              )}
               <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
-                <Tag className="w-5 h-5 text-purple-600" />
-                Price Details
+                <ShoppingBag className="w-5 h-5 text-purple-600" />
+                Order Summary
               </h3>
               <div className="space-y-4 mb-6">
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">
-                    Subtotal ({enrichedItems.length} items)
-                  </span>
+                  <span className="text-gray-600">Base Subtotal ({enrichedItems.length} items)</span>
                   <span className="font-semibold">{formatPrice(subtotal)}</span>
                 </div>
+                
+                {(calculation?.productDiscounts > 0 || calculation?.cartDiscounts > 0) && (
+                  <div className="flex justify-between text-sm text-emerald-600">
+                    <span>Discount (Coupon)</span>
+                    <span className="font-semibold">- {formatPrice((calculation?.productDiscounts || 0) + (calculation?.cartDiscounts || 0))}</span>
+                  </div>
+                )}
+
+                <div className="bg-indigo-50/50 rounded-xl p-4 border border-indigo-100/50 space-y-3">
+                  <div className="flex justify-between text-xs font-semibold text-indigo-800">
+                    <span>GST (Included in Prices)</span>
+                    <span>{formatPrice(totalGst)}</span>
+                  </div>
+                  
+                  <div className="pl-3 border-l-2 border-indigo-200 space-y-1.5 text-xs text-gray-500">
+                    <div className="flex justify-between">
+                      <span>Total Taxable (Base) Value</span>
+                      <span>{formatPrice(totalTaxable)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>CGST (Central Tax)</span>
+                      <span>{formatPrice(totalCgst)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>SGST (State Tax)</span>
+                      <span>{formatPrice(totalSgst)}</span>
+                    </div>
+                  </div>
+
+                  {gstItems.length > 0 && (
+                    <details className="text-xs group mt-2">
+                      <summary className="text-[11px] font-bold text-indigo-600 hover:text-indigo-700 cursor-pointer list-none flex items-center justify-between">
+                        <span>Show Item-wise GST Breakup</span>
+                        <span className="transition-transform group-open:rotate-180">▼</span>
+                      </summary>
+                      <div className="mt-3 space-y-2.5 pt-2.5 border-t border-indigo-100/50 overflow-x-auto">
+                        <table className="w-full text-[10px] text-gray-500">
+                          <thead>
+                            <tr className="border-b border-indigo-100 font-semibold text-gray-700 text-left">
+                              <th className="pb-1">Product</th>
+                              <th className="pb-1 text-center">GST %</th>
+                              <th className="pb-1 text-right">Taxable</th>
+                              <th className="pb-1 text-right">GST</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {gstItems.map((item: any) => {
+                              const enriched = enrichedItems.find((e: any) => e.productId === item.productId);
+                              const name = enriched?.product?.name || "Product Item";
+                              return (
+                                <tr key={item.productId} className="border-b border-indigo-50/40">
+                                  <td className="py-1.5 max-w-[120px] truncate">{name}</td>
+                                  <td className="py-1.5 text-center">{item.gstPercentage}%</td>
+                                  <td className="py-1.5 text-right">{formatPrice(item.taxableAmount || 0)}</td>
+                                  <td className="py-1.5 text-right font-medium text-gray-700">{formatPrice(item.gstAmount || 0)}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </details>
+                  )}
+                </div>
+
+                {calculation?.loyaltyPointsUsed > 0 && (
+                  <div className="flex justify-between text-sm text-amber-600">
+                    <span>Loyalty Points Redeemed</span>
+                    <span className="font-semibold">- {formatPrice(calculation?.loyaltyPointsUsed || 0)}</span>
+                  </div>
+                )}
+
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Shipping</span>
+                  <span className="text-gray-600">Shipping Charge</span>
                   <span className="font-semibold">
                     {shipping === 0 ? (
                       <span className="text-emerald-600">FREE</span>
@@ -416,12 +838,26 @@ export function Cart() {
                 </div>
               </div>
 
-              <div className="border-t border-dashed border-gray-300 pt-6 mb-8">
+              <div className="border-t border-dashed border-gray-300 pt-6 mb-6">
                 <div className="flex justify-between text-xl">
-                  <span className="font-bold">Total Amount</span>
+                  <span className="font-bold">Final Payable</span>
                   <span className="font-bold text-2xl text-indigo-600">{formatPrice(total)}</span>
                 </div>
               </div>
+
+              {calculation?.loyaltyPointsToEarn > 0 && (
+                <div className="mb-6 p-4 rounded-xl bg-amber-50 border border-amber-200 flex items-start gap-3">
+                  <span className="text-amber-500 text-lg select-none">★</span>
+                  <div>
+                    <p className="text-sm font-bold text-amber-950">
+                      Earn <span className="text-amber-700 font-extrabold">{calculation.loyaltyPointsToEarn}</span> Loyalty Points!
+                    </p>
+                    <p className="text-[11px] text-amber-800/80 mt-0.5">
+                      These points will be added to your account 15 days after successful delivery of the order.
+                    </p>
+                  </div>
+                </div>
+              )}
 
               <div className="space-y-3">
                 <button

@@ -11,8 +11,10 @@ import { Profile } from "./pages/account/Profile";
 import { Orders } from "./pages/account/Orders";
 import { Wishlist } from "./pages/account/Wishlist";
 import { Addresses } from "./pages/account/Addresses";
+import { Coupons } from "./pages/account/Coupons";
 import { Support } from "./pages/Support";
 import { OrderDetails } from "./pages/account/OrderDetails";
+import { LoyaltyPoints } from "./pages/account/LoyaltyPoints";
 import { NotFound } from "./pages/NotFound";
 import { SearchResults } from "./pages/SearchResults";
 
@@ -66,6 +68,8 @@ export const router = createBrowserRouter([
         children: [
           { index: true, Component: Profile },
           { path: "orders", Component: Orders },
+          { path: "loyalty", Component: LoyaltyPoints },
+          { path: "coupons", Component: Coupons },
           { path: "wishlist", Component: Wishlist },
           { path: "addresses", Component: Addresses },
         ]
