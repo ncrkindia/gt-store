@@ -122,32 +122,16 @@ public class ProductController {
     }
 
     private void generateSlug(Product product) {
-        // Build clean base: category-brand-name
+        // Build clean base: brand-name (using brand name and product name only)
         StringBuilder sb = new StringBuilder();
-        if (product.getCategoryIds() != null && !product.getCategoryIds().isEmpty()) {
-            String firstCat = product.getCategoryIds().get(0);
-            
-            // Try find by ID
-            java.util.Optional<com.gtstore.productservice.document.Category> catOpt = categoryRepository.findById(firstCat);
-            
-            // Try fallback to slug matching if ID lookup returned empty
-            if (catOpt.isEmpty()) {
-                catOpt = categoryRepository.findBySlug(firstCat);
-            }
-
-            if (catOpt.isPresent()) {
-                sb.append(catOpt.get().getName()).append("-");
-            } else {
-                // Robust Fallback: Use literal identifier string directly if database entry dangling
-                sb.append(firstCat).append("-");
-            }
+        
+        if (product.getBrand() != null && !product.getBrand().trim().isEmpty()) {
+            sb.append(product.getBrand().trim()).append("-");
         }
         
-        if (product.getBrand() != null) {
-            sb.append(product.getBrand()).append("-");
+        if (product.getName() != null) {
+            sb.append(product.getName().trim());
         }
-        
-        sb.append(product.getName());
 
         // Sanitize: lowercase, trim, convert non-alphanum to hyphen, collapse multiple hyphens
         String base = sb.toString().toLowerCase().trim()
