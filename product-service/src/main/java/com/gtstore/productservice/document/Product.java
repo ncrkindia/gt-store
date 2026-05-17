@@ -61,6 +61,8 @@ public class Product {
      */
     private Integer promotionPriority = 0;
 
+    private Boolean listed;
+
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
     public String getName() { return name; }
@@ -102,6 +104,16 @@ public class Product {
     }
     public void setGstPercentage(Integer gstPercentage) { 
         this.gstPercentage = gstPercentage; 
+    }
+
+    public Boolean getListed() {
+        return listed != null ? listed : true;
+    }
+    public void setListed(Boolean listed) {
+        this.listed = listed;
+    }
+    public Boolean getListedRaw() {
+        return listed;
     }
 
     private Map<Integer, Integer> ratingBreakdown = new java.util.HashMap<>();

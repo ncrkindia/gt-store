@@ -49,7 +49,7 @@ const InventoryPage = () => {
         try {
             const [invRes, prodRes, catRes] = await Promise.all([
                 apiClient.get('/api/inventory/all'),
-                apiClient.get('/api/products'),
+                apiClient.get('/api/products?includeUnlisted=true'),
                 apiClient.get('/api/categories')
             ]);
 

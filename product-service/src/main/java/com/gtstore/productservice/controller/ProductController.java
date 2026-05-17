@@ -48,7 +48,8 @@ public class ProductController {
             @RequestParam(required = false) String categoryId,
             @RequestParam(required = false) String brand,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "false") boolean includeUnlisted) {
         
         
         // Core Feature Expansion: Priority promotions sorting tier.
@@ -61,15 +62,28 @@ public class ProductController {
         
         Page<Product> resultPage;
         
-        if (keyword != null && !keyword.trim().isEmpty()) {
-            TextCriteria textCriteria = TextCriteria.forDefaultLanguage().matching(keyword);
-            resultPage = productRepository.findAllBy(textCriteria, pageable);
-        } else if (categoryId != null && !categoryId.trim().isEmpty()) {
-            resultPage = productRepository.findByCategoryIdsContaining(categoryId, pageable);
-        } else if (brand != null && !brand.trim().isEmpty()) {
-            resultPage = productRepository.findByBrandIgnoreCase(brand, pageable);
+        if (includeUnlisted) {
+            if (keyword != null && !keyword.trim().isEmpty()) {
+                TextCriteria textCriteria = TextCriteria.forDefaultLanguage().matching(keyword);
+                resultPage = productRepository.findAllBy(textCriteria, pageable);
+            } else if (categoryId != null && !categoryId.trim().isEmpty()) {
+                resultPage = productRepository.findByCategoryIdsContaining(categoryId, pageable);
+            } else if (brand != null && !brand.trim().isEmpty()) {
+                resultPage = productRepository.findByBrandIgnoreCase(brand, pageable);
+            } else {
+                resultPage = productRepository.findAll(pageable);
+            }
         } else {
-            resultPage = productRepository.findAll(pageable);
+            if (keyword != null && !keyword.trim().isEmpty()) {
+                TextCriteria textCriteria = TextCriteria.forDefaultLanguage().matching(keyword);
+                resultPage = productRepository.findAllByAndListedNot(textCriteria, false, pageable);
+            } else if (categoryId != null && !categoryId.trim().isEmpty()) {
+                resultPage = productRepository.findByCategoryIdsContainingAndListedNot(categoryId, false, pageable);
+            } else if (brand != null && !brand.trim().isEmpty()) {
+                resultPage = productRepository.findByBrandIgnoreCaseAndListedNot(brand, false, pageable);
+            } else {
+                resultPage = productRepository.findByListedNot(false, pageable);
+            }
         }
 
         // Filter reviews to only show APPROVED ones
@@ -86,9 +100,14 @@ public class ProductController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Product> getProduct(@PathVariable String id) {
+    public ResponseEntity<Product> getProduct(
+            @PathVariable String id,
+            @RequestParam(defaultValue = "false") boolean includeUnlisted) {
         return productRepository.findById(id)
                 .map(product -> {
+                    if (!includeUnlisted && !product.getListed()) {
+                        return ResponseEntity.status(HttpStatus.NOT_FOUND).<Product>build();
+                    }
                     // Filter reviews to only show APPROVED ones
                     if (product.getReviews() != null) {
                         List<com.gtstore.productservice.document.Review> approvedReviews = product.getReviews().stream()
@@ -102,9 +121,14 @@ public class ProductController {
     }
 
     @GetMapping("/slug/{slug}")
-    public ResponseEntity<Product> getProductBySlug(@PathVariable String slug) {
+    public ResponseEntity<Product> getProductBySlug(
+            @PathVariable String slug,
+            @RequestParam(defaultValue = "false") boolean includeUnlisted) {
         return productRepository.findBySlug(slug)
                 .map(product -> {
+                    if (!includeUnlisted && !product.getListed()) {
+                        return ResponseEntity.status(HttpStatus.NOT_FOUND).<Product>build();
+                    }
                     if (product.getReviews() != null) {
                         List<com.gtstore.productservice.document.Review> approvedReviews = product.getReviews().stream()
                             .filter(r -> "APPROVED".equals(r.getStatus()))
@@ -119,6 +143,19 @@ public class ProductController {
     @PostMapping("/bulk")
     public List<Product> getProductsBulk(@RequestBody List<String> ids) {
         return (List<Product>) productRepository.findAllById(ids);
+    }
+
+    @PutMapping("/bulk/listing")
+    public ResponseEntity<Void> updateListingBulk(
+            @RequestParam boolean listed,
+            @RequestBody List<String> ids) {
+        List<Product> products = (List<Product>) productRepository.findAllById(ids);
+        for (Product product : products) {
+            product.setListed(listed);
+            productRepository.save(product);
+            kafkaTemplate.send(TOPIC_UPSERT, product.getId(), product);
+        }
+        return ResponseEntity.ok().build();
     }
 
     private void generateSlug(Product product) {
@@ -195,6 +232,9 @@ public class ProductController {
         validateProduct(product);
         if (product.getSlug() == null || product.getSlug().trim().isEmpty()) {
             generateSlug(product);
+        }
+        if (product.getListedRaw() == null) {
+            product.setListed(false);
         }
         Product saved = productRepository.save(product);
         kafkaTemplate.send(TOPIC_UPSERT, saved.getId(), saved);

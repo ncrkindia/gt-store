@@ -25,6 +25,7 @@ interface Product {
     slug?: string;
     promoted?: boolean;
     promotionPriority?: number;
+    listed?: boolean;
 }
 
 const getStorefrontUrl = () => {
@@ -63,6 +64,7 @@ const ProductsPage = () => {
     
     // For handling edits vs creates
     const [editingId, setEditingId] = useState<string | null>(null);
+    const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
     const emptyProduct: Omit<Product, 'id'> = {
         name: '',
@@ -75,7 +77,8 @@ const ProductsPage = () => {
         inStock: true,
         gstPercentage: 18,
         promoted: false,
-        promotionPriority: 0
+        promotionPriority: 0,
+        listed: false
     };
     const [formData, setFormData] = useState<Omit<Product, 'id'>>(emptyProduct);
     const [featureInput, setFeatureInput] = useState('');
@@ -102,7 +105,7 @@ const ProductsPage = () => {
     const fetchProducts = async () => {
         if (!initialized) return;
         try {
-            const response = await apiClient.get('/api/products?size=1000');
+            const response = await apiClient.get('/api/products?size=1000&includeUnlisted=true');
             const data = Array.isArray(response.data.content) ? response.data.content : (Array.isArray(response.data) ? response.data : []);
             setProducts(data);
         } catch (error) {
@@ -196,7 +199,8 @@ const ProductsPage = () => {
             inStock: p.inStock !== undefined ? p.inStock : true,
             gstPercentage: p.gstPercentage || 18,
             promoted: p.promoted !== undefined ? p.promoted : false,
-            promotionPriority: p.promotionPriority !== undefined ? p.promotionPriority : 0
+            promotionPriority: p.promotionPriority !== undefined ? p.promotionPriority : 0,
+            listed: p.listed !== undefined ? p.listed : true
         });
         setEditingId(p.id);
         setIsModalOpen(true);
@@ -209,6 +213,31 @@ const ProductsPage = () => {
             fetchProducts();
         } catch (error) {
             alert('Error deleting product');
+        }
+    };
+
+    const handleBulkListing = async (listed: boolean) => {
+        if (selectedIds.length === 0) return;
+        const actionText = listed ? 'list' : 'unlist';
+        if (!window.confirm(`Are you sure you want to ${actionText} the ${selectedIds.length} selected products?`)) return;
+        try {
+            await apiClient.put(`/api/products/bulk/listing?listed=${listed}`, selectedIds);
+            setSelectedIds([]);
+            fetchProducts();
+        } catch (error) {
+            console.error('Error updating bulk listing status', error);
+            alert('Failed to update bulk listing status');
+        }
+    };
+
+    const toggleProductListing = async (product: Product) => {
+        const nextStatus = !(product.listed !== undefined ? product.listed : true);
+        try {
+            await apiClient.put(`/api/products/bulk/listing?listed=${nextStatus}`, [product.id]);
+            fetchProducts();
+        } catch (error) {
+            console.error('Error toggling listing status', error);
+            alert('Failed to toggle visibility');
         }
     };
 
@@ -511,6 +540,22 @@ const ProductsPage = () => {
                             </select>
                         </div>
 
+                        {/* Listing Status Visibility */}
+                        <div className="flex items-center justify-between bg-slate-50/40 p-5 border border-slate-100 rounded-2xl">
+                            <div className="flex flex-col">
+                                <label className="text-sm font-bold text-slate-900">Storefront Visibility (Listing Status)</label>
+                                <span className="text-xs text-slate-500 font-medium">Controls whether this product is visible and purchasable on the storefront.</span>
+                            </div>
+                            <select 
+                                className="bg-white border border-slate-200 text-slate-700 font-bold px-4 py-2 rounded-xl shadow-xs focus:ring-indigo-500 outline-none"
+                                value={formData.listed ? "true" : "false"}
+                                onChange={e => setFormData({ ...formData, listed: e.target.value === "true" })}
+                            >
+                                <option value="true">🌐 Public / Listed</option>
+                                <option value="false">🔒 Hidden / Unlisted</option>
+                            </select>
+                        </div>
+
                         {/* 
                           * Feature Injection: Promoted Products Configuration Portal
                           * Conditionally shows Priority Score input only if product is explicitly promoted.
@@ -602,11 +647,63 @@ const ProductsPage = () => {
                 </span>
             </div>
 
+            {selectedIds.length > 0 && (
+                <div className="mb-6 bg-indigo-50 border border-indigo-200 p-4 rounded-2xl flex items-center justify-between shadow-xs animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="flex items-center gap-2.5">
+                        <div className="bg-indigo-600 text-white rounded-lg p-1.5 shrink-0 flex items-center justify-center font-black text-xs px-2.5 shadow-2xs">
+                            {selectedIds.length} Selected
+                        </div>
+                        <span className="text-xs font-bold text-indigo-900">Execute catalog visibility adjustments on selected items.</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <button 
+                            type="button" 
+                            onClick={() => handleBulkListing(true)}
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold px-4 py-2 rounded-xl transition shadow-2xs cursor-pointer flex items-center gap-1.5"
+                        >
+                            🌐 List Selected
+                        </button>
+                        <button 
+                            type="button" 
+                            onClick={() => handleBulkListing(false)}
+                            className="bg-rose-600 hover:bg-rose-700 text-white text-xs font-extrabold px-4 py-2 rounded-xl transition shadow-2xs cursor-pointer flex items-center gap-1.5"
+                        >
+                            🔒 Unlist Selected
+                        </button>
+                        <button 
+                            type="button" 
+                            onClick={() => setSelectedIds([])}
+                            className="bg-white border border-slate-200 text-slate-500 hover:bg-slate-50 text-xs font-extrabold px-4 py-2 rounded-xl transition"
+                        >
+                            Deselect
+                        </button>
+                    </div>
+                </div>
+            )}
+
             <table className="admin-table">
                 <thead>
                     <tr>
+                        <th className="w-10">
+                            <input 
+                                type="checkbox"
+                                checked={filteredProducts.length > 0 && filteredProducts.every(p => selectedIds.includes(p.id))}
+                                onChange={() => {
+                                    const allVisibleSelected = filteredProducts.every(p => selectedIds.includes(p.id));
+                                    if (allVisibleSelected) {
+                                        const filteredIds = filteredProducts.map(p => p.id);
+                                        setSelectedIds(prev => prev.filter(id => !filteredIds.includes(id)));
+                                    } else {
+                                        const newSelection = Array.from(new Set([...selectedIds, ...filteredProducts.map(p => p.id)]));
+                                        setSelectedIds(newSelection);
+                                    }
+                                }}
+                                className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                            />
+                        </th>
                         <th>ID</th>
                         <th>Name</th>
+                        <th>Visibility</th>
                         <th>Stock</th>
                         <th>Price (Sale)</th>
                         <th>Brand</th>
@@ -616,6 +713,18 @@ const ProductsPage = () => {
                 <tbody>
                     {filteredProducts.map(p => (
                         <tr key={p.id}>
+                            <td>
+                                <input 
+                                    type="checkbox"
+                                    checked={selectedIds.includes(p.id)}
+                                    onChange={() => {
+                                        setSelectedIds(prev => 
+                                            prev.includes(p.id) ? prev.filter(id => id !== p.id) : [...prev, p.id]
+                                        );
+                                    }}
+                                    className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                                />
+                            </td>
                             <td>{p.id.substring(0, 8)}...</td>
                             <td>
                                 <div className="flex items-center gap-2">
@@ -634,6 +743,15 @@ const ProductsPage = () => {
                                 </div>
                             </td>
                             <td>
+                                <span 
+                                    className={p.listed !== false ? "status-badge status-delivered cursor-pointer" : "status-badge status-cancelled cursor-pointer"} 
+                                    onClick={() => toggleProductListing(p)}
+                                    title="Click to toggle visiblity"
+                                >
+                                    {p.listed !== false ? "🌐 Listed" : "🔒 Unlisted"}
+                                </span>
+                            </td>
+                            <td>
                                 <span className={p.inStock !== false ? "status-badge status-delivered" : "status-badge status-cancelled"}>
                                     {p.inStock !== false ? "In Stock" : "Out of Stock"}
                                 </span>
@@ -644,14 +762,17 @@ const ProductsPage = () => {
                             </td>
                             <td>{p.brand}</td>
                             <td>
-                                <button onClick={() => handleEdit(p)} className="btn-icon">Edit</button>
+                                <button onClick={() => toggleProductListing(p)} className="btn-icon" style={{ marginRight: '6px' }}>
+                                    {p.listed !== false ? "Unlist" : "List"}
+                                </button>
+                                <button onClick={() => handleEdit(p)} className="btn-icon" style={{ marginRight: '6px' }}>Edit</button>
                                 <button onClick={() => handleDelete(p.id)} className="btn-icon btn-delete">Delete</button>
                             </td>
                         </tr>
                     ))}
                     {filteredProducts.length === 0 && (
                         <tr>
-                            <td colSpan={6} className="text-center py-10">
+                            <td colSpan={8} className="text-center py-10">
                                 <div className="text-slate-400 font-bold text-sm italic">
                                     No products found matching your search criteria
                                 </div>

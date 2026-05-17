@@ -23,6 +23,11 @@ public interface ProductRepository extends MongoRepository<Product, String> {
 
     Page<Product> findByBrandIgnoreCase(String brand, Pageable pageable);
 
+    Page<Product> findByListedNot(Boolean listed, Pageable pageable);
+    Page<Product> findByCategoryIdsContainingAndListedNot(String categoryId, Boolean listed, Pageable pageable);
+    Page<Product> findByBrandIgnoreCaseAndListedNot(String brand, Boolean listed, Pageable pageable);
+    Page<Product> findAllByAndListedNot(TextCriteria textCriteria, Boolean listed, Pageable pageable);
+
     java.util.Optional<Product> findBySlug(String slug);
     boolean existsBySlug(String slug);
 }
