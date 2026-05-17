@@ -79,7 +79,7 @@ public class PdfGenerator {
         mRight.setBorderColor(BORDER_COLOR);
         Paragraph oNo = new Paragraph();
         oNo.add(new Phrase("Order No : ", FONT_BOLD_MED));
-        oNo.add(new Phrase(order.getId().toUpperCase(), FONT_NORMAL)); // Use full Order ID
+        oNo.add(new Phrase(order.getOrderNumber() != null ? order.getOrderNumber() : order.getId().toUpperCase(), FONT_NORMAL)); // Use visual Order Number / ID
         oNo.add(new Phrase("   Dated : ", FONT_BOLD_MED));
         oNo.add(new Phrase(dateStr, FONT_NORMAL));
 

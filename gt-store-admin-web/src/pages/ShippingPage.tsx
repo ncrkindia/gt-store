@@ -146,7 +146,7 @@ const ShippingPage = () => {
                                         <td className="px-6 py-4">
                                             <div className="font-medium text-slate-900">Order Lookup</div>
                                             <div className="font-mono text-xs text-indigo-600 bg-indigo-50 inline-block px-1.5 rounded border border-indigo-100 mt-1">
-                                                {s.orderId.substring(0, 13)}...
+                                                {s.orderId.includes('-') ? `${s.orderId.substring(0, 8)}...` : s.orderId}
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">

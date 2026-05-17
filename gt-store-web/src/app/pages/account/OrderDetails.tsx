@@ -60,7 +60,7 @@ export function OrderDetails() {
 
       // 3. Fetch optional Shipment data
       try {
-        const { data: shipData } = await apiClient.get(`/shipping/order/${id}`);
+        const { data: shipData } = await apiClient.get(`/shipping/order/${orderData.id}`);
         setShipment(shipData);
       } catch (e) {
         // Shipment might not exist yet, ignore fail silently
@@ -128,8 +128,9 @@ export function OrderDetails() {
       });
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
+      const invoiceId = order?.orderNumber || id?.substring(0, 8).toUpperCase();
       link.href = url;
-      link.setAttribute('download', `Invoice-${id?.substring(0, 8).toUpperCase()}.pdf`);
+      link.setAttribute('download', `Invoice-${invoiceId}.pdf`);
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -215,7 +216,7 @@ export function OrderDetails() {
               {status.replace(/_/g, ' ')}
             </span>
           </div>
-          <h1 className="text-2xl md:text-3xl font-black text-gray-900 break-all">{order.id}</h1>
+          <h1 className="text-2xl md:text-3xl font-black text-gray-900 break-all">{order.orderNumber || order.id}</h1>
           <div className="flex items-center gap-4 mt-3 text-gray-500 text-sm">
             <div className="flex items-center gap-1"><Calendar size={16} /> {new Date(order.createdAt).toLocaleDateString()}</div>
             <div className="flex items-center gap-1"><Tag size={16} /> {order.items?.length || 0} Item{(order.items?.length !== 1) ? 's' : ''}</div>

@@ -205,7 +205,9 @@ export function Orders() {
                   <div className="flex items-center gap-6">
                     <div>
                       <p className="text-sm text-gray-600">Order ID</p>
-                      <Link to={`/orders/${order.id}`} className="font-bold text-[#2874f0] hover:underline">{order.id.slice(0,8)}...</Link>
+                      <Link to={`/orders/${order.orderNumber || order.id}`} className="font-bold text-[#2874f0] hover:underline">
+                        {order.orderNumber || order.id}
+                      </Link>
                     </div>
                     <div>
                       <p className="text-sm text-gray-600">Order Date</p>
@@ -305,7 +307,7 @@ export function Orders() {
 
                   <div className="mt-4 pt-4 border-t border-gray-200 flex gap-3">
                     {!(["SHIPPED", "DELIVERED", "CANCELLED", "CANCELLED_BY_CUSTOMER"].includes(order.status.toUpperCase())) && (
-                      <button onClick={() => handleCancelOrder(order.id)} className="px-4 py-2 border border-red-300 text-red-600 rounded hover:bg-red-50 transition text-sm">
+                      <button onClick={() => handleCancelOrder(order.orderNumber || order.id)} className="px-4 py-2 border border-red-300 text-red-600 rounded hover:bg-red-50 transition text-sm">
                         Cancel Order
                       </button>
                     )}

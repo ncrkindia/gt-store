@@ -14,6 +14,7 @@ interface OrderItem {
 
 interface Order {
     id: string;
+    orderNumber?: string;
     userId: string;
     status: string;
     totalAmount: number;
@@ -63,16 +64,17 @@ const OrdersPage = () => {
         if (searchTerm) {
             result = result.filter(o =>
                 o.userId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                o.id.toLowerCase().includes(searchTerm.toLowerCase())
+                o.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (o.orderNumber && o.orderNumber.toLowerCase().includes(searchTerm.toLowerCase()))
             );
         }
 
         setFilteredOrders(result);
     }, [searchTerm, statusFilter, orders]);
 
-    const handleStatusUpdate = async (id: string, status: string) => {
+    const handleStatusUpdate = async (orderId: string, status: string) => {
         try {
-            await apiClient.put(`/api/orders/${id}/status?status=${status}`);
+            await apiClient.put(`/api/orders/${orderId}/status?status=${status}`);
             fetchOrders();
         } catch (error) {
             alert('Error updating order status');
@@ -88,11 +90,11 @@ const OrdersPage = () => {
     return (
         <div className="page-container glass-card">
             <header className="page-header">
-                <h1>Platform Orders</h1>
+                <h1>Sales Orders</h1>
                 <div className="filter-bar">
                     <input
                         type="text"
-                        placeholder="Search by Email or ID..."
+                        placeholder="Search by Email, ID or Order #..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="filter-input"
@@ -117,7 +119,7 @@ const OrdersPage = () => {
                 <thead>
                     <tr>
                         <th style={{ width: '40px' }}></th>
-                        <th>Order ID</th>
+                        <th>Order #</th>
                         <th>Customer</th>
                         <th>Total</th>
                         <th>Status</th>
@@ -135,8 +137,8 @@ const OrdersPage = () => {
                                     </button>
                                 </td>
                                 <td className="mono-text">
-                                    <Link to={`/orders/${o.id}`} className="font-bold text-indigo-600 hover:underline">
-                                        {o.id.substring(0, 8)}...
+                                    <Link to={`/orders/${o.orderNumber || o.id}`} className="font-bold text-indigo-600 hover:underline">
+                                        {o.orderNumber || o.id}
                                     </Link>
                                 </td>
                                 <td>{o.userId}</td>
@@ -151,7 +153,7 @@ const OrdersPage = () => {
                                     <select
                                         className="status-select-sm"
                                         value={o.status}
-                                        onChange={(e) => handleStatusUpdate(o.id, e.target.value)}
+                                        onChange={(e) => handleStatusUpdate(o.orderNumber || o.id, e.target.value)}
                                     >
                                         <option value="PENDING">PENDING</option>
                                         <option value="PAID">PAID</option>

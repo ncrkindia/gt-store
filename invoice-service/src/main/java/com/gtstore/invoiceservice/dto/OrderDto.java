@@ -21,9 +21,14 @@ public class OrderDto {
     private String customerPhone;
     private LocalDateTime createdAt;
     
+    private String orderNumber;
+    
     private List<OrderItemDto> items;
 
     // Getters & Setters
+    public String getOrderNumber() { return orderNumber; }
+    public void setOrderNumber(String orderNumber) { this.orderNumber = orderNumber; }
+
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
     public String getUserId() { return userId; }

@@ -39,33 +39,46 @@ public class PaymentEventListener {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+    private String getExternalId(Order order) {
+        return order.getOrderNumber() != null ? order.getOrderNumber() : order.getId().toString();
+    }
+
     @KafkaListener(topics = "payment.succeeded", groupId = "order-group")
     public void handlePaymentSucceeded(String eventJson) {
         try {
             PaymentEvent event = objectMapper.readValue(eventJson, PaymentEvent.class);
             log.info("Received payment.succeeded event for orderId: {}", event.getOrderId());
-        Optional<Order> orderOpt = orderRepository.findById(UUID.fromString(event.getOrderId()));
-        if (orderOpt.isPresent()) {
-            Order order = orderOpt.get();
-            order.setStatus("PAID");
-            orderRepository.save(order);
-
-            OrderEvent orderEvent = new OrderEvent();
-            orderEvent.setOrderId(order.getId().toString());
-            orderEvent.setStatus("PAID");
-            orderEvent.setEmail(order.getUserId());
             
-            // Step 1: Notify of Payment Success
-            kafkaTemplate.send("order.paid", orderEvent.getOrderId(), orderEvent);
-
-            // Step 2: Automatically move to fulfillment
-            order.setStatus("AWAITING_FULFILLMENT");
-            orderRepository.save(order);
-            orderEvent.setStatus("AWAITING_FULFILLMENT");
-            kafkaTemplate.send("order.processing", orderEvent.getOrderId(), orderEvent);
+            Optional<Order> orderOpt = orderRepository.findByOrderNumber(event.getOrderId());
+            if (orderOpt.isEmpty()) {
+                try {
+                    orderOpt = orderRepository.findById(UUID.fromString(event.getOrderId()));
+                } catch (Exception e) {
+                    // Ignore parsing exception
+                }
+            }
             
-            log.info("Order {} moved to AWAITING_FULFILLMENT after successful payment", event.getOrderId());
-        }
+            if (orderOpt.isPresent()) {
+                Order order = orderOpt.get();
+                order.setStatus("PAID");
+                orderRepository.save(order);
+
+                OrderEvent orderEvent = new OrderEvent();
+                orderEvent.setOrderId(getExternalId(order));
+                orderEvent.setStatus("PAID");
+                orderEvent.setEmail(order.getUserId());
+                
+                // Step 1: Notify of Payment Success
+                kafkaTemplate.send("order.paid", orderEvent.getOrderId(), orderEvent);
+
+                // Step 2: Automatically move to fulfillment
+                order.setStatus("AWAITING_FULFILLMENT");
+                orderRepository.save(order);
+                orderEvent.setStatus("AWAITING_FULFILLMENT");
+                kafkaTemplate.send("order.processing", orderEvent.getOrderId(), orderEvent);
+                
+                log.info("Order {} moved to AWAITING_FULFILLMENT after successful payment", orderEvent.getOrderId());
+            }
         } catch (JsonProcessingException e) {
             log.error("Failed to parse payment.succeeded event", e);
         }
@@ -76,31 +89,40 @@ public class PaymentEventListener {
         try {
             PaymentEvent event = objectMapper.readValue(eventJson, PaymentEvent.class);
             log.info("Received payment.failed event for orderId: {}", event.getOrderId());
-        Optional<Order> orderOpt = orderRepository.findById(UUID.fromString(event.getOrderId()));
-        if (orderOpt.isPresent()) {
-            Order order = orderOpt.get();
-            order.setStatus("PAYMENT_FAILED");
-            orderRepository.save(order);
-
-            OrderEvent orderEvent = new OrderEvent();
-            orderEvent.setOrderId(order.getId().toString());
-            orderEvent.setStatus("PAYMENT_FAILED");
-            orderEvent.setEmail(order.getUserId());
             
-            if (order.getItems() != null) {
-                orderEvent.setItems(order.getItems().stream().map(i -> {
-                    OrderItemDto dto = new OrderItemDto();
-                    dto.setProductId(i.getProductId());
-                    dto.setVariantId(i.getVariantId());
-                    dto.setQuantity(i.getQuantity());
-                    return dto;
-                }).collect(Collectors.toList()));
+            Optional<Order> orderOpt = orderRepository.findByOrderNumber(event.getOrderId());
+            if (orderOpt.isEmpty()) {
+                try {
+                    orderOpt = orderRepository.findById(UUID.fromString(event.getOrderId()));
+                } catch (Exception e) {
+                    // Ignore parsing exception
+                }
             }
+            
+            if (orderOpt.isPresent()) {
+                Order order = orderOpt.get();
+                order.setStatus("PAYMENT_FAILED");
+                orderRepository.save(order);
 
-            // Emit order.failed so other services can react (stock release, etc)
-            kafkaTemplate.send("order.failed", orderEvent.getOrderId(), orderEvent);
-            log.info("Order {} marked as PAYMENT_FAILED", order.getId());
-        }
+                OrderEvent orderEvent = new OrderEvent();
+                orderEvent.setOrderId(getExternalId(order));
+                orderEvent.setStatus("PAYMENT_FAILED");
+                orderEvent.setEmail(order.getUserId());
+                
+                if (order.getItems() != null) {
+                    orderEvent.setItems(order.getItems().stream().map(i -> {
+                        OrderItemDto dto = new OrderItemDto();
+                        dto.setProductId(i.getProductId());
+                        dto.setVariantId(i.getVariantId());
+                        dto.setQuantity(i.getQuantity());
+                        return dto;
+                    }).collect(Collectors.toList()));
+                }
+
+                // Emit order.failed so other services can react (stock release, etc)
+                kafkaTemplate.send("order.failed", orderEvent.getOrderId(), orderEvent);
+                log.info("Order {} marked as PAYMENT_FAILED", orderEvent.getOrderId());
+            }
         } catch (JsonProcessingException e) {
             log.error("Failed to parse payment.failed event", e);
         }

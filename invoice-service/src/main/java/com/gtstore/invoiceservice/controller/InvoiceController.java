@@ -108,8 +108,9 @@ public class InvoiceController {
             // 6. Compose Response Headers
             HttpHeaders respHeaders = new HttpHeaders();
             respHeaders.setContentType(MediaType.APPLICATION_PDF);
+            String pdfFilename = "INVOICE-" + (order.getOrderNumber() != null ? order.getOrderNumber() : orderId.substring(0, Math.min(8, orderId.length()))).toUpperCase() + ".pdf";
             respHeaders.setContentDisposition(ContentDisposition.attachment()
-                    .filename("INVOICE-" + orderId.substring(0, 8).toUpperCase() + ".pdf")
+                    .filename(pdfFilename)
                     .build());
             respHeaders.setContentLength(pdfBytes.length);
 

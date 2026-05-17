@@ -124,10 +124,11 @@ export default function SupportPage() {
     if (!selectedTicket || !newOrderIdInput.trim()) return;
 
     const orderId = newOrderIdInput.trim();
-    // Simple UUID validation
+    // UUID or 10-character alphanumeric Order Number validation
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(orderId)) {
-      toast.error("Please enter a valid Order UUID");
+    const orderNumRegex = /^[A-Z0-9]{10}$/i;
+    if (!uuidRegex.test(orderId) && !orderNumRegex.test(orderId)) {
+      toast.error("Please enter a valid Order ID or 10-character Order #");
       return;
     }
 

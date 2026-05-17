@@ -8,7 +8,7 @@ import {
   ArrowLeft, Package, MapPin, Calendar, CreditCard, 
   Phone, Mail, User, Truck, CheckCircle, Clock, 
   History, UserCheck, AlertCircle, ExternalLink,
-  MessageSquare, Tag, ArrowUpRight
+  MessageSquare, Tag, ArrowUpRight, Loader2, FileDown
 } from 'lucide-react';
 
 interface SupportTicket {
@@ -39,6 +39,7 @@ interface OrderAudit {
 
 interface Order {
     id: string;
+    orderNumber?: string;
     userId: string;
     status: string;
     totalAmount: number;
@@ -107,6 +108,7 @@ export default function OrderDetailPage() {
     const [loading, setLoading] = useState(true);
     const [updating, setUpdating] = useState(false);
     const [supportTickets, setSupportTickets] = useState<SupportTicket[]>([]);
+    const [downloading, setDownloading] = useState(false);
 
     // Status confirmation modal states
     const [showStatusModal, setShowStatusModal] = useState(false);
@@ -145,7 +147,7 @@ export default function OrderDetailPage() {
 
             // 2. Fetch optional shipping tracking details from Shipping Service via Gateway
             try {
-                const shipmentRes = await apiClient.get<Shipment>(`/api/shipping/order/${id}`);
+                const shipmentRes = await apiClient.get<Shipment>(`/api/shipping/order/${orderData.id}`);
                 setShipment(shipmentRes.data);
             } catch (err) {
                 setShipment(null);
@@ -153,7 +155,7 @@ export default function OrderDetailPage() {
 
             // 3. Fetch linked support tickets
             try {
-                const ticketsRes = await apiClient.get<SupportTicket[]>(`/api/users/admin/support/tickets/by-order/${id}`);
+                const ticketsRes = await apiClient.get<SupportTicket[]>(`/api/users/admin/support/tickets/by-order/${orderData.id}`);
                 setSupportTickets(ticketsRes.data || []);
             } catch (err) {
                 console.error("Failed to load linked support tickets", err);
@@ -198,6 +200,28 @@ export default function OrderDetailPage() {
             toast.error("Failed to update status");
         } finally {
             setUpdating(false);
+        }
+    };
+
+    const handleDownloadInvoice = async () => {
+        if (!order) return;
+        setDownloading(true);
+        try {
+            const response = await apiClient.get(`/api/invoices/order/${order.id}`, { responseType: 'blob' });
+            const blob = new Blob([response.data], { type: 'application/pdf' });
+            const link = document.createElement('a');
+            link.href = window.URL.createObjectURL(blob);
+            const invoiceId = order.orderNumber || order.id.substring(0, 8).toUpperCase();
+            link.setAttribute('download', `Invoice-${invoiceId}.pdf`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            toast.success("Invoice PDF generated and downloaded!");
+        } catch (error) {
+            console.error("Failed to download invoice", error);
+            toast.error("Failed to generate invoice PDF");
+        } finally {
+            setDownloading(false);
         }
     };
 
@@ -248,7 +272,7 @@ export default function OrderDetailPage() {
                 <div>
                     <div className="flex items-center gap-3 mb-2 flex-wrap">
                         <h1 className="text-2xl lg:text-3xl font-extrabold text-slate-900">
-                            Order #{order.id.substring(0, 8).toUpperCase()}
+                            Order #{order.orderNumber || order.id}
                         </h1>
                         <span className={`px-3 py-1 text-xs font-bold rounded-full uppercase tracking-wider shadow-sm ${STATUS_BADGE_CLASSES[order.status] || 'bg-slate-100 text-slate-700 border border-slate-200'}`}>
                             {order.status.replace(/_/g, ' ')}
@@ -280,6 +304,24 @@ export default function OrderDetailPage() {
                         <option value="DELIVERED">DELIVERED</option>
                         <option value="CANCELLED">CANCELLED</option>
                     </select>
+
+                    <button
+                        onClick={handleDownloadInvoice}
+                        disabled={downloading}
+                        className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white text-sm font-bold shadow-md shadow-indigo-600/10 hover:shadow-lg transition-all duration-150 cursor-pointer disabled:cursor-not-allowed"
+                    >
+                        {downloading ? (
+                            <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                <span>Generating...</span>
+                            </>
+                        ) : (
+                            <>
+                                <FileDown className="w-4 h-4" />
+                                <span>Download Invoice</span>
+                            </>
+                        )}
+                    </button>
                 </div>
             </div>
 

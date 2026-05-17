@@ -16,6 +16,7 @@ import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -39,6 +40,40 @@ public class OrderController {
 
     @Autowired
     private KafkaTemplate<String, Object> kafkaTemplate;
+
+    @Autowired
+    private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+
+    @jakarta.annotation.PostConstruct
+    public void init() {
+        try {
+            jdbcTemplate.execute("CREATE SEQUENCE IF NOT EXISTS order_number_seq START WITH 100000");
+            log.info("Initialized order_number_seq sequence successfully.");
+            
+            // Database migration for legacy orders with NULL orderNumber
+            List<Order> legacyOrders = orderRepository.findByOrderNumberIsNull();
+            if (legacyOrders != null && !legacyOrders.isEmpty()) {
+                log.info("Found {} legacy orders without order numbers. Running FPE migration...", legacyOrders.size());
+                int migratedCount = 0;
+                for (Order order : legacyOrders) {
+                    try {
+                        Long seqVal = jdbcTemplate.queryForObject("SELECT nextval('order_number_seq')", Long.class);
+                        if (seqVal != null) {
+                            String orderNum = com.gtstore.orderservice.util.OrderIdGenerator.generate(seqVal);
+                            order.setOrderNumber(orderNum);
+                            orderRepository.save(order);
+                            migratedCount++;
+                        }
+                    } catch (Exception ex) {
+                        log.error("Failed to migrate legacy order ID: {}", order.getId(), ex);
+                    }
+                }
+                log.info("Database migration completed. Successfully generated order numbers for {} legacy orders.", migratedCount);
+            }
+        } catch (Exception e) {
+            log.warn("Could not check or create database sequence or perform migration: " + e.getMessage(), e);
+        }
+    }
 
     private final RestTemplate restTemplate = new RestTemplate();
     private final String INVENTORY_URL = "http://inventory-service:4008/api/inventory/reserve";
@@ -79,6 +114,20 @@ public class OrderController {
         // 2. Create Order
         Order order = new Order();
         order.setUserId(email);
+        
+        try {
+            Long seqValue = jdbcTemplate.queryForObject("SELECT nextval('order_number_seq')", Long.class);
+            if (seqValue != null) {
+                String orderNum = com.gtstore.orderservice.util.OrderIdGenerator.generate(seqValue);
+                order.setOrderNumber(orderNum);
+                log.info("Generated unique order number: {} from sequence: {}", orderNum, seqValue);
+            } else {
+                order.setOrderNumber(java.util.UUID.randomUUID().toString().substring(0, 10).toUpperCase());
+            }
+        } catch (Exception e) {
+            log.error("Failed to fetch next order sequence number, falling back to random string.", e);
+            order.setOrderNumber(java.util.UUID.randomUUID().toString().substring(0, 10).toUpperCase());
+        }
         
         // Use granular initial states
         boolean isCod = "COD".equalsIgnoreCase(orderRequest.getPaymentMethod());
@@ -122,24 +171,25 @@ public class OrderController {
         order.addAudit(audit);
 
         Order saved = orderRepository.save(order);
+        String extOrderId = saved.getOrderNumber() != null ? saved.getOrderNumber() : saved.getId().toString();
 
         // 3. Initiate Payment (Only if NOT COD)
         if (!"COD".equalsIgnoreCase(saved.getPaymentMethod())) {
             PaymentRequest paymentRequest = new PaymentRequest();
-            paymentRequest.setOrderId(saved.getId().toString());
+            paymentRequest.setOrderId(extOrderId);
             paymentRequest.setAmount(totalAmount);
             paymentRequest.setGateway("RAZORPAY");
 
             try {
                 restTemplate.postForEntity(PAYMENT_URL, paymentRequest, PaymentResponse.class);
             } catch (Exception e) {
-                log.error("Failed to initiate payment for order {}", saved.getId(), e);
+                log.error("Failed to initiate payment for order {}", extOrderId, e);
             }
         }
 
         // 4. Publish order.created
         OrderEvent event = new OrderEvent();
-        event.setOrderId(saved.getId().toString());
+        event.setOrderId(extOrderId);
         event.setStatus(saved.getStatus());
         event.setEmail(email);
         event.setFullName(saved.getCustomerName() != null ? saved.getCustomerName() : name);
@@ -176,29 +226,48 @@ public class OrderController {
         return ResponseEntity.ok(orders);
     }
 
-    @GetMapping("/{id}")
+    @GetMapping("/{orderNumber}")
     public ResponseEntity<?> getOrder(
             @RequestHeader(value = "X-User-Email", required = false) String email,
-            @PathVariable UUID id) {
+            @PathVariable String orderNumber) {
 
         if (email == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized");
         }
 
-        return orderRepository.findById(id)
+        Optional<Order> orderOpt = orderRepository.findByOrderNumber(orderNumber);
+        if (orderOpt.isEmpty()) {
+            try {
+                orderOpt = orderRepository.findById(UUID.fromString(orderNumber));
+            } catch (Exception e) {
+                // Ignore parsing exception
+            }
+        }
+
+        return orderOpt
                 .filter(o -> o.getUserId().equals(email))
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    @PutMapping("/{id}/status")
+    @PutMapping("/{orderNumber}/status")
     public ResponseEntity<?> updateStatus(
-            @PathVariable UUID id,
+            @PathVariable String orderNumber,
             @RequestParam String status,
             @RequestParam(required = false) String details,
             @RequestHeader(value = "X-User-Name", required = false) String actorName,
             @RequestHeader(value = "X-User-Email", required = false) String actorEmail) {
-        return orderRepository.findById(id)
+        
+        Optional<Order> orderOpt = orderRepository.findByOrderNumber(orderNumber);
+        if (orderOpt.isEmpty()) {
+            try {
+                orderOpt = orderRepository.findById(UUID.fromString(orderNumber));
+            } catch (Exception e) {
+                // Ignore parsing exception
+            }
+        }
+
+        return orderOpt
                 .map(order -> {
                     String oldStatus = order.getStatus();
                     order.setStatus(status.toUpperCase());
@@ -218,6 +287,7 @@ public class OrderController {
                     order.addAudit(audit);
 
                     Order saved = orderRepository.save(order);
+                    String extOrderId = saved.getOrderNumber() != null ? saved.getOrderNumber() : saved.getId().toString();
                     
                     // Emit specific event topics
                     String topic = null;
@@ -237,7 +307,7 @@ public class OrderController {
 
                     if (topic != null) {
                         OrderEvent event = new OrderEvent();
-                        event.setOrderId(saved.getId().toString());
+                        event.setOrderId(extOrderId);
                         event.setStatus(saved.getStatus());
                         event.setEmail(saved.getUserId());
                         event.setFullName(saved.getCustomerName());
@@ -261,7 +331,7 @@ public class OrderController {
                         }
 
                         kafkaTemplate.send(topic, event.getOrderId(), event);
-                        log.info("Emitted {} event for order {}", topic, saved.getId());
+                        log.info("Emitted {} event for order {}", topic, extOrderId);
                     }
 
                     return ResponseEntity.ok(saved);
@@ -269,14 +339,23 @@ public class OrderController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    @PostMapping("/{id}/cancel")
+    @PostMapping("/{orderNumber}/cancel")
     public ResponseEntity<?> cancelOrder(
-            @PathVariable UUID id,
+            @PathVariable String orderNumber,
             @RequestHeader(value = "X-User-Email", required = false) String email) {
         
         if (email == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
 
-        return orderRepository.findById(id).map(order -> {
+        Optional<Order> orderOpt = orderRepository.findByOrderNumber(orderNumber);
+        if (orderOpt.isEmpty()) {
+            try {
+                orderOpt = orderRepository.findById(UUID.fromString(orderNumber));
+            } catch (Exception e) {
+                // Ignore parsing exception
+            }
+        }
+
+        return orderOpt.map(order -> {
             if (!order.getUserId().equals(email)) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
             }
@@ -295,9 +374,10 @@ public class OrderController {
             order.addAudit(audit);
 
             Order saved = orderRepository.save(order);
+            String extOrderId = saved.getOrderNumber() != null ? saved.getOrderNumber() : saved.getId().toString();
             
             OrderEvent event = new OrderEvent();
-            event.setOrderId(saved.getId().toString());
+            event.setOrderId(extOrderId);
             event.setStatus("CANCELLED_BY_CUSTOMER");
             event.setEmail(email);
             event.setFullName(saved.getCustomerName());
@@ -313,7 +393,7 @@ public class OrderController {
             }
 
             kafkaTemplate.send("order.cancelled", event.getOrderId(), event);
-            log.info("Order {} cancelled by customer {}", id, email);
+            log.info("Order {} cancelled by customer {}", extOrderId, email);
             
             return ResponseEntity.ok(saved);
         }).orElse(ResponseEntity.notFound().build());
@@ -330,9 +410,17 @@ public class OrderController {
     /**
      * Admin-only: Retrieve details of a specific order by ID.
      */
-    @GetMapping("/all/{id}")
-    public ResponseEntity<Order> getOrderByIdAdmin(@PathVariable UUID id) {
-        return orderRepository.findById(id)
+    @GetMapping("/all/{orderNumber}")
+    public ResponseEntity<Order> getOrderByIdAdmin(@PathVariable String orderNumber) {
+        Optional<Order> orderOpt = orderRepository.findByOrderNumber(orderNumber);
+        if (orderOpt.isEmpty()) {
+            try {
+                orderOpt = orderRepository.findById(UUID.fromString(orderNumber));
+            } catch (Exception e) {
+                // Ignore parsing exception
+            }
+        }
+        return orderOpt
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }

@@ -15,6 +15,9 @@ public class Order {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    @Column(name = "order_number", unique = true, length = 10)
+    private String orderNumber;
+
     @Column(name = "user_id", nullable = false)
     private String userId; // User Email from Gateway
 
@@ -99,6 +102,8 @@ public class Order {
     // Getters and Setters
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
+    public String getOrderNumber() { return orderNumber; }
+    public void setOrderNumber(String orderNumber) { this.orderNumber = orderNumber; }
     public String getUserId() { return userId; }
     public void setUserId(String userId) { this.userId = userId; }
     public String getStatus() { return status; }
