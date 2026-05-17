@@ -39,7 +39,7 @@ export function Orders() {
       // Gather unique products
       const productIds = Array.from(new Set(data.flatMap((o:any) => o.items?.map((i:any) => i.productId))));
       if (productIds.length > 0) {
-        const pMapResp = await apiClient.post('/products/bulk', productIds);
+        const pMapResp = await apiClient.post('/products/bulk?includeUnlisted=true', productIds);
         const map = new Map(pMapResp.data.map((p:any) => [p.id, p]));
         
         data.forEach((o:any) => {

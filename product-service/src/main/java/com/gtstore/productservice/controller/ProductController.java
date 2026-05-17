@@ -141,8 +141,16 @@ public class ProductController {
     }
 
     @PostMapping("/bulk")
-    public List<Product> getProductsBulk(@RequestBody List<String> ids) {
-        return (List<Product>) productRepository.findAllById(ids);
+    public List<Product> getProductsBulk(
+            @RequestBody List<String> ids,
+            @RequestParam(defaultValue = "false") boolean includeUnlisted) {
+        List<Product> products = (List<Product>) productRepository.findAllById(ids);
+        if (includeUnlisted) {
+            return products;
+        }
+        return products.stream()
+                .filter(p -> p.getListed())
+                .collect(java.util.stream.Collectors.toList());
     }
 
     @PutMapping("/bulk/listing")

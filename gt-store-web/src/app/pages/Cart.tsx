@@ -93,6 +93,7 @@ export function Cart() {
 
   const enrichedItems = cartItems.map((item: any) => {
     const product = products?.find((p) => p.id === item.productId);
+    if (products && !product) return null;
     return {
       ...item,
       product: product || {
@@ -103,7 +104,7 @@ export function Cart() {
         image: ''
       }
     };
-  });
+  }).filter(Boolean) as any[];
 
   const subtotal = enrichedItems.reduce((acc: number, item: any) => acc + (item.product.price * item.quantity), 0);
   const shipping = subtotal > 0 && subtotal <= 50 ? 10 : 0;

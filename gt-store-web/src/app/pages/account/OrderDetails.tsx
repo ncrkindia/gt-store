@@ -52,7 +52,7 @@ export function OrderDetails() {
       // 2. Fetch Item details in the background
       const productIds = orderData.items?.map((i: any) => i.productId) || [];
       if (productIds.length > 0) {
-        apiClient.post('/products/bulk', productIds)
+        apiClient.post('/products/bulk?includeUnlisted=true', productIds)
           .then((pMapResp) => {
             const map = new Map(pMapResp.data.map((p: any) => [p.id, p]));
             setOrder((prev: any) => {

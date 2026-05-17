@@ -50,6 +50,9 @@ public class ProductDocument {
     @Field(type = FieldType.Boolean)
     private Boolean inStock;
 
+    @Field(type = FieldType.Boolean)
+    private Boolean listed;
+
     // Getters and Setters
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
@@ -77,4 +80,6 @@ public class ProductDocument {
     public void setFeatures(List<String> features) { this.features = features; }
     public Boolean getInStock() { return inStock; }
     public void setInStock(Boolean inStock) { this.inStock = inStock; }
+    public Boolean getListed() { return listed != null ? listed : true; }
+    public void setListed(Boolean listed) { this.listed = listed; }
 }

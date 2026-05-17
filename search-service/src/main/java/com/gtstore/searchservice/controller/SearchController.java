@@ -37,6 +37,8 @@ public class SearchController {
     public List<ProductDocument> search(@RequestParam String q, @RequestParam(defaultValue = "10") int size) {
         NativeQuery query = NativeQuery.builder()
                 .withQuery(nq -> nq.bool(b -> b
+                        // Only match listed products
+                        .filter(f -> f.term(t -> t.field("listed").value(true)))
                         // Primary: multi-field fuzzy match
                         .should(s -> s.multiMatch(m -> m
                                 .fields("name^4", "brand^3", "description^1", "features^2")
@@ -73,6 +75,8 @@ public class SearchController {
     public List<Map<String, String>> suggest(@RequestParam String q) {
         NativeQuery query = NativeQuery.builder()
                 .withQuery(nq -> nq.bool(b -> b
+                        // Only suggest listed products
+                        .filter(f -> f.term(t -> t.field("listed").value(true)))
                         .should(s -> s.matchPhrasePrefix(m -> m.field("name").query(q).boost(3.0f)))
                         .should(s -> s.prefix(p -> p.field("brand").value(q.toLowerCase()).boost(2.0f)))
                         .minimumShouldMatch("1")))
@@ -95,7 +99,7 @@ public class SearchController {
      */
     @PostMapping("/sync-all")
     public Map<String, Object> syncAll() {
-        String productServiceUrl = "http://product-service:4005/api/products?size=1000";
+        String productServiceUrl = "http://product-service:4005/api/products?size=1000&includeUnlisted=true";
         try {
             Map<?, ?> response = restTemplate.getForObject(productServiceUrl, Map.class);
             if (response != null && response.get("content") instanceof List) {
@@ -105,6 +109,7 @@ public class SearchController {
                     ProductDocument doc = new ProductDocument();
                     doc.setId((String) p.get("id"));
                     doc.setName((String) p.get("name"));
+                    doc.setSlug((String) p.get("slug"));
                     doc.setDescription((String) p.get("description"));
                     doc.setBrand((String) p.get("brand"));
                     doc.setCategoryIds((List<String>) p.get("categoryIds"));
@@ -121,6 +126,7 @@ public class SearchController {
                     doc.setReviewCount(p.get("reviewCount") != null ? ((Number) p.get("reviewCount")).intValue() : null);
                     doc.setFeatures((List<String>) p.get("features"));
                     doc.setInStock((Boolean) p.get("inStock"));
+                    doc.setListed(p.get("listed") != null ? (Boolean) p.get("listed") : true);
                     return doc;
                 }).collect(Collectors.toList());
 

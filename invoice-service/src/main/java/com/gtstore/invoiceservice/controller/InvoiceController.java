@@ -30,7 +30,7 @@ public class InvoiceController {
 
     // Define internal inter-service resolution addresses
     private static final String ORDER_SVC_URL = "http://order-service:4007/api/orders/";
-    private static final String PROD_SVC_URL = "http://product-service:4005/api/products/bulk";
+    private static final String PROD_SVC_URL = "http://product-service:4005/api/products/bulk?includeUnlisted=true";
 
     @GetMapping("/order/{orderId}")
     @Transactional
