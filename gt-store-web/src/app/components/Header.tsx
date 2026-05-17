@@ -36,7 +36,25 @@ export function Header() {
     enabled: !!keycloak.authenticated
   });
 
-  const cartQuantity = cart?.items?.reduce((acc: number, item: any) => acc + item.quantity, 0) || 0;
+  const productIds = cart?.items?.map((item: any) => item.productId) || [];
+
+  const { data: products } = useQuery({
+    queryKey: ['products-bulk-header', productIds],
+    queryFn: async () => {
+      if (productIds.length === 0) return [];
+      const res = await apiClient.post('/products/bulk', productIds);
+      return res.data || [];
+    },
+    enabled: productIds.length > 0
+  });
+
+  const cartQuantity = cart?.items?.reduce((acc: number, item: any) => {
+    if (products) {
+      const product = products.find((p: any) => p.id === item.productId);
+      if (!product) return acc; // Exclude unlisted or missing products
+    }
+    return acc + item.quantity;
+  }, 0) || 0;
 
   // Debounced suggestions — fires 2 seconds after user stops typing
   const fetchSuggestions = useCallback((q: string) => {
