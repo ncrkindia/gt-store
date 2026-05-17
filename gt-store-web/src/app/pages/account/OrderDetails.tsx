@@ -44,32 +44,41 @@ export function OrderDetails() {
 
   const loadData = async () => {
     try {
-      // 1. Fetch Order
+      // 1. Fetch Order and render basic details immediately
       const { data: orderData } = await apiClient.get(`/orders/${id}`);
+      setOrder(orderData);
+      setLoading(false);
 
-      // 2. Fetch Item details
+      // 2. Fetch Item details in the background
       const productIds = orderData.items?.map((i: any) => i.productId) || [];
       if (productIds.length > 0) {
-        const pMapResp = await apiClient.post('/products/bulk', productIds);
-        const map = new Map(pMapResp.data.map((p: any) => [p.id, p]));
-        orderData.items.forEach((i: any) => {
-          i.productData = map.get(i.productId);
-        });
+        apiClient.post('/products/bulk', productIds)
+          .then((pMapResp) => {
+            const map = new Map(pMapResp.data.map((p: any) => [p.id, p]));
+            setOrder((prev: any) => {
+              if (!prev) return prev;
+              const updatedItems = prev.items?.map((item: any) => ({
+                ...item,
+                productData: map.get(item.productId)
+              })) || [];
+              return { ...prev, items: updatedItems };
+            });
+          })
+          .catch((err) => console.error("Failed to load background product metadata", err));
       }
-      setOrder(orderData);
 
-      // 3. Fetch optional Shipment data
-      try {
-        const { data: shipData } = await apiClient.get(`/shipping/order/${orderData.id}`);
-        setShipment(shipData);
-      } catch (e) {
-        // Shipment might not exist yet, ignore fail silently
-        setShipment(null);
-      }
+      // 3. Fetch optional Shipment data in the background
+      apiClient.get(`/shipping/order/${orderData.id}`)
+        .then((shipResp) => {
+          setShipment(shipResp.data);
+        })
+        .catch((e) => {
+          // Shipment might not exist yet, fail silently
+          setShipment(null);
+        });
 
     } catch (err) {
       console.error("Failed to load order details", err);
-    } finally {
       setLoading(false);
     }
   };
