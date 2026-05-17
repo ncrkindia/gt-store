@@ -48,6 +48,7 @@ const fetchProducts = async (categoryId?: string) => {
       images: p.images || [],
       brand: p.brand || 'Generic',
       category: (p.categoryIds && p.categoryIds.length > 0) ? p.categoryIds[0] : 'all',
+      categoryIds: p.categoryIds || [],
       inStock: p.inStock !== undefined ? p.inStock : true,
       features: p.features || []
     };
@@ -87,12 +88,16 @@ export function CategoryPage() {
   const filteredProducts = products
     .filter((p) => {
       if (categorySlug && categorySlug !== "all" && categorySlug !== "deals" && categorySlug !== "trending" && categorySlug !== "top-rated") {
-        // If we have robust Category IDs from database, double check containment
+        // If we have robust Category IDs from database, check all tagged category IDs/slugs
         if (categoryInfo) {
-            return p.category?.toLowerCase() === categoryInfo.id.toLowerCase() || 
+            const idMatch = p.categoryIds?.some(cid => cid.toLowerCase() === categoryInfo.id.toLowerCase());
+            const slugMatch = p.categoryIds?.some(cid => cid.toLowerCase() === categoryInfo.slug.toLowerCase());
+            return idMatch || slugMatch || 
+                   p.category?.toLowerCase() === categoryInfo.id.toLowerCase() || 
                    p.category?.toLowerCase() === categoryInfo.slug.toLowerCase();
         }
-        return p.category?.toLowerCase() === categorySlug.toLowerCase();
+        const slugMatch = p.categoryIds?.some(cid => cid.toLowerCase() === categorySlug.toLowerCase());
+        return slugMatch || p.category?.toLowerCase() === categorySlug.toLowerCase();
       }
       return true;
     })
