@@ -32,6 +32,7 @@ public class ProductEventListener {
             doc.setDescription(node.path("description").asText(null));
             doc.setBrand(node.path("brand").asText(null));
             doc.setInStock(node.path("inStock").asBoolean(true));
+            doc.setListed(node.path("listed").asBoolean(true));
             doc.setRating(node.path("rating").isNull() ? null : node.path("rating").asDouble());
             doc.setReviewCount(node.path("reviewCount").isNull() ? null : node.path("reviewCount").asInt());
 
