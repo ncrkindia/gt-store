@@ -48,6 +48,7 @@ public class PromotionService {
             Map<String, Object> productMap = getProductFromService(itemReq.getProductId());
             BigDecimal price = null;
             Integer gstPercentage = 18; // default to 18% if missing
+            String productName = "Product Item";
             if (productMap != null) {
                 if (productMap.get("salePrice") != null) {
                     price = new BigDecimal(productMap.get("salePrice").toString());
@@ -59,6 +60,9 @@ public class PromotionService {
                         gstPercentage = Integer.parseInt(productMap.get("gstPercentage").toString());
                     } catch (Exception ignored) {}
                 }
+                if (productMap.get("name") != null) {
+                    productName = productMap.get("name").toString();
+                }
             }
             if (price == null) {
                 price = itemReq.getPrice(); 
@@ -69,6 +73,7 @@ public class PromotionService {
             calcItem.setOriginalPrice(price);
             calcItem.setDiscountedPrice(price); // Initial
             calcItem.setGstPercentage(gstPercentage);
+            calcItem.setProductName(productName);
             calcItems.add(calcItem);
 
             baseSubtotal = baseSubtotal.add(price.multiply(BigDecimal.valueOf(itemReq.getQuantity())));

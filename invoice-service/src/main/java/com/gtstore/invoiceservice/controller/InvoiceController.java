@@ -70,10 +70,14 @@ public class InvoiceController {
             InvoiceRecord invRec = invoiceRepository.findByOrderId(orderId)
                     .orElseGet(() -> invoiceRepository.save(new InvoiceRecord(orderId)));
             
-            // 4. Enrich Item Names via Product Service lookup
+            // 4. Enrich Item Names via Product Service lookup (only if not already recorded/snapshotted in the order item!)
             try {
-                List<String> ids = order.getItems().stream().map(OrderItemDto::getProductId).collect(Collectors.toList());
-                if (!ids.isEmpty()) {
+                List<OrderItemDto> itemsToEnrich = order.getItems().stream()
+                        .filter(item -> item.getProductName() == null || item.getProductName().trim().isEmpty() || "Product Item".equals(item.getProductName()))
+                        .collect(Collectors.toList());
+                
+                if (!itemsToEnrich.isEmpty()) {
+                    List<String> ids = itemsToEnrich.stream().map(OrderItemDto::getProductId).collect(Collectors.toList());
                     HttpEntity<List<String>> bulkReq = new HttpEntity<>(ids);
                     ResponseEntity<List<Map<String, Object>>> prodResp = restTemplate.exchange(
                             PROD_SVC_URL, HttpMethod.POST, bulkReq, new ParameterizedTypeReference<List<Map<String, Object>>>() {}
@@ -84,7 +88,7 @@ public class InvoiceController {
                                 p -> p
                         ));
                         
-                        order.getItems().forEach(item -> {
+                        itemsToEnrich.forEach(item -> {
                             Map<String, Object> prodData = prodMap.get(item.getProductId());
                             if (prodData != null) {
                                 item.setProductName(String.valueOf(prodData.getOrDefault("name", "Product Item")));

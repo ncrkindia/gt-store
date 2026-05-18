@@ -49,6 +49,8 @@ public class Product {
 
     private List<Review> reviews = new java.util.ArrayList<>();
     
+    private List<PriceHistoryRecord> priceHistory = new java.util.ArrayList<>();
+    
     /**
      * Flag indicating whether this product is featured in the Storefront Homepage 'Promoted Picks' section.
      * If true, this product receives priority rendering across global catalog queries.
@@ -119,4 +121,11 @@ public class Product {
     private Map<Integer, Integer> ratingBreakdown = new java.util.HashMap<>();
     public Map<Integer, Integer> getRatingBreakdown() { return ratingBreakdown; }
     public void setRatingBreakdown(Map<Integer, Integer> ratingBreakdown) { this.ratingBreakdown = ratingBreakdown; }
+
+    public List<PriceHistoryRecord> getPriceHistory() {
+        return priceHistory != null ? priceHistory : new java.util.ArrayList<>();
+    }
+    public void setPriceHistory(List<PriceHistoryRecord> priceHistory) {
+        this.priceHistory = priceHistory;
+    }
 }

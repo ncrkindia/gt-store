@@ -10,6 +10,15 @@ const getImageUrl = (url: string | undefined): string => {
     return url;
 };
 
+interface PriceHistoryRecord {
+    oldPrice?: number;
+    newPrice?: number;
+    oldSalePrice?: number;
+    newSalePrice?: number;
+    updatedBy?: string;
+    updatedAt?: string;
+}
+
 interface Product {
     id: string;
     name: string;
@@ -26,6 +35,7 @@ interface Product {
     promoted?: boolean;
     promotionPriority?: number;
     listed?: boolean;
+    priceHistory?: PriceHistoryRecord[];
 }
 
 const getStorefrontUrl = () => {
@@ -57,11 +67,12 @@ const ProductsPage = () => {
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
-    
+    const [priceHistory, setPriceHistory] = useState<PriceHistoryRecord[]>([]);
+
     // Relational Catalog Assets
     const [allBrands, setAllBrands] = useState<Brand[]>([]);
     const [allCategories, setAllCategories] = useState<Category[]>([]);
-    
+
     // For handling edits vs creates
     const [editingId, setEditingId] = useState<string | null>(null);
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -89,7 +100,7 @@ const ProductsPage = () => {
     const [isBrandDropdownOpen, setIsBrandDropdownOpen] = useState(false);
     const [categorySearch, setCategorySearch] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
-    
+
     const brandDropdownRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -141,7 +152,7 @@ const ProductsPage = () => {
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
-        
+
         // Enforce relation constraints
         if (!formData.brand) {
             alert('Constraint Violation: Selection of an active Brand is required.');
@@ -166,7 +177,7 @@ const ProductsPage = () => {
 
             // Sync images if any exist
             if (formData.images.length > 0) {
-                 await apiClient.post(`/api/products/${savedProduct.id}/images`, formData.images);
+                await apiClient.post(`/api/products/${savedProduct.id}/images`, formData.images);
             }
 
             setIsModalOpen(false);
@@ -203,6 +214,7 @@ const ProductsPage = () => {
             listed: p.listed !== undefined ? p.listed : true
         });
         setEditingId(p.id);
+        setPriceHistory(p.priceHistory || []);
         setIsModalOpen(true);
     };
 
@@ -270,10 +282,10 @@ const ProductsPage = () => {
     const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!e.target.files || e.target.files.length === 0) return;
         const file = e.target.files[0];
-        
+
         const form = new FormData();
         form.append('file', file);
-        
+
         setUploadingImage(true);
         try {
             // Upload to media-service via gateway
@@ -297,8 +309,8 @@ const ProductsPage = () => {
         return (
             <div className="page-container glass-card">
                 <header className="page-header border-b border-slate-200 pb-4 mb-6 flex items-center gap-4">
-                    <button 
-                        type="button" 
+                    <button
+                        type="button"
                         onClick={() => setIsModalOpen(false)}
                         className="p-2 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 shadow-2xs transition flex items-center justify-center"
                     >
@@ -318,9 +330,9 @@ const ProductsPage = () => {
                                 <label className="block text-sm font-extrabold text-slate-700 mb-2">Commercial Product Name</label>
                                 <input className="w-full" required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="e.g. NVIDIA GeForce RTX 4080 SUPER" />
                             </div>
-                             <div className="form-group relative" ref={brandDropdownRef}>
+                            <div className="form-group relative" ref={brandDropdownRef}>
                                 <label className="block text-sm font-extrabold text-slate-700 mb-2">Assigned Brand <span className="text-rose-500 font-bold">*</span></label>
-                                <div 
+                                <div
                                     onClick={() => setIsBrandDropdownOpen(!isBrandDropdownOpen)}
                                     className="w-full bg-white font-semibold py-2.5 px-4 border border-slate-200 rounded-xl shadow-2xs text-slate-700 cursor-pointer flex items-center justify-between transition hover:border-slate-300 select-none h-[42px]"
                                 >
@@ -334,7 +346,7 @@ const ProductsPage = () => {
                                     <div className="absolute z-[60] top-full left-0 right-0 mt-1.5 bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150">
                                         <div className="p-2 border-b border-slate-100 bg-slate-50/50 flex items-center gap-2">
                                             <Search size={14} className="text-slate-400 ml-2 shrink-0" />
-                                            <input 
+                                            <input
                                                 type="text"
                                                 autoFocus
                                                 placeholder="Search catalog brands..."
@@ -343,7 +355,7 @@ const ProductsPage = () => {
                                                 onChange={e => setBrandSearch(e.target.value)}
                                             />
                                             {brandSearch && (
-                                                <button type="button" onClick={() => setBrandSearch('')} className="p-1 hover:bg-slate-200 rounded-md transition"><X size={12} className="text-slate-400"/></button>
+                                                <button type="button" onClick={() => setBrandSearch('')} className="p-1 hover:bg-slate-200 rounded-md transition"><X size={12} className="text-slate-400" /></button>
                                             )}
                                         </div>
                                         <div className="max-h-48 overflow-y-auto p-1.5 space-y-0.5">
@@ -378,7 +390,7 @@ const ProductsPage = () => {
                         {/* Pricing Tiers */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                             <div className="form-group">
-                                <label className="block text-sm font-bold text-slate-700 mb-2">MSRP Base Price (₹)</label>
+                                <label className="block text-sm font-bold text-slate-700 mb-2">MRP Base Price (₹)</label>
                                 <input className="w-full" type="number" step="0.01" required value={formData.price} onChange={e => setFormData({ ...formData, price: parseFloat(e.target.value) })} />
                             </div>
                             <div className="form-group">
@@ -391,6 +403,60 @@ const ProductsPage = () => {
                             </div>
                         </div>
 
+                        {/* Price History Section */}
+                        {editingId && (
+                            <div className="form-group border border-slate-100 bg-slate-50/30 rounded-2xl p-6">
+                                <label className="block text-sm font-extrabold text-slate-900 mb-3">🏷️ SKU Price Modification History</label>
+                                <div className="space-y-3 max-h-48 overflow-y-auto pr-2">
+                                    {priceHistory.length === 0 ? (
+                                        <p className="text-xs text-slate-400 italic">No price change history recorded for this catalog item.</p>
+                                    ) : (
+                                        priceHistory.slice().reverse().map((record, index) => {
+                                            const formattedDate = record.updatedAt
+                                                ? new Date(record.updatedAt).toLocaleString('en-IN', {
+                                                    day: '2-digit', month: 'short', year: 'numeric',
+                                                    hour: '2-digit', minute: '2-digit'
+                                                })
+                                                : 'N/A';
+                                            return (
+                                                <div key={index} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-600 shadow-3xs">
+                                                    <div className="flex flex-wrap items-center gap-2">
+                                                        <span className="bg-slate-100 text-slate-700 px-2 py-1 rounded-md text-[10px] font-bold">
+                                                            {record.updatedBy || 'System'}
+                                                        </span>
+                                                        <span className="text-[11px] text-slate-400 font-medium">{formattedDate}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-3 font-extrabold">
+                                                        <div className="flex flex-col items-end">
+                                                            <span className="text-[10px] text-slate-400 font-medium">MSRP</span>
+                                                            <div className="flex items-center gap-1">
+                                                                <span className="line-through text-slate-400">{formatPrice(record.oldPrice ?? 0)}</span>
+                                                                <span className="text-slate-700">→</span>
+                                                                <span className="text-emerald-600">{formatPrice(record.newPrice ?? 0)}</span>
+                                                            </div>
+                                                        </div>
+                                                        {(record.oldSalePrice !== undefined || record.newSalePrice !== undefined) && (
+                                                            <div className="border-l border-slate-200 h-6 mx-1"></div>
+                                                        )}
+                                                        {(record.oldSalePrice !== undefined || record.newSalePrice !== undefined) && (
+                                                            <div className="flex flex-col items-end">
+                                                                <span className="text-[10px] text-slate-400 font-medium">Sale Price</span>
+                                                                <div className="flex items-center gap-1">
+                                                                    <span className="line-through text-slate-400">{formatPrice(record.oldSalePrice ?? 0)}</span>
+                                                                    <span className="text-slate-700">→</span>
+                                                                    <span className="text-red-500">{formatPrice(record.newSalePrice ?? 0)}</span>
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
                         {/* Relational Categories Matrix */}
                         <div className="form-group border border-slate-100 bg-slate-50/30 rounded-2xl p-6">
                             <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4 border-b border-slate-100 pb-3">
@@ -401,7 +467,7 @@ const ProductsPage = () => {
                                 <div className="flex flex-wrap items-center gap-2">
                                     <div className="relative flex-1 sm:flex-none min-w-[140px]">
                                         <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                                        <input 
+                                        <input
                                             type="text"
                                             placeholder="Filter categories..."
                                             className="pl-8 pr-7 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold focus:ring-2 focus:ring-indigo-500 outline-none w-full sm:w-36 transition-all hover:border-slate-300 focus:sm:w-52 shadow-2xs"
@@ -409,7 +475,7 @@ const ProductsPage = () => {
                                             onChange={e => setCategorySearch(e.target.value)}
                                         />
                                         {categorySearch && (
-                                            <button type="button" onClick={() => setCategorySearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 hover:bg-slate-100 rounded transition"><X size={10} className="text-slate-400"/></button>
+                                            <button type="button" onClick={() => setCategorySearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 hover:bg-slate-100 rounded transition"><X size={10} className="text-slate-400" /></button>
                                         )}
                                     </div>
                                     <span className="text-[11px] font-extrabold text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100 flex-shrink-0">
@@ -417,24 +483,23 @@ const ProductsPage = () => {
                                     </span>
                                 </div>
                             </div>
-                            
+
                             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mt-3">
                                 {allCategories.filter(cat => cat.name.toLowerCase().includes(categorySearch.toLowerCase())).map(cat => {
                                     // Map mapping to id OR slug based on match, typically IDs are safe
                                     const isMapped = formData.categoryIds.includes(cat.id) || formData.categoryIds.includes(cat.slug);
                                     // Use id string as default tracking identifier
                                     const targetRef = cat.id;
-                                    
+
                                     return (
                                         <button
                                             type="button"
                                             key={cat.id}
                                             onClick={() => toggleCategoryMapping(targetRef)}
-                                            className={`flex items-center gap-2.5 p-3 rounded-xl text-xs font-extrabold transition cursor-pointer text-left border ${
-                                                isMapped 
-                                                    ? "bg-indigo-600 text-white border-indigo-600 shadow-sm shadow-indigo-200" 
+                                            className={`flex items-center gap-2.5 p-3 rounded-xl text-xs font-extrabold transition cursor-pointer text-left border ${isMapped
+                                                    ? "bg-indigo-600 text-white border-indigo-600 shadow-sm shadow-indigo-200"
                                                     : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-slate-300"
-                                            }`}
+                                                }`}
                                         >
                                             <div className={`w-4 h-4 rounded flex items-center justify-center shrink-0 ${isMapped ? "bg-white text-indigo-600" : "bg-slate-100 border border-slate-200 text-transparent"}`}>
                                                 <Check size={10} strokeWidth={4} />
@@ -469,8 +534,8 @@ const ProductsPage = () => {
                         <div className="form-group border border-slate-100 bg-slate-50/30 rounded-2xl p-6">
                             <label className="block text-sm font-extrabold text-slate-900 mb-3">Platform Key Highlights & Specs</label>
                             <div className="flex gap-2 mb-4">
-                                <input 
-                                    type="text" 
+                                <input
+                                    type="text"
                                     placeholder="e.g. 16GB GDDR6X 256-bit Memory Interface"
                                     value={featureInput}
                                     onChange={e => setFeatureInput(e.target.value)}
@@ -487,8 +552,8 @@ const ProductsPage = () => {
                                     </div>
                                 ))}
                                 {formData.features.length === 0 && (
-                                     <p className="text-xs text-slate-400 italic">No key highlights logged yet.</p>
-                                 )}
+                                    <p className="text-xs text-slate-400 italic">No key highlights logged yet.</p>
+                                )}
                             </div>
                         </div>
 
@@ -499,8 +564,8 @@ const ProductsPage = () => {
                                 {formData.images.map((img, idx) => (
                                     <div key={idx} className="relative aspect-square bg-white border border-slate-200 rounded-xl overflow-hidden flex items-center justify-center group p-1 shadow-3xs">
                                         <img src={getImageUrl(img)} alt="" className="w-full h-full object-contain" />
-                                        <button 
-                                            type="button" 
+                                        <button
+                                            type="button"
                                             onClick={() => handleRemoveImage(idx)}
                                             className="absolute top-1.5 right-1.5 bg-red-500 hover:bg-red-600 text-white rounded-full p-1 shadow transition opacity-0 group-hover:opacity-100"
                                         >
@@ -510,12 +575,12 @@ const ProductsPage = () => {
                                 ))}
                             </div>
                             <div className="relative cursor-pointer">
-                                <input 
-                                    type="file" 
+                                <input
+                                    type="file"
                                     accept="image/*"
                                     onChange={handleImageUpload}
                                     disabled={uploadingImage}
-                                    className="absolute inset-0 opacity-0 cursor-pointer z-10" 
+                                    className="absolute inset-0 opacity-0 cursor-pointer z-10"
                                 />
                                 <div className="border-2 border-dashed border-slate-300 bg-white rounded-2xl p-8 text-center hover:border-indigo-500 hover:bg-indigo-50/30 transition duration-200">
                                     <Upload className="mx-auto mb-2 text-slate-400" size={24} />
@@ -530,7 +595,7 @@ const ProductsPage = () => {
                                 <label className="text-sm font-bold text-slate-900">Inventory Warehouse Availability</label>
                                 <span className="text-xs text-slate-500 font-medium">Toggles instant purchase capabilities across the main store.</span>
                             </div>
-                            <select 
+                            <select
                                 className="bg-white border border-slate-200 text-slate-700 font-bold px-4 py-2 rounded-xl shadow-xs focus:ring-indigo-500 outline-none"
                                 value={formData.inStock ? "true" : "false"}
                                 onChange={e => setFormData({ ...formData, inStock: e.target.value === "true" })}
@@ -546,7 +611,7 @@ const ProductsPage = () => {
                                 <label className="text-sm font-bold text-slate-900">Storefront Visibility (Listing Status)</label>
                                 <span className="text-xs text-slate-500 font-medium">Controls whether this product is visible and purchasable on the storefront.</span>
                             </div>
-                            <select 
+                            <select
                                 className="bg-white border border-slate-200 text-slate-700 font-bold px-4 py-2 rounded-xl shadow-xs focus:ring-indigo-500 outline-none"
                                 value={formData.listed ? "true" : "false"}
                                 onChange={e => setFormData({ ...formData, listed: e.target.value === "true" })}
@@ -570,7 +635,7 @@ const ProductsPage = () => {
                                     </label>
                                     <span className="text-[11px] text-amber-700 font-medium mt-0.5">Highlights product on storefront Homepage grids and raises listing priority.</span>
                                 </div>
-                                <select 
+                                <select
                                     className="bg-white border border-amber-200 text-amber-800 font-bold px-4 py-2 rounded-xl shadow-2xs focus:ring-amber-500 outline-none"
                                     value={formData.promoted ? "true" : "false"}
                                     onChange={e => setFormData({ ...formData, promoted: e.target.value === "true" })}
@@ -585,13 +650,13 @@ const ProductsPage = () => {
                                         <label className="text-sm font-bold text-slate-800">Promotion Priority Score</label>
                                         <span className="text-[11px] text-slate-500 font-medium mt-0.5">Defines rendering hierarchy (higher score = placed first).</span>
                                     </div>
-                                    <input 
-                                        type="number" 
-                                        min={0} 
-                                        max={999} 
+                                    <input
+                                        type="number"
+                                        min={0}
+                                        max={999}
                                         className="w-24 font-black text-center bg-white border border-amber-200 text-amber-700 h-10 rounded-xl"
-                                        value={formData.promotionPriority ?? 0} 
-                                        onChange={e => setFormData({ ...formData, promotionPriority: parseInt(e.target.value) || 0 })} 
+                                        value={formData.promotionPriority ?? 0}
+                                        onChange={e => setFormData({ ...formData, promotionPriority: parseInt(e.target.value) || 0 })}
                                     />
                                 </div>
                             )}
@@ -609,7 +674,7 @@ const ProductsPage = () => {
         );
     }
 
-    const filteredProducts = products.filter(p => 
+    const filteredProducts = products.filter(p =>
         p.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         p.slug?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         p.id?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -622,6 +687,7 @@ const ProductsPage = () => {
                 <button onClick={() => {
                     setEditingId(null);
                     setFormData(emptyProduct);
+                    setPriceHistory([]);
                     setIsModalOpen(true);
                 }} className="btn-primary">
                     + New Product
@@ -631,7 +697,7 @@ const ProductsPage = () => {
             <div className="mb-6 bg-white border border-slate-200 p-4 rounded-2xl flex items-center gap-3 shadow-xs">
                 <div className="relative flex-1">
                     <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input 
+                    <input
                         type="text"
                         placeholder="Search products by Name, Slug, or ID..."
                         className="w-full pl-11 pr-10 py-2.5 bg-slate-50 border border-slate-200 focus:bg-white rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500 outline-none transition hover:border-slate-300 shadow-2xs"
@@ -639,7 +705,7 @@ const ProductsPage = () => {
                         onChange={e => setSearchTerm(e.target.value)}
                     />
                     {searchTerm && (
-                        <button type="button" onClick={() => setSearchTerm('')} className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-slate-200 rounded-md transition"><X size={14} className="text-slate-500"/></button>
+                        <button type="button" onClick={() => setSearchTerm('')} className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-slate-200 rounded-md transition"><X size={14} className="text-slate-500" /></button>
                     )}
                 </div>
                 <span className="text-xs font-extrabold text-slate-500 bg-slate-100 border border-slate-200 px-4 py-2.5 rounded-xl shrink-0 flex items-center gap-2">
@@ -656,22 +722,22 @@ const ProductsPage = () => {
                         <span className="text-xs font-bold text-indigo-900">Execute catalog visibility adjustments on selected items.</span>
                     </div>
                     <div className="flex items-center gap-2">
-                        <button 
-                            type="button" 
+                        <button
+                            type="button"
                             onClick={() => handleBulkListing(true)}
                             className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold px-4 py-2 rounded-xl transition shadow-2xs cursor-pointer flex items-center gap-1.5"
                         >
                             🌐 List Selected
                         </button>
-                        <button 
-                            type="button" 
+                        <button
+                            type="button"
                             onClick={() => handleBulkListing(false)}
                             className="bg-rose-600 hover:bg-rose-700 text-white text-xs font-extrabold px-4 py-2 rounded-xl transition shadow-2xs cursor-pointer flex items-center gap-1.5"
                         >
                             🔒 Unlist Selected
                         </button>
-                        <button 
-                            type="button" 
+                        <button
+                            type="button"
                             onClick={() => setSelectedIds([])}
                             className="bg-white border border-slate-200 text-slate-500 hover:bg-slate-50 text-xs font-extrabold px-4 py-2 rounded-xl transition"
                         >
@@ -685,7 +751,7 @@ const ProductsPage = () => {
                 <thead>
                     <tr>
                         <th className="w-10">
-                            <input 
+                            <input
                                 type="checkbox"
                                 checked={filteredProducts.length > 0 && filteredProducts.every(p => selectedIds.includes(p.id))}
                                 onChange={() => {
@@ -714,11 +780,11 @@ const ProductsPage = () => {
                     {filteredProducts.map(p => (
                         <tr key={p.id}>
                             <td>
-                                <input 
+                                <input
                                     type="checkbox"
                                     checked={selectedIds.includes(p.id)}
                                     onChange={() => {
-                                        setSelectedIds(prev => 
+                                        setSelectedIds(prev =>
                                             prev.includes(p.id) ? prev.filter(id => id !== p.id) : [...prev, p.id]
                                         );
                                     }}
@@ -731,10 +797,10 @@ const ProductsPage = () => {
                                     {p.images && p.images.length > 0 && (
                                         <img src={getImageUrl(p.images[0])} alt="" className="w-8 h-8 rounded object-cover" />
                                     )}
-                                    <a 
-                                        href={`${getStorefrontUrl()}${p.slug ? `/p/${p.slug}` : `/product/${p.id}`}`} 
-                                        target="_blank" 
-                                        rel="noopener noreferrer" 
+                                    <a
+                                        href={`${getStorefrontUrl()}${p.slug ? `/p/${p.slug}` : `/product/${p.id}`}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
                                         className="font-bold text-indigo-600 hover:text-indigo-800 hover:underline flex items-center gap-1.5"
                                     >
                                         {p.promoted && <span className="text-[10px] font-black bg-amber-100 text-amber-800 border border-amber-300 rounded px-1.5 py-0.5 flex items-center gap-0.5 shadow-2xs select-none shrink-0" title={`Promotion Priority Score: ${p.promotionPriority}`}>⭐ {p.promotionPriority}</span>}
@@ -743,8 +809,8 @@ const ProductsPage = () => {
                                 </div>
                             </td>
                             <td>
-                                <span 
-                                    className={p.listed !== false ? "status-badge status-delivered cursor-pointer" : "status-badge status-cancelled cursor-pointer"} 
+                                <span
+                                    className={p.listed !== false ? "status-badge status-delivered cursor-pointer" : "status-badge status-cancelled cursor-pointer"}
                                     onClick={() => toggleProductListing(p)}
                                     title="Click to toggle visiblity"
                                 >

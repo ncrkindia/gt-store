@@ -36,7 +36,18 @@ public class OrderItem {
     @Column(name = "loyalty_points_used", precision = 10, scale = 2)
     private BigDecimal loyaltyPointsUsed;
 
+    @Column(name = "product_name")
+    private String productName;
+
+    @Column(name = "gst_percentage")
+    private Integer gstPercentage;
+
     // Getters and Setters
+    public String getProductName() { return productName; }
+    public void setProductName(String productName) { this.productName = productName; }
+    public Integer getGstPercentage() { return gstPercentage; }
+    public void setGstPercentage(Integer gstPercentage) { this.gstPercentage = gstPercentage; }
+
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
     public Order getOrder() { return order; }

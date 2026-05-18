@@ -7,6 +7,13 @@ public class OrderItemDto {
     private java.math.BigDecimal price;
     private java.math.BigDecimal discountAmount;
     private java.math.BigDecimal loyaltyPointsUsed;
+    private String productName;
+    private Integer gstPercentage;
+
+    public String getProductName() { return productName; }
+    public void setProductName(String productName) { this.productName = productName; }
+    public Integer getGstPercentage() { return gstPercentage; }
+    public void setGstPercentage(Integer gstPercentage) { this.gstPercentage = gstPercentage; }
 
     public String getProductId() { return productId; }
     public void setProductId(String productId) { this.productId = productId; }

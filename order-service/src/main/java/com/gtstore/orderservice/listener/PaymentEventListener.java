@@ -115,6 +115,11 @@ public class PaymentEventListener {
                         dto.setProductId(i.getProductId());
                         dto.setVariantId(i.getVariantId());
                         dto.setQuantity(i.getQuantity());
+                        dto.setPrice(i.getPrice());
+                        dto.setDiscountAmount(i.getDiscountAmount());
+                        dto.setLoyaltyPointsUsed(i.getLoyaltyPointsUsed());
+                        dto.setProductName(i.getProductName());
+                        dto.setGstPercentage(i.getGstPercentage());
                         return dto;
                     }).collect(Collectors.toList()));
                 }

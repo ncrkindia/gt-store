@@ -28,6 +28,10 @@ public class CheckoutCalculationResponse {
         private BigDecimal taxableAmount;
         private BigDecimal couponDiscountAmount;
         private BigDecimal loyaltyPointsUsed;
+        private String productName;
+
+        public String getProductName() { return productName; }
+        public void setProductName(String productName) { this.productName = productName; }
 
         public String getProductId() { return productId; }
         public void setProductId(String productId) { this.productId = productId; }

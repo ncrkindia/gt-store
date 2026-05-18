@@ -250,17 +250,68 @@ public class ProductController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Product> updateProduct(@PathVariable String id, @RequestBody Product product) {
-        if (!productRepository.existsById(id)) {
+    public ResponseEntity<Product> updateProduct(
+            @PathVariable String id,
+            @RequestHeader(value = "X-User-Email", required = false) String email,
+            @RequestBody Product product) {
+        
+        java.util.Optional<Product> existingOpt = productRepository.findById(id);
+        if (existingOpt.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
+        Product existing = existingOpt.get();
+        
         product.setId(id);
         validateProduct(product);
-        // Generate if not set in input payload or exists implicitly blank
-        if (product.getSlug() == null || product.getSlug().trim().isEmpty()) {
-            generateSlug(product);
+        
+        // Track price modifications
+        java.math.BigDecimal oldPrice = existing.getPrice();
+        java.math.BigDecimal newPrice = product.getPrice();
+        java.math.BigDecimal oldSalePrice = existing.getSalePrice();
+        java.math.BigDecimal newSalePrice = product.getSalePrice();
+        
+        boolean priceChanged = false;
+        if (oldPrice == null && newPrice != null) priceChanged = true;
+        else if (oldPrice != null && newPrice == null) priceChanged = true;
+        else if (oldPrice != null && newPrice != null && oldPrice.compareTo(newPrice) != 0) priceChanged = true;
+        
+        if (oldSalePrice == null && newSalePrice != null) priceChanged = true;
+        else if (oldSalePrice != null && newSalePrice == null) priceChanged = true;
+        else if (oldSalePrice != null && newSalePrice != null && oldSalePrice.compareTo(newSalePrice) != 0) priceChanged = true;
+        
+        if (priceChanged) {
+            String updater = (email != null && !email.isEmpty()) ? email : "Admin";
+            com.gtstore.productservice.document.PriceHistoryRecord record = 
+                new com.gtstore.productservice.document.PriceHistoryRecord(oldPrice, newPrice, oldSalePrice, newSalePrice, updater);
+            if (existing.getPriceHistory() == null) {
+                existing.setPriceHistory(new java.util.ArrayList<>());
+            }
+            existing.getPriceHistory().add(record);
         }
-        Product updated = productRepository.save(product);
+        
+        // Safely copy editable catalog fields to preserve review data and price history list
+        existing.setName(product.getName());
+        existing.setDescription(product.getDescription());
+        existing.setPrice(product.getPrice());
+        existing.setSalePrice(product.getSalePrice());
+        existing.setImages(product.getImages());
+        existing.setBrand(product.getBrand());
+        existing.setCategoryIds(product.getCategoryIds());
+        existing.setFeatures(product.getFeatures());
+        existing.setInStock(product.getInStock());
+        existing.setAttributes(product.getAttributes());
+        existing.setGstPercentage(product.getGstPercentage());
+        existing.setPromoted(product.getPromoted());
+        existing.setPromotionPriority(product.getPromotionPriority());
+        existing.setListed(product.getListed());
+        
+        if (product.getSlug() == null || product.getSlug().trim().isEmpty()) {
+            generateSlug(existing);
+        } else {
+            existing.setSlug(product.getSlug());
+        }
+        
+        Product updated = productRepository.save(existing);
         kafkaTemplate.send(TOPIC_UPSERT, updated.getId(), updated);
         return ResponseEntity.ok(updated);
     }
