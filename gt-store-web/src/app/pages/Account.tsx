@@ -2,15 +2,30 @@ import { Outlet, Link, useLocation } from "react-router";
 import { User, Package, Heart, MapPin, Settings, Star, Tag } from "lucide-react";
 import { useKeycloak } from "@react-keycloak/web";
 
+import { useState, useEffect } from "react";
+import apiClient from "../../api/axios";
+
 export function Account() {
   const location = useLocation();
   const { keycloak } = useKeycloak();
   const userName = keycloak?.tokenParsed?.name || keycloak?.tokenParsed?.preferred_username || "User";
 
+  const [loyaltyActive, setLoyaltyActive] = useState(true);
+
+  useEffect(() => {
+    apiClient.get('/orders/settings')
+      .then(res => {
+        if (res.data && res.data.LOYALTY_PROGRAM_ENABLED === 'false') {
+          setLoyaltyActive(false);
+        }
+      })
+      .catch(err => console.error("Error fetching settings in Account sidebar", err));
+  }, []);
+
   const menuItems = [
     { path: "/account", label: "Profile", icon: User },
     { path: "/account/orders", label: "Orders", icon: Package },
-    { path: "/account/loyalty", label: "Loyalty Points", icon: Star },
+    ...(loyaltyActive ? [{ path: "/account/loyalty", label: "Loyalty Points", icon: Star }] : []),
     { path: "/account/coupons", label: "My Coupons", icon: Tag },
     { path: "/account/wishlist", label: "Wishlist", icon: Heart },
     { path: "/account/addresses", label: "Addresses", icon: MapPin },

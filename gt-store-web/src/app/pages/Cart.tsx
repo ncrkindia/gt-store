@@ -705,7 +705,7 @@ export function Cart() {
             </div>
 
             {/* Loyalty Points Section */}
-            {user?.loyaltyPoints > 0 && (
+            {calculation?.loyaltyProgramEnabled !== false && user?.loyaltyPoints > 0 && (
               <div className="bg-white rounded-2xl p-6 shadow-md border border-gray-100">
                 <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
                   <span className="text-amber-500 text-xl">★</span>

@@ -15,6 +15,7 @@ public class CheckoutCalculationResponse {
     private BigDecimal codCharge;
     private BigDecimal finalPayable;
     private BigDecimal loyaltyPointsToEarn;
+    private Boolean loyaltyProgramEnabled;
     private List<CalculatedItemDto> items;
     private String message;
 
@@ -79,4 +80,6 @@ public class CheckoutCalculationResponse {
     public void setItems(List<CalculatedItemDto> items) { this.items = items; }
     public String getMessage() { return message; }
     public void setMessage(String message) { this.message = message; }
+    public Boolean getLoyaltyProgramEnabled() { return loyaltyProgramEnabled; }
+    public void setLoyaltyProgramEnabled(Boolean loyaltyProgramEnabled) { this.loyaltyProgramEnabled = loyaltyProgramEnabled; }
 }

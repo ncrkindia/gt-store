@@ -121,7 +121,11 @@ public class PromotionService {
 
         // 3. Loyalty Points Usage (Rule B: max configured percent of cart value)
         BigDecimal pointsUsed = BigDecimal.ZERO;
-        if (request.getLoyaltyPointsToUse() != null && request.getLoyaltyPointsToUse().compareTo(BigDecimal.ZERO) > 0) {
+        String loyaltyEnabled = settingRepository.findById("LOYALTY_PROGRAM_ENABLED").map(SystemSetting::getValue).orElse("true");
+        boolean isLoyaltyActive = "true".equalsIgnoreCase(loyaltyEnabled);
+        response.setLoyaltyProgramEnabled(isLoyaltyActive);
+
+        if (isLoyaltyActive && request.getLoyaltyPointsToUse() != null && request.getLoyaltyPointsToUse().compareTo(BigDecimal.ZERO) > 0) {
             String loyaltyMaxStr = settingRepository.findById("LOYALTY_MAX_USAGE_PERCENT").map(SystemSetting::getValue).orElse("20");
             BigDecimal loyaltyMaxPct = new BigDecimal(loyaltyMaxStr).divide(BigDecimal.valueOf(100));
             BigDecimal maxAllowedPoints = totalAfterCoupons.multiply(loyaltyMaxPct);
@@ -227,11 +231,14 @@ public class PromotionService {
         response.setFinalPayable(finalPayable);
 
         // 7. Calculate Loyalty Points to be Earned (based on eligible amount after points redemption, matching the /earn algorithm)
-        BigDecimal eligibleAmountForEarn = totalWithTaxes.subtract(pointsUsed);
-        if (eligibleAmountForEarn.compareTo(BigDecimal.ZERO) < 0) eligibleAmountForEarn = BigDecimal.ZERO;
-        String earnRateStr = settingRepository.findById("LOYALTY_EARN_RATE_PERCENT").map(SystemSetting::getValue).orElse("10");
-        BigDecimal earnRate = new BigDecimal(earnRateStr);
-        BigDecimal pointsToEarn = eligibleAmountForEarn.multiply(earnRate).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+        BigDecimal pointsToEarn = BigDecimal.ZERO;
+        if (isLoyaltyActive) {
+            BigDecimal eligibleAmountForEarn = totalWithTaxes.subtract(pointsUsed);
+            if (eligibleAmountForEarn.compareTo(BigDecimal.ZERO) < 0) eligibleAmountForEarn = BigDecimal.ZERO;
+            String earnRateStr = settingRepository.findById("LOYALTY_EARN_RATE_PERCENT").map(SystemSetting::getValue).orElse("10");
+            BigDecimal earnRate = new BigDecimal(earnRateStr);
+            pointsToEarn = eligibleAmountForEarn.multiply(earnRate).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+        }
         response.setLoyaltyPointsToEarn(pointsToEarn);
 
         response.setItems(calcItems);

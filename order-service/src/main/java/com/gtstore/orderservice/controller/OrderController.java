@@ -234,20 +234,23 @@ public class OrderController {
 
         // Loyalty Processing
         try {
-            java.util.Map<String, Object> earnReq = new java.util.HashMap<>();
-            earnReq.put("email", email);
-            earnReq.put("orderId", extOrderId);
-            earnReq.put("totalAmount", order.getTotalAmount() != null ? order.getTotalAmount() : BigDecimal.ZERO);
-            earnReq.put("shippingCharge", order.getShippingCharge() != null ? order.getShippingCharge() : BigDecimal.ZERO);
-            earnReq.put("codCharge", order.getCodCharge() != null ? order.getCodCharge() : BigDecimal.ZERO);
-            restTemplate.postForEntity("http://user-service:4004/api/users/loyalty/earn", earnReq, Void.class);
+            boolean isLoyaltyEnabled = calcRes.getLoyaltyProgramEnabled() != null ? calcRes.getLoyaltyProgramEnabled() : true;
+            if (isLoyaltyEnabled) {
+                java.util.Map<String, Object> earnReq = new java.util.HashMap<>();
+                earnReq.put("email", email);
+                earnReq.put("orderId", extOrderId);
+                earnReq.put("totalAmount", order.getTotalAmount() != null ? order.getTotalAmount() : BigDecimal.ZERO);
+                earnReq.put("shippingCharge", order.getShippingCharge() != null ? order.getShippingCharge() : BigDecimal.ZERO);
+                earnReq.put("codCharge", order.getCodCharge() != null ? order.getCodCharge() : BigDecimal.ZERO);
+                restTemplate.postForEntity("http://user-service:4004/api/users/loyalty/earn", earnReq, Void.class);
 
-            if (order.getLoyaltyPointsUsed() != null && order.getLoyaltyPointsUsed().compareTo(BigDecimal.ZERO) > 0) {
-                java.util.Map<String, Object> redeemReq = new java.util.HashMap<>();
-                redeemReq.put("email", email);
-                redeemReq.put("orderId", extOrderId);
-                redeemReq.put("pointsUsed", order.getLoyaltyPointsUsed());
-                restTemplate.postForEntity("http://user-service:4004/api/users/loyalty/redeem", redeemReq, Void.class);
+                if (order.getLoyaltyPointsUsed() != null && order.getLoyaltyPointsUsed().compareTo(BigDecimal.ZERO) > 0) {
+                    java.util.Map<String, Object> redeemReq = new java.util.HashMap<>();
+                    redeemReq.put("email", email);
+                    redeemReq.put("orderId", extOrderId);
+                    redeemReq.put("pointsUsed", order.getLoyaltyPointsUsed());
+                    restTemplate.postForEntity("http://user-service:4004/api/users/loyalty/redeem", redeemReq, Void.class);
+                }
             }
         } catch (Exception ex) {
             log.error("Failed to process loyalty points for order {}", extOrderId, ex);

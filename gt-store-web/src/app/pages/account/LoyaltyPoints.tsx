@@ -10,6 +10,7 @@ export function LoyaltyPoints() {
   const [loading, setLoading] = useState(true);
   const [availablePoints, setAvailablePoints] = useState(0);
   const [history, setHistory] = useState<any[]>([]);
+  const [loyaltyProgramEnabled, setLoyaltyProgramEnabled] = useState(true);
 
   useEffect(() => {
     if (initialized && keycloak.authenticated) {
@@ -19,6 +20,13 @@ export function LoyaltyPoints() {
 
   const fetchLoyaltyData = async () => {
     try {
+      const settingsRes = await apiClient.get('/orders/settings');
+      if (settingsRes.data && settingsRes.data.LOYALTY_PROGRAM_ENABLED === 'false') {
+        setLoyaltyProgramEnabled(false);
+        setLoading(false);
+        return;
+      }
+
       const response = await apiClient.get("/users/loyalty/history");
       setAvailablePoints(response.data.availablePoints || 0);
       setHistory(response.data.history || []);
@@ -35,6 +43,23 @@ export function LoyaltyPoints() {
       <div className="bg-white rounded-2xl p-12 text-center shadow-sm border border-gray-100">
         <div className="animate-spin w-10 h-10 border-4 border-amber-500 border-t-transparent rounded-full mx-auto mb-4" />
         <p className="text-gray-500 font-medium">Loading Loyalty Points...</p>
+      </div>
+    );
+  }
+
+  if (!loyaltyProgramEnabled) {
+    return (
+      <div className="bg-white rounded-2xl p-12 text-center shadow-sm border border-gray-100 flex flex-col items-center max-w-xl mx-auto my-12">
+        <div className="w-16 h-16 bg-amber-50 rounded-full flex items-center justify-center mb-4">
+          <Star className="w-8 h-8 text-amber-500" />
+        </div>
+        <h3 className="text-xl font-bold text-gray-900 mb-2">Program Currently Inactive</h3>
+        <p className="text-gray-500 text-sm mb-6">
+          The GT Store loyalty program is currently paused or inactive. You cannot earn or redeem points at this time, but your past history remains saved.
+        </p>
+        <Link to="/account" className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm transition">
+          Return to Profile
+        </Link>
       </div>
     );
   }

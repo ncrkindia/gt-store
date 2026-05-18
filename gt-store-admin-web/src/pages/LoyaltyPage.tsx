@@ -13,6 +13,7 @@ const LoyaltyPage = () => {
     const [earnRate, setEarnRate] = useState('10');
     const [returnDays, setReturnDays] = useState('15');
     const [maxUsage, setMaxUsage] = useState('20');
+    const [loyaltyEnabled, setLoyaltyEnabled] = useState(true);
 
     const fetchSettings = async () => {
         if (!keycloak.authenticated) return;
@@ -30,10 +31,15 @@ const LoyaltyPage = () => {
                 }
             }
 
-            // 2. Fetch order-service settings (max usage cap)
+            // 2. Fetch order-service settings (max usage cap, enabled status)
             const orderRes = await apiClient.get('/api/orders/settings');
-            if (orderRes.data && orderRes.data.LOYALTY_MAX_USAGE_PERCENT) {
-                setMaxUsage(orderRes.data.LOYALTY_MAX_USAGE_PERCENT);
+            if (orderRes.data) {
+                if (orderRes.data.LOYALTY_MAX_USAGE_PERCENT) {
+                    setMaxUsage(orderRes.data.LOYALTY_MAX_USAGE_PERCENT);
+                }
+                if (orderRes.data.LOYALTY_PROGRAM_ENABLED) {
+                    setLoyaltyEnabled(orderRes.data.LOYALTY_PROGRAM_ENABLED === 'true');
+                }
             }
         } catch (error) {
             console.error("Error loading settings", error);
@@ -78,7 +84,8 @@ const LoyaltyPage = () => {
 
             // 2. Save order-service settings
             await apiClient.post('/api/orders/settings', {
-                LOYALTY_MAX_USAGE_PERCENT: maxUsage.toString()
+                LOYALTY_MAX_USAGE_PERCENT: maxUsage.toString(),
+                LOYALTY_PROGRAM_ENABLED: loyaltyEnabled.toString()
             });
 
             toast.success("Loyalty program parameters saved successfully!");
@@ -112,11 +119,17 @@ const LoyaltyPage = () => {
                         <Award size={32} strokeWidth={1.5} />
                     </div>
                     <div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                             <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Loyalty Program Control Board</h1>
-                            <span className="flex items-center gap-0.5 bg-indigo-50 text-indigo-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-indigo-100 uppercase tracking-wide">
-                                <Sparkles size={10} /> Active
-                            </span>
+                            {loyaltyEnabled ? (
+                                <span className="flex items-center gap-0.5 bg-emerald-50 text-emerald-700 text-[10px] font-bold px-2.5 py-1 rounded-full border border-emerald-100 uppercase tracking-wide">
+                                    <Sparkles size={10} /> Active
+                                </span>
+                            ) : (
+                                <span className="flex items-center gap-0.5 bg-slate-100 text-slate-600 text-[10px] font-bold px-2.5 py-1 rounded-full border border-slate-200 uppercase tracking-wide">
+                                    Disabled
+                                </span>
+                            )}
                         </div>
                         <p className="text-slate-500 text-sm mt-1">Configure point accumulation scales, release schedules, and maximum deduction percentage limits.</p>
                     </div>
@@ -159,6 +172,32 @@ const LoyaltyPage = () => {
                     <h3 className="text-lg font-bold text-slate-900 border-b border-slate-100 pb-3 flex items-center gap-2">
                         System settings parameters
                     </h3>
+
+                    {/* Operational Enable/Disable switch with Premium Aesthetics */}
+                    <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 transition hover:shadow-sm">
+                        <div className="space-y-1">
+                            <h4 className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+                                Loyalty Program Functional Status
+                            </h4>
+                            <p className="text-xs text-slate-400">
+                                When disabled, customers cannot earn or redeem points on checkout, and the loyalty sub-pages are suppressed from their dashboards. Past order data remains unaffected.
+                            </p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <span className={`text-xs font-bold uppercase tracking-wider ${loyaltyEnabled ? 'text-emerald-600' : 'text-slate-400'}`}>
+                                {loyaltyEnabled ? "Active / Enabled" : "Inactive / Disabled"}
+                            </span>
+                            <button
+                                type="button"
+                                onClick={() => setLoyaltyEnabled(!loyaltyEnabled)}
+                                className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${loyaltyEnabled ? 'bg-indigo-600' : 'bg-slate-300'}`}
+                            >
+                                <span
+                                    className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${loyaltyEnabled ? 'translate-x-5' : 'translate-x-0'}`}
+                                />
+                            </button>
+                        </div>
+                    </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         

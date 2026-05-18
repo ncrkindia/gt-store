@@ -28,6 +28,7 @@ public class SystemSettingController {
         settings.put("SHIPPING_RULES", settingRepository.findById("SHIPPING_RULES").map(SystemSetting::getValue).orElse("0-499:10,500+:0"));
         settings.put("COD_FIXED_CHARGE", settingRepository.findById("COD_FIXED_CHARGE").map(SystemSetting::getValue).orElse("5"));
         settings.put("LOYALTY_MAX_USAGE_PERCENT", settingRepository.findById("LOYALTY_MAX_USAGE_PERCENT").map(SystemSetting::getValue).orElse("20"));
+        settings.put("LOYALTY_PROGRAM_ENABLED", settingRepository.findById("LOYALTY_PROGRAM_ENABLED").map(SystemSetting::getValue).orElse("true"));
         return ResponseEntity.ok(settings);
     }
 
@@ -41,6 +42,7 @@ public class SystemSettingController {
         updateKeyWithHistory("SHIPPING_RULES", payload, updater, "0-499:10,500+:0");
         updateKeyWithHistory("COD_FIXED_CHARGE", payload, updater, "5");
         updateKeyWithHistory("LOYALTY_MAX_USAGE_PERCENT", payload, updater, "20");
+        updateKeyWithHistory("LOYALTY_PROGRAM_ENABLED", payload, updater, "true");
 
         return ResponseEntity.ok().build();
     }
