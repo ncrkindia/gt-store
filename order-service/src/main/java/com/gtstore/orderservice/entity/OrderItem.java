@@ -30,6 +30,12 @@ public class OrderItem {
     @Column(nullable = false)
     private BigDecimal price;
 
+    @Column(name = "discount_amount", precision = 10, scale = 2)
+    private BigDecimal discountAmount;
+
+    @Column(name = "loyalty_points_used", precision = 10, scale = 2)
+    private BigDecimal loyaltyPointsUsed;
+
     // Getters and Setters
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
@@ -43,4 +49,8 @@ public class OrderItem {
     public void setQuantity(Integer quantity) { this.quantity = quantity; }
     public BigDecimal getPrice() { return price; }
     public void setPrice(BigDecimal price) { this.price = price; }
+    public BigDecimal getDiscountAmount() { return discountAmount; }
+    public void setDiscountAmount(BigDecimal discountAmount) { this.discountAmount = discountAmount; }
+    public BigDecimal getLoyaltyPointsUsed() { return loyaltyPointsUsed; }
+    public void setLoyaltyPointsUsed(BigDecimal loyaltyPointsUsed) { this.loyaltyPointsUsed = loyaltyPointsUsed; }
 }

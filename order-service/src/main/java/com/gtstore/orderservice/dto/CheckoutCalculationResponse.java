@@ -26,6 +26,8 @@ public class CheckoutCalculationResponse {
         private Integer gstPercentage;
         private BigDecimal gstAmount;
         private BigDecimal taxableAmount;
+        private BigDecimal couponDiscountAmount;
+        private BigDecimal loyaltyPointsUsed;
 
         public String getProductId() { return productId; }
         public void setProductId(String productId) { this.productId = productId; }
@@ -41,6 +43,10 @@ public class CheckoutCalculationResponse {
         public void setGstAmount(BigDecimal gstAmount) { this.gstAmount = gstAmount; }
         public BigDecimal getTaxableAmount() { return taxableAmount; }
         public void setTaxableAmount(BigDecimal taxableAmount) { this.taxableAmount = taxableAmount; }
+        public BigDecimal getCouponDiscountAmount() { return couponDiscountAmount; }
+        public void setCouponDiscountAmount(BigDecimal couponDiscountAmount) { this.couponDiscountAmount = couponDiscountAmount; }
+        public BigDecimal getLoyaltyPointsUsed() { return loyaltyPointsUsed; }
+        public void setLoyaltyPointsUsed(BigDecimal loyaltyPointsUsed) { this.loyaltyPointsUsed = loyaltyPointsUsed; }
     }
 
     public BigDecimal getBaseSubtotal() { return baseSubtotal; }

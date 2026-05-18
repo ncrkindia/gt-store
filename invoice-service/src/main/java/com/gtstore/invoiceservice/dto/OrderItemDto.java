@@ -6,6 +6,8 @@ public class OrderItemDto {
     private String productId;
     private int quantity;
     private BigDecimal price;
+    private BigDecimal discountAmount;
+    private BigDecimal loyaltyPointsUsed;
     
     // Virtual fields added by enrichers
     private String productName;
@@ -20,6 +22,10 @@ public class OrderItemDto {
     public void setQuantity(int quantity) { this.quantity = quantity; }
     public BigDecimal getPrice() { return price; }
     public void setPrice(BigDecimal price) { this.price = price; }
+    public BigDecimal getDiscountAmount() { return discountAmount != null ? discountAmount : BigDecimal.ZERO; }
+    public void setDiscountAmount(BigDecimal discountAmount) { this.discountAmount = discountAmount; }
+    public BigDecimal getLoyaltyPointsUsed() { return loyaltyPointsUsed != null ? loyaltyPointsUsed : BigDecimal.ZERO; }
+    public void setLoyaltyPointsUsed(BigDecimal loyaltyPointsUsed) { this.loyaltyPointsUsed = loyaltyPointsUsed; }
     public String getProductName() { return productName; }
     public void setProductName(String productName) { this.productName = productName; }
 }

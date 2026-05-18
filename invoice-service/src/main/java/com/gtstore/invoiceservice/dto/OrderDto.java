@@ -23,9 +23,30 @@ public class OrderDto {
     
     private String orderNumber;
     
+    private String couponCode;
+    private BigDecimal loyaltyPointsUsed;
+    private BigDecimal discountAmount;
+    private BigDecimal shippingCharge;
+    private BigDecimal codCharge;
+    
     private List<OrderItemDto> items;
 
     // Getters & Setters
+    public String getCouponCode() { return couponCode; }
+    public void setCouponCode(String couponCode) { this.couponCode = couponCode; }
+
+    public BigDecimal getLoyaltyPointsUsed() { return loyaltyPointsUsed != null ? loyaltyPointsUsed : BigDecimal.ZERO; }
+    public void setLoyaltyPointsUsed(BigDecimal loyaltyPointsUsed) { this.loyaltyPointsUsed = loyaltyPointsUsed; }
+
+    public BigDecimal getDiscountAmount() { return discountAmount != null ? discountAmount : BigDecimal.ZERO; }
+    public void setDiscountAmount(BigDecimal discountAmount) { this.discountAmount = discountAmount; }
+
+    public BigDecimal getShippingCharge() { return shippingCharge != null ? shippingCharge : BigDecimal.ZERO; }
+    public void setShippingCharge(BigDecimal shippingCharge) { this.shippingCharge = shippingCharge; }
+
+    public BigDecimal getCodCharge() { return codCharge != null ? codCharge : BigDecimal.ZERO; }
+    public void setCodCharge(BigDecimal codCharge) { this.codCharge = codCharge; }
+
     public String getOrderNumber() { return orderNumber; }
     public void setOrderNumber(String orderNumber) { this.orderNumber = orderNumber; }
 

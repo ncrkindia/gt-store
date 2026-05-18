@@ -114,40 +114,62 @@ public class PromotionService {
         BigDecimal totalAfterCoupons = subtotalAfterProdDiscounts.subtract(cartDiscounts);
         response.setTotalAfterCoupons(totalAfterCoupons);
 
-        // 3. Taxes: sum of individual items' inclusive GST on their discounted prices
-        BigDecimal totalTaxes = BigDecimal.ZERO;
-        for (CheckoutCalculationResponse.CalculatedItemDto calcItem : calcItems) {
-            Integer pct = calcItem.getGstPercentage();
-            BigDecimal gstRate = BigDecimal.valueOf(pct).divide(BigDecimal.valueOf(100));
-            BigDecimal taxFactor = BigDecimal.ONE.add(gstRate);
-            
-            // Inclusive GST math: price / (1 + (pct/100))
-            BigDecimal taxableUnit = calcItem.getDiscountedPrice().divide(taxFactor, 4, RoundingMode.HALF_UP);
-            BigDecimal gstPerItem = calcItem.getDiscountedPrice().subtract(taxableUnit).setScale(2, RoundingMode.HALF_UP);
-            BigDecimal itemTaxableAmount = taxableUnit.multiply(BigDecimal.valueOf(calcItem.getQuantity())).setScale(2, RoundingMode.HALF_UP);
-            BigDecimal itemGstAmount = gstPerItem.multiply(BigDecimal.valueOf(calcItem.getQuantity())).setScale(2, RoundingMode.HALF_UP);
-            
-            calcItem.setTaxableAmount(itemTaxableAmount);
-            calcItem.setGstAmount(itemGstAmount);
-            
-            totalTaxes = totalTaxes.add(itemGstAmount);
-        }
-        
-        response.setTaxes(totalTaxes);
-        BigDecimal totalWithTaxes = totalAfterCoupons; // Final prices are inclusive of GST! No tax added on top.
-
-        // 4. Loyalty Points Usage (Rule B: max configured percent of cart value)
+        // 3. Loyalty Points Usage (Rule B: max configured percent of cart value)
         BigDecimal pointsUsed = BigDecimal.ZERO;
         if (request.getLoyaltyPointsToUse() != null && request.getLoyaltyPointsToUse().compareTo(BigDecimal.ZERO) > 0) {
             String loyaltyMaxStr = settingRepository.findById("LOYALTY_MAX_USAGE_PERCENT").map(SystemSetting::getValue).orElse("20");
             BigDecimal loyaltyMaxPct = new BigDecimal(loyaltyMaxStr).divide(BigDecimal.valueOf(100));
-            BigDecimal maxAllowedPoints = totalWithTaxes.multiply(loyaltyMaxPct);
+            BigDecimal maxAllowedPoints = totalAfterCoupons.multiply(loyaltyMaxPct);
             pointsUsed = request.getLoyaltyPointsToUse().min(maxAllowedPoints);
             // Must verify user has these points via user-service
             BigDecimal availablePoints = getUserLoyaltyPoints(userId);
             pointsUsed = pointsUsed.min(availablePoints);
         }
         response.setLoyaltyPointsUsed(pointsUsed);
+
+        // 4. Taxes: sum of individual items' inclusive GST on their discounted prices (after coupons and loyalty points)
+        BigDecimal totalTaxes = BigDecimal.ZERO;
+        for (CheckoutCalculationResponse.CalculatedItemDto calcItem : calcItems) {
+            Integer pct = calcItem.getGstPercentage();
+            BigDecimal gstRate = BigDecimal.valueOf(pct).divide(BigDecimal.valueOf(100));
+            BigDecimal taxFactor = BigDecimal.ONE.add(gstRate);
+            
+            BigDecimal itemOriginalTotal = calcItem.getOriginalPrice().multiply(BigDecimal.valueOf(calcItem.getQuantity()));
+            BigDecimal itemDiscountedPrice = calcItem.getDiscountedPrice() != null ? calcItem.getDiscountedPrice() : BigDecimal.ZERO;
+            BigDecimal itemDiscountedTotal = itemDiscountedPrice.multiply(BigDecimal.valueOf(calcItem.getQuantity()));
+            
+            // Product-level discount
+            BigDecimal prodDiscountTotal = itemOriginalTotal.subtract(itemDiscountedTotal);
+            
+            // Cart-level coupon discount distributed proportionally
+            BigDecimal propCartDiscount = BigDecimal.ZERO;
+            if (cartDiscounts.compareTo(BigDecimal.ZERO) > 0 && subtotalAfterProdDiscounts.compareTo(BigDecimal.ZERO) > 0) {
+                propCartDiscount = cartDiscounts.multiply(itemDiscountedTotal).divide(subtotalAfterProdDiscounts, 4, RoundingMode.HALF_UP);
+            }
+            
+            BigDecimal itemCouponDiscount = prodDiscountTotal.add(propCartDiscount);
+            BigDecimal itemAfterCouponTotal = itemDiscountedTotal.subtract(propCartDiscount);
+            
+            // Proportional points used
+            BigDecimal propPoints = BigDecimal.ZERO;
+            if (pointsUsed.compareTo(BigDecimal.ZERO) > 0 && totalAfterCoupons.compareTo(BigDecimal.ZERO) > 0) {
+                propPoints = pointsUsed.multiply(itemAfterCouponTotal).divide(totalAfterCoupons, 4, RoundingMode.HALF_UP);
+            }
+            
+            BigDecimal finalPaidPriceTotal = itemAfterCouponTotal.subtract(propPoints);
+            BigDecimal taxableTotal = finalPaidPriceTotal.divide(taxFactor, 4, RoundingMode.HALF_UP);
+            BigDecimal gstTotal = finalPaidPriceTotal.subtract(taxableTotal);
+            
+            calcItem.setCouponDiscountAmount(itemCouponDiscount.setScale(2, RoundingMode.HALF_UP));
+            calcItem.setLoyaltyPointsUsed(propPoints.setScale(2, RoundingMode.HALF_UP));
+            calcItem.setTaxableAmount(taxableTotal.setScale(2, RoundingMode.HALF_UP));
+            calcItem.setGstAmount(gstTotal.setScale(2, RoundingMode.HALF_UP));
+            
+            totalTaxes = totalTaxes.add(gstTotal.setScale(2, RoundingMode.HALF_UP));
+        }
+        
+        response.setTaxes(totalTaxes);
+        BigDecimal totalWithTaxes = totalAfterCoupons; // Final prices are inclusive of GST! No tax added on top.
 
         // 5. Shipping & COD
         String rulesStr = settingRepository.findById("SHIPPING_RULES").map(SystemSetting::getValue).orElse("0-499:10,500+:0");

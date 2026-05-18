@@ -191,6 +191,49 @@ export function OrderDetails() {
   const isDelivered = status === "DELIVERED";
   const isCancelled = status.includes("CANCELLED");
 
+  // Granular pricing calculations based on Offer Price
+  const offerSubtotal = order.items?.reduce((sum: number, item: any) => sum + (item.price || 0) * item.quantity, 0) || 0;
+
+  let totalTaxableBeforeDiscounts = 0;
+  let totalDiscountExcl = 0;
+  let totalPointsExcl = 0;
+  let computedTotalTaxable = 0;
+  let computedTotalGst = 0;
+
+  order.items?.forEach((item: any) => {
+    const pct = item.productData?.gstPercentage !== undefined ? item.productData.gstPercentage : 18;
+    const itemOfferPrice = item.price || 0;
+    const itemOfferTotal = itemOfferPrice * item.quantity;
+    
+    // Retrieve pre-calculated persistent values from item, falling back to dynamic calculation for legacy orders
+    const proportionalDiscount = (item.discountAmount !== undefined && item.discountAmount !== null)
+      ? item.discountAmount 
+      : (offerSubtotal > 0 ? (order.discountAmount || 0) * (itemOfferTotal / offerSubtotal) : 0);
+      
+    const proportionalPoints = (item.loyaltyPointsUsed !== undefined && item.loyaltyPointsUsed !== null)
+      ? item.loyaltyPointsUsed 
+      : (offerSubtotal > 0 ? (order.loyaltyPointsUsed || 0) * (itemOfferTotal / offerSubtotal) : 0);
+    
+    const taxFactor = 1 + pct / 100;
+    
+    const finalPaidPriceTotal = itemOfferTotal - proportionalDiscount - proportionalPoints;
+    const taxableTotal = finalPaidPriceTotal / taxFactor;
+    const gstTotal = finalPaidPriceTotal - taxableTotal;
+
+    const offerPriceExcl = itemOfferTotal / taxFactor;
+    const discountExcl = proportionalDiscount / taxFactor;
+    const pointsExcl = proportionalPoints / taxFactor;
+
+    totalTaxableBeforeDiscounts += offerPriceExcl;
+    totalDiscountExcl += discountExcl;
+    totalPointsExcl += pointsExcl;
+    computedTotalTaxable += taxableTotal;
+    computedTotalGst += gstTotal;
+  });
+
+  const totalCgst = computedTotalGst / 2;
+  const totalSgst = computedTotalGst / 2;
+
   const steps = [
     { label: "Order Placed", date: new Date(order.createdAt).toLocaleString(), active: true, icon: <Clock /> },
     { label: "Payment Approved", date: isConfirmed ? new Date(order.createdAt).toLocaleDateString() : null, active: isConfirmed, icon: <CreditCard /> },
@@ -300,11 +343,81 @@ export function OrderDetails() {
                     <Link to={item.productData?.slug ? `/p/${item.productData.slug}` : `/product/${item.productId}`} className="font-bold text-gray-900 hover:text-indigo-600 line-clamp-1 text-sm md:text-base transition">
                       {item.productData?.name || "Loading name..."}
                     </Link>
-                    <div className="text-sm text-gray-500 mt-1 flex items-center gap-3">
-                      <span>Qty: <b className="text-gray-700">{item.quantity}</b></span>
-                      <span>×</span>
-                      <span>{formatPrice(item.price)}</span>
-                    </div>
+                    {(() => {
+                      const pct = item.productData?.gstPercentage !== undefined ? item.productData.gstPercentage : 18;
+                      const itemOfferPrice = item.price || 0;
+                      const itemOfferTotal = itemOfferPrice * item.quantity;
+                      
+                      // Retrieve pre-calculated persistent values from item, falling back to dynamic calculation for legacy orders
+                      const proportionalDiscount = (item.discountAmount !== undefined && item.discountAmount !== null)
+                        ? item.discountAmount 
+                        : (offerSubtotal > 0 ? (order.discountAmount || 0) * (itemOfferTotal / offerSubtotal) : 0);
+                        
+                      const proportionalPoints = (item.loyaltyPointsUsed !== undefined && item.loyaltyPointsUsed !== null)
+                        ? item.loyaltyPointsUsed 
+                        : (offerSubtotal > 0 ? (order.loyaltyPointsUsed || 0) * (itemOfferTotal / offerSubtotal) : 0);
+                      
+                      const taxFactor = 1 + pct / 100;
+                      
+                      const finalPaidPriceTotal = itemOfferTotal - proportionalDiscount - proportionalPoints;
+                      const taxableTotal = finalPaidPriceTotal / taxFactor;
+                      const gstTotal = finalPaidPriceTotal - taxableTotal;
+ 
+                      const offerPriceExcl = itemOfferTotal / taxFactor;
+                      const discountExcl = proportionalDiscount / taxFactor;
+                      const pointsExcl = proportionalPoints / taxFactor;
+ 
+                      const originalItemPrice = item.productData?.price || item.price;
+
+                      return (
+                        <div className="space-y-2 mt-1">
+                          <div className="text-sm text-gray-500 flex items-center gap-3">
+                            <span>Qty: <b className="text-gray-700">{item.quantity}</b></span>
+                            <span>×</span>
+                            {item.productData && originalItemPrice > item.price ? (
+                              <span className="flex items-center gap-1.5">
+                                <span className="line-through text-gray-400">{formatPrice(originalItemPrice)}</span>
+                                <span className="font-bold text-indigo-600">{formatPrice(item.price)}</span>
+                              </span>
+                            ) : (
+                              <span>{formatPrice(item.price)}</span>
+                            )}
+                          </div>
+
+                          {/* Itemized tax breakdown card */}
+                          <div className="bg-slate-50/50 border border-slate-100 rounded-2xl p-3.5 space-y-1.5 text-xs text-gray-500 max-w-sm">
+                            <div className="flex justify-between">
+                              <span>Offer Price (Incl. GST)</span>
+                              <span className="font-semibold text-slate-700">{formatPrice(item.price)}</span>
+                            </div>
+                            {proportionalDiscount > 0 && (
+                              <div className="flex justify-between text-emerald-600">
+                                <span>Coupon Discount</span>
+                                <span>- {formatPrice(proportionalDiscount / item.quantity)}</span>
+                              </div>
+                            )}
+                            {proportionalPoints > 0 && (
+                              <div className="flex justify-between text-amber-600">
+                                <span>Points Deducted</span>
+                                <span>- {formatPrice(proportionalPoints / item.quantity)}</span>
+                              </div>
+                            )}
+                            <div className="flex justify-between border-t border-dashed border-slate-200/60 pt-1.5 font-bold text-slate-700">
+                              <span>Final Price Unit (Paid)</span>
+                              <span className="text-indigo-600">{formatPrice(finalPaidPriceTotal / item.quantity)}</span>
+                            </div>
+                            <div className="flex justify-between text-[11px] text-slate-400">
+                              <span>└ Taxable Value (Base)</span>
+                              <span>{formatPrice(taxableTotal / item.quantity)}</span>
+                            </div>
+                            <div className="flex justify-between text-[11px] text-indigo-800 font-medium">
+                              <span>└ GST ({pct}%)</span>
+                              <span>+ {formatPrice(gstTotal / item.quantity)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
                     {isDelivered && (
                       <div className="mt-2">
                         {(() => {
@@ -353,7 +466,32 @@ export function OrderDetails() {
                     )}
                   </div>
                   <div className="text-right font-black text-gray-900 whitespace-nowrap">
-                    {formatPrice(item.price * item.quantity)}
+                    {(() => {
+                      const itemOfferPrice = item.price || 0;
+                      const itemOfferTotal = itemOfferPrice * item.quantity;
+                      
+                      // Retrieve pre-calculated persistent values from item, falling back to dynamic calculation for legacy orders
+                      const proportionalDiscount = (item.discountAmount !== undefined && item.discountAmount !== null)
+                        ? item.discountAmount 
+                        : (offerSubtotal > 0 ? (order.discountAmount || 0) * (itemOfferTotal / offerSubtotal) : 0);
+                        
+                      const proportionalPoints = (item.loyaltyPointsUsed !== undefined && item.loyaltyPointsUsed !== null)
+                        ? item.loyaltyPointsUsed 
+                        : (offerSubtotal > 0 ? (order.loyaltyPointsUsed || 0) * (itemOfferTotal / offerSubtotal) : 0);
+                      
+                      const finalPaidTotal = itemOfferTotal - proportionalDiscount - proportionalPoints;
+                      const originalItemPrice = item.productData?.price || item.price;
+                      const originalItemTotal = originalItemPrice * item.quantity;
+                      
+                      return (
+                        <div className="flex flex-col items-end">
+                          {originalItemTotal > finalPaidTotal && (
+                            <span className="line-through text-xs text-gray-400 font-normal">{formatPrice(originalItemTotal)}</span>
+                          )}
+                          <span className="text-indigo-600 font-black">{formatPrice(finalPaidTotal)}</span>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               ))}
@@ -383,38 +521,54 @@ export function OrderDetails() {
             <h3 className="text-md font-bold text-gray-900 flex items-center gap-2 mb-4">
               <ShoppingBag size={18} className="text-indigo-600" />
               Payment Summary
-            </h3>
-            <div className="space-y-3 text-sm">
+            </h3>            <div className="space-y-3 text-sm">
               <div className="flex justify-between text-gray-600">
-                <span>Subtotal</span>
-                <span className="font-semibold">{formatPrice((order.totalAmount || 0) + (order.discountAmount || 0) + (order.loyaltyPointsUsed || 0) - (order.taxAmount || 0) - (order.shippingCharge || 0) - (order.codCharge || 0))}</span>
+                <span>Offer Subtotal (Incl. GST)</span>
+                <span className="font-semibold">{formatPrice(offerSubtotal)}</span>
               </div>
-              {order.discountAmount > 0 && (
+              {(Number(order.discountAmount || 0) > 0) && (
                 <div className="flex justify-between text-emerald-600">
-                  <span>Discount {order.couponCode ? `(${order.couponCode})` : ''}</span>
-                  <span className="font-semibold">- {formatPrice(order.discountAmount)}</span>
+                  <span>Coupon Discount {order.couponCode ? `(${order.couponCode})` : ''}</span>
+                  <span className="font-semibold">- {formatPrice(Number(order.discountAmount))}</span>
                 </div>
               )}
-              {order.loyaltyPointsUsed > 0 && (
+              {(Number(order.loyaltyPointsUsed || 0) > 0) && (
                 <div className="flex justify-between text-amber-600">
-                  <span>Loyalty Points Used</span>
-                  <span className="font-semibold">- {formatPrice(order.loyaltyPointsUsed)}</span>
-                </div>
-              )}
-              {order.taxAmount > 0 && (
-                <div className="flex justify-between text-gray-600">
-                  <span>Taxes</span>
-                  <span className="font-semibold">+ {formatPrice(order.taxAmount)}</span>
+                  <span>Loyalty Points Redeemed</span>
+                  <span className="font-semibold">- {formatPrice(Number(order.loyaltyPointsUsed))}</span>
                 </div>
               )}
               <div className="flex justify-between text-gray-600">
                 <span>Shipping & COD Fees</span>
                 <span className="font-semibold">+ {formatPrice((order.shippingCharge || 0) + (order.codCharge || 0))}</span>
               </div>
-              <div className="border-t border-gray-100 pt-3 flex justify-between text-base font-black text-gray-900">
+              <div className="border-t border-gray-100 pt-3 flex justify-between text-base font-black text-gray-900 font-black">
                 <span>Total Paid</span>
                 <span>{formatPrice(order.totalAmount)}</span>
               </div>
+
+              {computedTotalGst > 0 && (
+                <div className="bg-indigo-50/50 rounded-xl p-3.5 border border-indigo-100/50 space-y-1.5 text-xs text-indigo-900 pl-4 border-l-2 border-indigo-500 mt-3 font-medium">
+                  <div className="flex justify-between font-bold">
+                    <span>GST (Included in Prices)</span>
+                    <span>{formatPrice(computedTotalGst)}</span>
+                  </div>
+                  <div className="pl-3 border-l border-indigo-200 space-y-1.5 text-[11px] text-indigo-700/80">
+                    <div className="flex justify-between">
+                      <span>Taxable Base Value (X)</span>
+                      <span>{formatPrice(computedTotalTaxable)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>CGST (Central Tax)</span>
+                      <span>{formatPrice(totalCgst)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>SGST (State Tax)</span>
+                      <span>{formatPrice(totalSgst)}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

@@ -189,6 +189,14 @@ public class OrderController {
         order.setCouponCode(orderRequest.getCouponCode());
         order.setLoyaltyPointsUsed(calcRes.getLoyaltyPointsUsed());
 
+        BigDecimal offerSubtotal = BigDecimal.ZERO;
+        if (orderRequest.getItems() != null) {
+            for (com.gtstore.orderservice.dto.CheckoutCalculationResponse.CalculatedItemDto cItem : calcRes.getItems()) {
+                BigDecimal itemOfferPrice = cItem.getDiscountedPrice() != null ? cItem.getDiscountedPrice() : BigDecimal.ZERO;
+                offerSubtotal = offerSubtotal.add(itemOfferPrice.multiply(BigDecimal.valueOf(cItem.getQuantity())));
+            }
+        }
+
         if (orderRequest.getItems() != null) {
             for (com.gtstore.orderservice.dto.CheckoutCalculationResponse.CalculatedItemDto cItem : calcRes.getItems()) {
                 OrderItem item = new OrderItem();
@@ -196,7 +204,16 @@ public class OrderController {
                 // find variant from original
                 orderRequest.getItems().stream().filter(i -> i.getProductId().equals(cItem.getProductId())).findFirst().ifPresent(i -> item.setVariantId(i.getVariantId()));
                 item.setQuantity(cItem.getQuantity());
-                item.setPrice(cItem.getDiscountedPrice()); // Use secure discounted price!
+                
+                BigDecimal itemOfferPrice = cItem.getOriginalPrice() != null ? cItem.getOriginalPrice() : BigDecimal.ZERO;
+                item.setPrice(itemOfferPrice); // Use original price as base price
+                
+                BigDecimal propDiscount = cItem.getCouponDiscountAmount() != null ? cItem.getCouponDiscountAmount() : BigDecimal.ZERO;
+                BigDecimal propPoints = cItem.getLoyaltyPointsUsed() != null ? cItem.getLoyaltyPointsUsed() : BigDecimal.ZERO;
+                
+                item.setDiscountAmount(propDiscount);
+                item.setLoyaltyPointsUsed(propPoints);
+                
                 order.addItem(item);
             }
         }
@@ -268,6 +285,9 @@ public class OrderController {
                 dto.setProductId(i.getProductId());
                 dto.setVariantId(i.getVariantId());
                 dto.setQuantity(i.getQuantity());
+                dto.setPrice(i.getPrice());
+                dto.setDiscountAmount(i.getDiscountAmount());
+                dto.setLoyaltyPointsUsed(i.getLoyaltyPointsUsed());
                 return dto;
             }).collect(Collectors.toList()));
         }
