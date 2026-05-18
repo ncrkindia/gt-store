@@ -21,6 +21,15 @@ interface ShippingBand {
     charge: number;
 }
 
+interface SettingHistory {
+    id: number;
+    key: string;
+    oldValue: string;
+    newValue: string;
+    updatedBy: string;
+    updatedAt: string;
+}
+
 const ShippingPage = () => {
     const { keycloak, initialized } = useKeycloak();
     const [shipments, setShipments] = useState<Shipment[]>([]);
@@ -38,6 +47,7 @@ const ShippingPage = () => {
     ]);
     const [codCharge, setCodCharge] = useState('5');
     const [savingSettings, setSavingSettings] = useState(false);
+    const [history, setHistory] = useState<SettingHistory[]>([]);
 
     // Form inputs for a new band
     const [newMin, setNewMin] = useState('');
@@ -97,6 +107,10 @@ const ShippingPage = () => {
                     setCodCharge(settingsRes.data.COD_FIXED_CHARGE);
                 }
             }
+
+            // 3. Fetch change history
+            const historyRes = await apiClient.get('/api/orders/settings/history');
+            setHistory(Array.isArray(historyRes.data) ? historyRes.data : []);
         } catch (error) {
             console.error("Error fetching logistics configs", error);
             toast.error("Failed to load logistics dispatch or shipping rules.");
@@ -367,7 +381,8 @@ const ShippingPage = () => {
                     </div>
                 </>
             ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start text-sm">
+                <>
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start text-sm">
                     {/* Left: Current Shipping Charge Bands & COD Fee Form */}
                     <div className="lg:col-span-2 bg-white border border-slate-200 rounded-3xl p-6 md:p-8 space-y-6 shadow-sm">
                         <div className="border-b border-slate-100 pb-4">
@@ -517,6 +532,69 @@ const ShippingPage = () => {
                         </form>
                     </div>
                 </div>
+
+                {/* Configuration Change History */}
+                <div className="bg-white border border-slate-200 rounded-3xl p-6 md:p-8 space-y-6 shadow-sm mt-6">
+                    <div className="border-b border-slate-100 pb-4">
+                        <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                            <Clock size={22} className="text-indigo-600 animate-pulse" /> Configuration Change History
+                        </h3>
+                        <p className="text-slate-500 text-xs mt-0.5">Audit trail of all administrative updates to Shipping Bands, COD charges, and Loyalty configurations.</p>
+                    </div>
+                    
+                    <div className="overflow-x-auto border border-slate-200 rounded-2xl shadow-inner bg-slate-50/30">
+                        <table className="w-full text-left border-collapse text-xs">
+                            <thead>
+                                <tr className="bg-slate-100 border-b border-slate-200">
+                                    <th className="px-6 py-4 font-bold text-slate-500 uppercase tracking-wider">Setting Key</th>
+                                    <th className="px-6 py-4 font-bold text-slate-500 uppercase tracking-wider">Prior Value</th>
+                                    <th className="px-6 py-4 font-bold text-slate-500 uppercase tracking-wider">New Value</th>
+                                    <th className="px-6 py-4 font-bold text-slate-500 uppercase tracking-wider">Authorized User</th>
+                                    <th className="px-6 py-4 font-bold text-slate-500 uppercase tracking-wider">Changed At</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-150">
+                                {history.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={5} className="py-12 text-center text-slate-400 italic font-medium bg-white">
+                                            No configuration adjustments recorded in the audit trail.
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    history.map((h, index) => {
+                                        const key = h?.key || 'SYSTEM_SETTING';
+                                        const oldValue = h?.oldValue || 'N/A';
+                                        const newValue = h?.newValue || 'N/A';
+                                        const updatedBy = h?.updatedBy || 'System';
+                                        const formattedDate = h?.updatedAt ? new Date(h.updatedAt).toLocaleString() : 'N/A';
+                                        
+                                        return (
+                                            <tr key={h?.id || index} className="hover:bg-indigo-50/15 bg-white transition-colors">
+                                                <td className="px-6 py-4 font-bold text-slate-800">
+                                                    <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-extrabold tracking-wide border ${
+                                                        key === 'SHIPPING_RULES' ? 'bg-indigo-50 text-indigo-700 border-indigo-150' :
+                                                        key === 'COD_FIXED_CHARGE' ? 'bg-amber-50 text-amber-700 border-amber-150' : 'bg-emerald-50 text-emerald-700 border-emerald-150'
+                                                    }`}>
+                                                        {key.replace(/_/g, ' ')}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-4 text-slate-500 font-mono select-all truncate max-w-[200px]" title={oldValue}>{oldValue}</td>
+                                                <td className="px-6 py-4 text-emerald-600 font-mono font-bold select-all truncate max-w-[200px]" title={newValue}>
+                                                    → {newValue}
+                                                </td>
+                                                <td className="px-6 py-4 text-slate-700 font-semibold">{updatedBy}</td>
+                                                <td className="px-6 py-4 text-slate-400 font-medium">
+                                                    {formattedDate}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </>
             )}
             
             <div className="text-center pt-4">

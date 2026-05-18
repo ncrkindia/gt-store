@@ -55,7 +55,7 @@ const fetchProductsBulk = async (ids: string[]) => {
 export function Cart() {
   const [showAddressSelector, setShowAddressSelector] = useState(false);
   const [selectedAddressId, setSelectedAddressId] = useState<number | null>(null);
-  
+
   const { keycloak } = useKeycloak();
   const queryClient = useQueryClient();
 
@@ -64,6 +64,7 @@ export function Cart() {
   const [pointsToUseInput, setPointsToUseInput] = useState<number>(0);
   const [appliedPoints, setAppliedPoints] = useState<number>(0);
   const [showAllCoupons, setShowAllCoupons] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<'ONLINE' | 'COD'>('ONLINE');
 
   const { data: cart, isLoading: isCartLoading } = useQuery({
     queryKey: ['cart'],
@@ -114,7 +115,7 @@ export function Cart() {
   }).filter(Boolean) as any[];
 
   const { data: calculation, isLoading: isCalculating } = useQuery({
-    queryKey: ['orderCalculation', cart?.items, appliedCoupon, appliedPoints],
+    queryKey: ['orderCalculation', cart?.items, appliedCoupon, appliedPoints, paymentMethod],
     queryFn: async () => {
       if (!cart || !cart.items || cart.items.length === 0) return null;
       const payload = {
@@ -124,7 +125,8 @@ export function Cart() {
           price: 0 // Server will determine true price
         })),
         couponCode: appliedCoupon,
-        loyaltyPointsToUse: appliedPoints
+        loyaltyPointsToUse: appliedPoints,
+        paymentMethod: paymentMethod
       };
       const res = await apiClient.post('/orders/calculate', payload);
       return res.data;
@@ -148,14 +150,14 @@ export function Cart() {
 
   const isCouponApplicable = (coupon: any) => {
     if (!coupon.active) return false;
-    
+
     const now = new Date();
     if (coupon.startDate && new Date(coupon.startDate) > now) return false;
     if (coupon.expiryDate && new Date(coupon.expiryDate) < now) return false;
-    
+
     // Min order value check
     if (coupon.minOrderValue && subtotal < coupon.minOrderValue) return false;
-    
+
     // User specific check
     if (coupon.applicableUserIds && coupon.applicableUserIds.trim().length > 0) {
       const email = keycloak.tokenParsed?.email || '';
@@ -164,31 +166,31 @@ export function Cart() {
       const hasAccess = allowed.includes(email.toLowerCase()) || allowed.includes(userId.toLowerCase());
       if (!hasAccess) return false;
     }
-    
+
     // Min quantity check
     if (coupon.minQuantity && coupon.minQuantity > 0) {
-      const applicableProdIds = coupon.applicableProductIds 
-        ? coupon.applicableProductIds.split(',').map((s: string) => s.trim()) 
+      const applicableProdIds = coupon.applicableProductIds
+        ? coupon.applicableProductIds.split(',').map((s: string) => s.trim())
         : [];
-      
+
       const totalQty = enrichedItems.reduce((sum, item) => {
         const matches = applicableProdIds.length === 0 || applicableProdIds.includes(item.productId);
         return sum + (matches ? item.quantity : 0);
       }, 0);
-      
+
       if (totalQty < coupon.minQuantity) return false;
     }
-    
+
     return true;
   };
 
   const estimateDiscount = (coupon: any) => {
     if (!isCouponApplicable(coupon)) return 0;
-    
+
     const isPercent = coupon.discountType.includes("PERCENT");
     const isCart = coupon.discountType.includes("CART");
     const val = Number(coupon.discountValue);
-    
+
     if (isCart) {
       if (isPercent) {
         let discount = subtotal * (val / 100);
@@ -201,15 +203,15 @@ export function Cart() {
       }
     } else {
       // Product specific
-      const applicableProdIds = coupon.applicableProductIds 
-        ? coupon.applicableProductIds.split(',').map((s: string) => s.trim()) 
+      const applicableProdIds = coupon.applicableProductIds
+        ? coupon.applicableProductIds.split(',').map((s: string) => s.trim())
         : [];
-      
+
       let applicableAmt = enrichedItems.reduce((sum, item) => {
         const matches = applicableProdIds.length === 0 || applicableProdIds.includes(item.productId);
         return sum + (matches ? (item.product.price * item.quantity) : 0);
       }, 0);
-      
+
       if (isPercent) {
         let discount = applicableAmt * (val / 100);
         if (coupon.maxDiscountCap) {
@@ -271,7 +273,7 @@ export function Cart() {
     const appA = isCouponApplicable(a) ? 1 : 0;
     const appB = isCouponApplicable(b) ? 1 : 0;
     if (appA !== appB) return appB - appA;
-    
+
     const saveA = estimateDiscount(a);
     const saveB = estimateDiscount(b);
     return saveB - saveA;
@@ -439,71 +441,71 @@ export function Cart() {
           <div className="space-y-6">
             {/* Address Selection Section */}
             <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100 overflow-hidden relative">
-               <div className="flex items-center gap-3 mb-6">
-                 <div className="bg-indigo-100 p-2 rounded-lg">
-                   <MapPin className="w-5 h-5 text-indigo-600" />
-                 </div>
-                 <h2 className="text-xl font-bold">Delivery Address</h2>
-               </div>
+              <div className="flex items-center gap-3 mb-6">
+                <div className="bg-indigo-100 p-2 rounded-lg">
+                  <MapPin className="w-5 h-5 text-indigo-600" />
+                </div>
+                <h2 className="text-xl font-bold">Delivery Address</h2>
+              </div>
 
-               {addresses.length === 0 ? (
-                 <div className="text-center py-4">
-                   <p className="text-gray-600 mb-4">No addresses saved yet.</p>
-                   <Link to="/account/addresses" className="text-indigo-600 font-bold hover:underline">Add Address</Link>
-                 </div>
-               ) : (
-                 <div>
-                   {!showAddressSelector ? (
-                     <div className="flex justify-between items-start bg-gray-50 p-4 rounded-xl border border-gray-200">
-                       <div className="flex-1">
-                         <div className="flex items-center gap-2 mb-1">
-                           <span className="font-bold text-gray-900">{selectedAddress?.name || user.name}</span>
-                           {selectedAddress?.isDefault && <span className="text-[10px] bg-indigo-600 text-white px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Default</span>}
-                         </div>
-                         <p className="text-gray-600 text-sm">{selectedAddress?.line1}, {selectedAddress?.line2 && selectedAddress.line2 + ', '}{selectedAddress?.city}</p>
-                         <p className="text-gray-600 text-sm font-semibold mt-1">{selectedAddress?.state}, {selectedAddress?.pincode}</p>
-                         <p className="text-indigo-600 text-sm font-bold mt-2">Contact: {selectedAddress?.phone || user.phone || 'N/A'}</p>
-                       </div>
-                       <button 
-                         onClick={() => setShowAddressSelector(true)}
-                         className="text-indigo-600 text-sm font-bold hover:underline flex items-center gap-1 cursor-pointer"
-                       >
-                         Change <ChevronRight className="w-4 h-4" />
-                       </button>
-                     </div>
-                   ) : (
-                     <div className="space-y-3">
-                       {addresses.map((addr: any) => (
-                         <div 
-                           key={addr.id}
-                           onClick={() => {
-                             setSelectedAddressId(addr.id);
-                             setShowAddressSelector(false);
-                           }}
-                           className={`p-4 rounded-xl border-2 transition cursor-pointer flex justify-between items-center ${selectedAddressId === addr.id ? 'border-indigo-600 bg-indigo-50/30' : 'border-gray-100 bg-white hover:border-indigo-200'}`}
-                         >
-                           <div className="flex-1 pr-4">
-                              <div className="flex items-center gap-2 mb-1 flex-wrap">
-                                <span className="font-bold text-gray-900 text-sm">{addr.name || user.name}</span>
-                                {addr.isDefault && <span className="text-[9px] bg-indigo-600 text-white px-1.5 py-0.5 rounded-full font-bold tracking-wide">DEFAULT</span>}
-                              </div>
-                              <p className="text-xs text-gray-700 mb-0.5">{addr.line1}</p>
-                              <p className="text-[11px] text-gray-500">{addr.city}, {addr.state} - {addr.pincode}</p>
-                              <p className="text-[11px] text-indigo-600 font-semibold">Phone: {addr.phone || user.phone || 'N/A'}</p>
-                           </div>
-                           {selectedAddressId === addr.id && <CheckCircle2 className="w-5 h-5 text-indigo-600" />}
-                         </div>
-                       ))}
-                       <button 
-                         onClick={() => setShowAddressSelector(false)}
-                         className="w-full py-2 text-sm text-gray-500 font-bold hover:text-indigo-600"
-                       >
-                         Cancel
-                       </button>
-                     </div>
-                   )}
-                 </div>
-               )}
+              {addresses.length === 0 ? (
+                <div className="text-center py-4">
+                  <p className="text-gray-600 mb-4">No addresses saved yet.</p>
+                  <Link to="/account/addresses" className="text-indigo-600 font-bold hover:underline">Add Address</Link>
+                </div>
+              ) : (
+                <div>
+                  {!showAddressSelector ? (
+                    <div className="flex justify-between items-start bg-gray-50 p-4 rounded-xl border border-gray-200">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-bold text-gray-900">{selectedAddress?.name || user.name}</span>
+                          {selectedAddress?.isDefault && <span className="text-[10px] bg-indigo-600 text-white px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Default</span>}
+                        </div>
+                        <p className="text-gray-600 text-sm">{selectedAddress?.line1}, {selectedAddress?.line2 && selectedAddress.line2 + ', '}{selectedAddress?.city}</p>
+                        <p className="text-gray-600 text-sm font-semibold mt-1">{selectedAddress?.state}, {selectedAddress?.pincode}</p>
+                        <p className="text-indigo-600 text-sm font-bold mt-2">Contact: {selectedAddress?.phone || user.phone || 'N/A'}</p>
+                      </div>
+                      <button
+                        onClick={() => setShowAddressSelector(true)}
+                        className="text-indigo-600 text-sm font-bold hover:underline flex items-center gap-1 cursor-pointer"
+                      >
+                        Change <ChevronRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {addresses.map((addr: any) => (
+                        <div
+                          key={addr.id}
+                          onClick={() => {
+                            setSelectedAddressId(addr.id);
+                            setShowAddressSelector(false);
+                          }}
+                          className={`p-4 rounded-xl border-2 transition cursor-pointer flex justify-between items-center ${selectedAddressId === addr.id ? 'border-indigo-600 bg-indigo-50/30' : 'border-gray-100 bg-white hover:border-indigo-200'}`}
+                        >
+                          <div className="flex-1 pr-4">
+                            <div className="flex items-center gap-2 mb-1 flex-wrap">
+                              <span className="font-bold text-gray-900 text-sm">{addr.name || user.name}</span>
+                              {addr.isDefault && <span className="text-[9px] bg-indigo-600 text-white px-1.5 py-0.5 rounded-full font-bold tracking-wide">DEFAULT</span>}
+                            </div>
+                            <p className="text-xs text-gray-700 mb-0.5">{addr.line1}</p>
+                            <p className="text-[11px] text-gray-500">{addr.city}, {addr.state} - {addr.pincode}</p>
+                            <p className="text-[11px] text-indigo-600 font-semibold">Phone: {addr.phone || user.phone || 'N/A'}</p>
+                          </div>
+                          {selectedAddressId === addr.id && <CheckCircle2 className="w-5 h-5 text-indigo-600" />}
+                        </div>
+                      ))}
+                      <button
+                        onClick={() => setShowAddressSelector(false)}
+                        className="w-full py-2 text-sm text-gray-500 font-bold hover:text-indigo-600"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Cart Items Section */}
@@ -602,41 +604,39 @@ export function Cart() {
               {sortedCoupons.length > 0 && (
                 <div className="mt-6 border-t border-gray-100 pt-4 space-y-3">
                   <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Available Coupons</h4>
-                  
+
                   <div className="space-y-2">
                     {visibleCoupons.map((coupon) => {
                       const applicable = isCouponApplicable(coupon);
                       const saving = estimateDiscount(coupon);
                       const isApplied = appliedCoupon === coupon.code;
                       const humanDesc = getCouponHumanDescription(coupon);
-                      
+
                       return (
-                        <div 
-                          key={coupon.id} 
-                          className={`p-3 rounded-xl border flex items-center justify-between gap-3 transition relative group ${
-                            applicable 
-                              ? isApplied 
-                                ? 'border-emerald-500 bg-emerald-50/30' 
+                        <div
+                          key={coupon.id}
+                          className={`p-3 rounded-xl border flex items-center justify-between gap-3 transition relative group ${applicable
+                              ? isApplied
+                                ? 'border-emerald-500 bg-emerald-50/30'
                                 : 'border-indigo-100 bg-indigo-50/10 hover:border-indigo-300'
                               : 'border-gray-200 bg-gray-50/50 opacity-60'
-                          }`}
+                            }`}
                         >
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
-                              <span className={`font-mono text-xs font-black px-2 py-0.5 rounded tracking-wide ${
-                                applicable
+                              <span className={`font-mono text-xs font-black px-2 py-0.5 rounded tracking-wide ${applicable
                                   ? 'bg-indigo-50 text-indigo-700 border border-indigo-100/50'
                                   : 'bg-gray-200 text-gray-500'
-                              }`}>
+                                }`}>
                                 {coupon.code}
                               </span>
-                              
+
                               {applicable && saving > 0 && (
                                 <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">
                                   Save ₹{saving}
                                 </span>
                               )}
-                              
+
                               {/* Hoverable Info Icon for Description */}
                               <div className="relative inline-block cursor-help group/info">
                                 <Info className="w-3.5 h-3.5 text-gray-400 hover:text-indigo-600 transition" />
@@ -650,12 +650,12 @@ export function Cart() {
                                 </div>
                               </div>
                             </div>
-                            
+
                             <p className="text-[10px] text-gray-500 mt-1 truncate">
                               {humanDesc.main}
                             </p>
                           </div>
-                          
+
                           <button
                             onClick={() => {
                               if (applicable) {
@@ -669,13 +669,12 @@ export function Cart() {
                               }
                             }}
                             disabled={!applicable}
-                            className={`px-3 py-1 rounded-lg text-xs font-bold transition shrink-0 cursor-pointer ${
-                              applicable
+                            className={`px-3 py-1 rounded-lg text-xs font-bold transition shrink-0 cursor-pointer ${applicable
                                 ? isApplied
                                   ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm'
                                   : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm'
                                 : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                            }`}
+                              }`}
                           >
                             {isApplied ? 'Applied' : 'Apply'}
                           </button>
@@ -683,7 +682,7 @@ export function Cart() {
                       );
                     })}
                   </div>
-                  
+
                   {/* Expand / Collapse Button */}
                   {sortedCoupons.length > 5 && (
                     <button
@@ -739,6 +738,55 @@ export function Cart() {
               </div>
             )}
 
+            {/* Payment Method Selector */}
+            <div className="bg-white rounded-2xl p-6 shadow-md border border-gray-100 space-y-4">
+              <h3 className="text-lg font-bold flex items-center gap-2">
+                <span className="text-indigo-600">💳</span>
+                Payment Method
+              </h3>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod('ONLINE')}
+                  className={`p-4 rounded-xl border-2 transition text-left cursor-pointer flex flex-col justify-between h-24 ${paymentMethod === 'ONLINE'
+                      ? 'border-indigo-600 bg-indigo-50/20'
+                      : 'border-gray-200 bg-white hover:border-indigo-200'
+                    }`}
+                >
+                  <div className="flex items-center justify-between w-full">
+                    <span className="text-xs font-bold text-gray-800 uppercase tracking-wide">Online Payment</span>
+                    <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${paymentMethod === 'ONLINE' ? 'border-indigo-600 bg-indigo-600' : 'border-gray-300'
+                      }`}>
+                      {paymentMethod === 'ONLINE' && <span className="w-1.5 h-1.5 bg-white rounded-full" />}
+                    </span>
+                  </div>
+                  <div className="text-[10px] text-gray-500 mt-2 font-medium leading-tight">
+                    UPI, Credit/Debit Cards, NetBanking (via Razorpay)
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod('COD')}
+                  className={`p-4 rounded-xl border-2 transition text-left cursor-pointer flex flex-col justify-between h-24 ${paymentMethod === 'COD'
+                      ? 'border-indigo-600 bg-indigo-50/20'
+                      : 'border-gray-200 bg-white hover:border-indigo-200'
+                    }`}
+                >
+                  <div className="flex items-center justify-between w-full">
+                    <span className="text-xs font-bold text-gray-800 uppercase tracking-wide">Cash on Delivery</span>
+                    <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${paymentMethod === 'COD' ? 'border-indigo-600 bg-indigo-600' : 'border-gray-300'
+                      }`}>
+                      {paymentMethod === 'COD' && <span className="w-1.5 h-1.5 bg-white rounded-full" />}
+                    </span>
+                  </div>
+                  <div className="text-[10px] text-gray-500 mt-2 font-medium leading-tight">
+                    Pay with cash at delivery.{calculation?.codCharge > 0 ? ` (+ ₹${calculation.codCharge} fee)` : ''}
+                  </div>
+                </button>
+              </div>
+            </div>
+
             <div className="bg-gradient-to-br from-white to-purple-50/50 rounded-2xl p-6 shadow-xl border border-purple-100 relative">
               {isCalculating && (
                 <div className="absolute inset-0 bg-white/70 flex items-center justify-center rounded-2xl z-10 backdrop-blur-sm">
@@ -754,7 +802,7 @@ export function Cart() {
                   <span className="text-gray-600">Base Subtotal ({enrichedItems.length} items)</span>
                   <span className="font-semibold">{formatPrice(subtotal)}</span>
                 </div>
-                
+
                 {(calculation?.productDiscounts > 0 || calculation?.cartDiscounts > 0) && (
                   <div className="flex justify-between text-sm text-emerald-600">
                     <span>Discount (Coupon)</span>
@@ -767,7 +815,7 @@ export function Cart() {
                     <span>GST (Included in Prices)</span>
                     <span>{formatPrice(totalGst)}</span>
                   </div>
-                  
+
                   <div className="pl-3 border-l-2 border-indigo-200 space-y-1.5 text-xs text-gray-500">
                     <div className="flex justify-between">
                       <span>Total Taxable (Base) Value</span>
@@ -836,6 +884,13 @@ export function Cart() {
                     )}
                   </span>
                 </div>
+
+                {paymentMethod === 'COD' && (calculation?.codCharge || 0) > 0 && (
+                  <div className="flex justify-between text-sm text-amber-700 font-medium">
+                    <span>COD Handling Fee</span>
+                    <span>+ {formatPrice(calculation.codCharge)}</span>
+                  </div>
+                )}
               </div>
 
               <div className="border-t border-dashed border-gray-300 pt-6 mb-6">
@@ -860,22 +915,24 @@ export function Cart() {
               )}
 
               <div className="space-y-3">
-                <button
-                  onClick={handleRazorpayPayment}
-                  disabled={!selectedAddress}
-                  className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold py-4 px-4 rounded-xl flex items-center justify-center gap-3 hover:from-indigo-700 hover:to-purple-700 transition shadow-lg cursor-pointer text-lg disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <img src="https://razorpay.com/favicon.png" alt="Razorpay" className="w-6 h-6 brightness-0 invert" />
-                  Pay with Razorpay
-                </button>
-
-                <button
-                  onClick={handleCODPayment}
-                  disabled={!selectedAddress}
-                  className="w-full bg-white text-indigo-600 font-bold py-4 px-4 rounded-xl flex items-center justify-center gap-3 border-2 border-indigo-600 hover:bg-indigo-50 transition cursor-pointer text-lg disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Cash on Delivery (COD)
-                </button>
+                {paymentMethod === 'ONLINE' ? (
+                  <button
+                    onClick={handleRazorpayPayment}
+                    disabled={!selectedAddress}
+                    className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold py-4 px-4 rounded-xl flex items-center justify-center gap-3 hover:from-indigo-700 hover:to-purple-700 transition shadow-lg cursor-pointer text-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <img src="https://razorpay.com/favicon.png" alt="Razorpay" className="w-6 h-6 brightness-0 invert" />
+                    Pay with Razorpay
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleCODPayment}
+                    disabled={!selectedAddress}
+                    className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold py-4 px-4 rounded-xl flex items-center justify-center gap-3 hover:from-indigo-700 hover:to-purple-700 transition shadow-lg cursor-pointer text-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Place COD Order
+                  </button>
+                )}
               </div>
 
               <p className="text-[10px] text-gray-400 text-center mt-6">

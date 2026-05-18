@@ -15,7 +15,7 @@ const Sidebar = () => {
         { divider: true },
         { to: "/inventory", label: "Inventory Management", icon: Boxes },
         { to: "/orders", label: "Sales Orders", icon: ClipboardList },
-        { to: "/shipping", label: "Logistics Dispatch", icon: Truck },
+        { to: "/shipping", label: "Shipping & COD Settings", icon: Truck },
         { to: "/coupons", label: "Coupons & Promos", icon: Percent },
         { to: "/loyalty", label: "Loyalty Program", icon: Award },
         { divider: true },

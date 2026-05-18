@@ -54,7 +54,7 @@ public class OrderController {
         if (email == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
-        boolean isCod = false;
+        boolean isCod = request != null && "COD".equalsIgnoreCase(request.getPaymentMethod());
         com.gtstore.orderservice.dto.CheckoutCalculationResponse calc = promotionService.calculateCheckout(request, email, isCod);
         return ResponseEntity.ok(calc);
     }
@@ -165,6 +165,7 @@ public class OrderController {
         com.gtstore.orderservice.dto.CheckoutCalculationRequest calcReq = new com.gtstore.orderservice.dto.CheckoutCalculationRequest();
         calcReq.setCouponCode(orderRequest.getCouponCode());
         calcReq.setLoyaltyPointsToUse(orderRequest.getLoyaltyPointsUsed());
+        calcReq.setPaymentMethod(isCod ? "COD" : "ONLINE");
         
         List<com.gtstore.orderservice.dto.OrderItemDto> dtoList = new java.util.ArrayList<>();
         if (orderRequest.getItems() != null) {
