@@ -26,8 +26,18 @@ export function Coupons() {
   const [loading, setLoading] = useState(true);
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const [couponActive, setCouponActive] = useState(true);
 
   useEffect(() => {
+    // Fetch coupon program enablement status
+    apiClient.get('/orders/settings')
+      .then(res => {
+        if (res.data && res.data.COUPON_PROGRAM_ENABLED === 'false') {
+          setCouponActive(false);
+        }
+      })
+      .catch(err => console.error("Error retrieving settings inside Coupons account list", err));
+
     if (initialized && keycloak.authenticated) {
       fetchCoupons();
     }
@@ -115,6 +125,35 @@ export function Coupons() {
       <div className="bg-white rounded-2xl p-12 text-center shadow-sm border border-gray-100">
         <div className="animate-spin w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full mx-auto mb-4" />
         <p className="text-gray-500 font-medium">Fetching exclusive coupons...</p>
+      </div>
+    );
+  }
+
+  if (!couponActive) {
+    return (
+      <div className="bg-white rounded-3xl p-12 text-center shadow-xl border border-slate-200/60 max-w-2xl mx-auto flex flex-col items-center space-y-6 relative overflow-hidden">
+        {/* Glow effect */}
+        <div className="absolute -top-12 -right-12 w-32 h-32 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-12 -left-12 w-32 h-32 bg-purple-500/5 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="w-20 h-20 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-500 shadow-md">
+          <Tag className="w-10 h-10" strokeWidth={1.5} />
+        </div>
+
+        <div className="space-y-2">
+          <h2 className="text-2xl font-black text-slate-800 tracking-tight">
+            Promotional Coupons Suspended
+          </h2>
+          <p className="text-slate-500 text-sm max-w-md mx-auto leading-relaxed">
+            The store's active promotional campaigns and discount vouchers are temporarily paused. Active codes cannot be created or redeemed at this moment.
+          </p>
+        </div>
+
+        <div className="w-full h-px bg-slate-100 my-2" />
+
+        <p className="text-xs text-slate-400 font-semibold bg-slate-50 border border-slate-100 rounded-full px-4 py-1.5 uppercase tracking-wide">
+          ⏳ Check back later for new campaign launches
+        </p>
       </div>
     );
   }

@@ -85,7 +85,11 @@ public class PromotionService {
         BigDecimal productDiscounts = BigDecimal.ZERO;
         BigDecimal cartDiscounts = BigDecimal.ZERO;
 
-        if (request.getCouponCode() != null && !request.getCouponCode().isEmpty()) {
+        String couponEnabled = settingRepository.findById("COUPON_PROGRAM_ENABLED").map(SystemSetting::getValue).orElse("true");
+        boolean isCouponActive = "true".equalsIgnoreCase(couponEnabled);
+        response.setCouponProgramEnabled(isCouponActive);
+
+        if (isCouponActive && request.getCouponCode() != null && !request.getCouponCode().isEmpty()) {
             Optional<Coupon> couponOpt = couponRepository.findByCode(request.getCouponCode());
             if (couponOpt.isPresent()) {
                 Coupon coupon = couponOpt.get();

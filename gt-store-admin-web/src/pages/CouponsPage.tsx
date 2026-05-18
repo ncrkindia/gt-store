@@ -29,6 +29,7 @@ const CouponsPage = () => {
     const [coupons, setCoupons] = useState<Coupon[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
+    const [couponEnabled, setCouponEnabled] = useState(true);
     
     // Modal & Form State
     const [isOpen, setIsOpen] = useState(false);
@@ -57,11 +58,30 @@ const CouponsPage = () => {
             setLoading(true);
             const res = await apiClient.get('/api/orders/coupons');
             setCoupons(Array.isArray(res.data) ? res.data : []);
+
+            // Retrieve coupon program configuration status
+            const settingsRes = await apiClient.get('/api/orders/settings');
+            if (settingsRes.data && settingsRes.data.COUPON_PROGRAM_ENABLED) {
+                setCouponEnabled(settingsRes.data.COUPON_PROGRAM_ENABLED === 'true');
+            }
         } catch (error) {
             console.error("Error fetching coupons", error);
             toast.error("Failed to retrieve coupon catalog.");
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleToggleCouponProgram = async (newVal: boolean) => {
+        try {
+            setCouponEnabled(newVal);
+            await apiClient.post('/api/orders/settings', {
+                COUPON_PROGRAM_ENABLED: newVal.toString()
+            });
+            toast.success(`Coupon system campaigns are now ${newVal ? 'Active / Enabled' : 'Inactive / Disabled'}!`);
+        } catch (error) {
+            console.error("Error updating coupon program status", error);
+            toast.error("Failed to update coupon program status.");
         }
     };
 
@@ -222,8 +242,19 @@ const CouponsPage = () => {
                         <Percent size={28} strokeWidth={1.5} />
                     </div>
                     <div>
-                        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Coupons & Promos</h1>
-                        <p className="text-slate-500 text-sm">Configure marketing campaign rules, user-specific compensations, and discount thresholds.</p>
+                        <div className="flex items-center gap-2 flex-wrap">
+                            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Coupons & Promos</h1>
+                            {couponEnabled ? (
+                                <span className="flex items-center gap-0.5 bg-emerald-50 text-emerald-700 text-[10px] font-bold px-2.5 py-1 rounded-full border border-emerald-100 uppercase tracking-wide">
+                                    Active
+                                </span>
+                            ) : (
+                                <span className="flex items-center gap-0.5 bg-slate-100 text-slate-600 text-[10px] font-bold px-2.5 py-1 rounded-full border border-slate-200 uppercase tracking-wide">
+                                    Disabled
+                                </span>
+                            )}
+                        </div>
+                        <p className="text-slate-500 text-sm mt-1">Configure marketing campaign rules, user-specific compensations, and discount thresholds.</p>
                     </div>
                 </div>
 
@@ -234,6 +265,32 @@ const CouponsPage = () => {
                     <Plus size={18} />
                     New Promo Code
                 </button>
+            </div>
+
+            {/* Operational Enable/Disable Control Card with Premium Aesthetics */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm transition hover:shadow-md/5">
+                <div className="space-y-1">
+                    <h4 className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+                        Coupon System Operational Status
+                    </h4>
+                    <p className="text-xs text-slate-400">
+                        When disabled, sitewide coupons are suspended. Customers cannot see coupon pages, apply codes on cart/checkout, or earn order credits. Historic order invoicing remains unaffected.
+                    </p>
+                </div>
+                <div className="flex items-center gap-3">
+                    <span className={`text-xs font-bold uppercase tracking-wider ${couponEnabled ? 'text-emerald-600' : 'text-slate-400'}`}>
+                        {couponEnabled ? "Active / Enabled" : "Inactive / Disabled"}
+                    </span>
+                    <button
+                        type="button"
+                        onClick={() => handleToggleCouponProgram(!couponEnabled)}
+                        className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${couponEnabled ? 'bg-indigo-600' : 'bg-slate-300'}`}
+                    >
+                        <span
+                            className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${couponEnabled ? 'translate-x-5' : 'translate-x-0'}`}
+                        />
+                    </button>
+                </div>
             </div>
 
             {/* Quick Metrics */}

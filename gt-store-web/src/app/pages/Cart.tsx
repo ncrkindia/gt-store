@@ -572,137 +572,139 @@ export function Cart() {
 
           <div className="lg:sticky lg:top-24 h-fit space-y-4">
             {/* Promo Code Section */}
-            <div className="bg-white rounded-2xl p-6 shadow-md border border-gray-100">
-              <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                <Tag className="w-5 h-5 text-indigo-600" />
-                Apply Coupon
-              </h3>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder="Enter Coupon Code"
-                  value={couponCodeInput}
-                  onChange={(e) => setCouponCodeInput(e.target.value)}
-                  className="flex-1 border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                />
-                <button
-                  onClick={() => setAppliedCoupon(couponCodeInput)}
-                  className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-indigo-700 transition"
-                  disabled={isCalculating}
-                >
-                  Apply
-                </button>
-              </div>
-              {appliedCoupon && (
-                <div className="mt-2 text-sm text-emerald-600 flex justify-between">
-                  <span>Coupon Applied: <strong>{appliedCoupon}</strong></span>
-                  <button onClick={() => { setAppliedCoupon(''); setCouponCodeInput(''); }} className="text-red-500 underline text-xs">Remove</button>
+            {calculation?.couponProgramEnabled !== false && (
+              <div className="bg-white rounded-2xl p-6 shadow-md border border-gray-100">
+                <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                  <Tag className="w-5 h-5 text-indigo-600" />
+                  Apply Coupon
+                </h3>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Enter Coupon Code"
+                    value={couponCodeInput}
+                    onChange={(e) => setCouponCodeInput(e.target.value)}
+                    className="flex-1 border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                  />
+                  <button
+                    onClick={() => setAppliedCoupon(couponCodeInput)}
+                    className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-indigo-700 transition"
+                    disabled={isCalculating}
+                  >
+                    Apply
+                  </button>
                 </div>
-              )}
+                {appliedCoupon && (
+                  <div className="mt-2 text-sm text-emerald-600 flex justify-between">
+                    <span>Coupon Applied: <strong>{appliedCoupon}</strong></span>
+                    <button onClick={() => { setAppliedCoupon(''); setCouponCodeInput(''); }} className="text-red-500 underline text-xs">Remove</button>
+                  </div>
+                )}
 
-              {/* Available Coupons list */}
-              {sortedCoupons.length > 0 && (
-                <div className="mt-6 border-t border-gray-100 pt-4 space-y-3">
-                  <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Available Coupons</h4>
+                {/* Available Coupons list */}
+                {sortedCoupons.length > 0 && (
+                  <div className="mt-6 border-t border-gray-100 pt-4 space-y-3">
+                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Available Coupons</h4>
 
-                  <div className="space-y-2">
-                    {visibleCoupons.map((coupon) => {
-                      const applicable = isCouponApplicable(coupon);
-                      const saving = estimateDiscount(coupon);
-                      const isApplied = appliedCoupon === coupon.code;
-                      const humanDesc = getCouponHumanDescription(coupon);
+                    <div className="space-y-2">
+                      {visibleCoupons.map((coupon) => {
+                        const applicable = isCouponApplicable(coupon);
+                        const saving = estimateDiscount(coupon);
+                        const isApplied = appliedCoupon === coupon.code;
+                        const humanDesc = getCouponHumanDescription(coupon);
 
-                      return (
-                        <div
-                          key={coupon.id}
-                          className={`p-3 rounded-xl border flex items-center justify-between gap-3 transition relative group ${applicable
-                              ? isApplied
-                                ? 'border-emerald-500 bg-emerald-50/30'
-                                : 'border-indigo-100 bg-indigo-50/10 hover:border-indigo-300'
-                              : 'border-gray-200 bg-gray-50/50 opacity-60'
-                            }`}
-                        >
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className={`font-mono text-xs font-black px-2 py-0.5 rounded tracking-wide ${applicable
-                                  ? 'bg-indigo-50 text-indigo-700 border border-indigo-100/50'
-                                  : 'bg-gray-200 text-gray-500'
-                                }`}>
-                                {coupon.code}
-                              </span>
-
-                              {applicable && saving > 0 && (
-                                <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">
-                                  Save ₹{saving}
-                                </span>
-                              )}
-
-                              {/* Hoverable Info Icon for Description */}
-                              <div className="relative inline-block cursor-help group/info">
-                                <Info className="w-3.5 h-3.5 text-gray-400 hover:text-indigo-600 transition" />
-                                <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover/info:block z-20 w-56 bg-slate-900 text-white text-[11px] p-2.5 rounded-lg shadow-xl leading-relaxed">
-                                  <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-900" />
-                                  <p className="font-bold mb-1 text-indigo-400">{humanDesc.main}</p>
-                                  <p className="text-gray-300">{humanDesc.rules}</p>
-                                  {!applicable && coupon.minOrderValue && subtotal < coupon.minOrderValue && (
-                                    <p className="mt-1.5 text-rose-400 font-bold">Add ₹{coupon.minOrderValue - subtotal} more to qualify</p>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-
-                            <p className="text-[10px] text-gray-500 mt-1 truncate">
-                              {humanDesc.main}
-                            </p>
-                          </div>
-
-                          <button
-                            onClick={() => {
-                              if (applicable) {
-                                if (isApplied) {
-                                  setAppliedCoupon('');
-                                  setCouponCodeInput('');
-                                } else {
-                                  setAppliedCoupon(coupon.code);
-                                  setCouponCodeInput(coupon.code);
-                                }
-                              }
-                            }}
-                            disabled={!applicable}
-                            className={`px-3 py-1 rounded-lg text-xs font-bold transition shrink-0 cursor-pointer ${applicable
+                        return (
+                          <div
+                            key={coupon.id}
+                            className={`p-3 rounded-xl border flex items-center justify-between gap-3 transition relative group ${applicable
                                 ? isApplied
-                                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm'
-                                  : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm'
-                                : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                  ? 'border-emerald-500 bg-emerald-50/30'
+                                  : 'border-indigo-100 bg-indigo-50/10 hover:border-indigo-300'
+                                : 'border-gray-200 bg-gray-50/50 opacity-60'
                               }`}
                           >
-                            {isApplied ? 'Applied' : 'Apply'}
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className={`font-mono text-xs font-black px-2 py-0.5 rounded tracking-wide ${applicable
+                                    ? 'bg-indigo-50 text-indigo-700 border border-indigo-100/50'
+                                    : 'bg-gray-200 text-gray-500'
+                                  }`}>
+                                  {coupon.code}
+                                </span>
 
-                  {/* Expand / Collapse Button */}
-                  {sortedCoupons.length > 5 && (
-                    <button
-                      onClick={() => setShowAllCoupons(!showAllCoupons)}
-                      className="w-full py-2 flex items-center justify-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-800 font-bold transition cursor-pointer"
-                    >
-                      {showAllCoupons ? (
-                        <>
-                          Show Less <ChevronUp size={14} />
-                        </>
-                      ) : (
-                        <>
-                          Show More ({sortedCoupons.length - 5} options) <ChevronDown size={14} />
-                        </>
-                      )}
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
+                                {applicable && saving > 0 && (
+                                  <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">
+                                    Save ₹{saving}
+                                  </span>
+                                )}
+
+                                {/* Hoverable Info Icon for Description */}
+                                <div className="relative inline-block cursor-help group/info">
+                                  <Info className="w-3.5 h-3.5 text-gray-400 hover:text-indigo-600 transition" />
+                                  <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover/info:block z-20 w-56 bg-slate-900 text-white text-[11px] p-2.5 rounded-lg shadow-xl leading-relaxed">
+                                    <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-900" />
+                                    <p className="font-bold mb-1 text-indigo-400">{humanDesc.main}</p>
+                                    <p className="text-gray-300">{humanDesc.rules}</p>
+                                    {!applicable && coupon.minOrderValue && subtotal < coupon.minOrderValue && (
+                                      <p className="mt-1.5 text-rose-400 font-bold">Add ₹{coupon.minOrderValue - subtotal} more to qualify</p>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+
+                              <p className="text-[10px] text-gray-500 mt-1 truncate">
+                                {humanDesc.main}
+                              </p>
+                            </div>
+
+                            <button
+                              onClick={() => {
+                                if (applicable) {
+                                  if (isApplied) {
+                                    setAppliedCoupon('');
+                                    setCouponCodeInput('');
+                                  } else {
+                                    setAppliedCoupon(coupon.code);
+                                    setCouponCodeInput(coupon.code);
+                                  }
+                                }
+                              }}
+                              disabled={!applicable}
+                              className={`px-3 py-1 rounded-lg text-xs font-bold transition shrink-0 cursor-pointer ${applicable
+                                  ? isApplied
+                                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm'
+                                    : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm'
+                                  : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                }`}
+                            >
+                              {isApplied ? 'Applied' : 'Apply'}
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Expand / Collapse Button */}
+                    {sortedCoupons.length > 5 && (
+                      <button
+                        onClick={() => setShowAllCoupons(!showAllCoupons)}
+                        className="w-full py-2 flex items-center justify-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-800 font-bold transition cursor-pointer"
+                      >
+                        {showAllCoupons ? (
+                          <>
+                            Show Less <ChevronUp size={14} />
+                          </>
+                        ) : (
+                          <>
+                            Show More ({sortedCoupons.length - 5} options) <ChevronDown size={14} />
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Loyalty Points Section */}
             {calculation?.loyaltyProgramEnabled !== false && user?.loyaltyPoints > 0 && (

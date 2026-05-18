@@ -11,12 +11,18 @@ export function Account() {
   const userName = keycloak?.tokenParsed?.name || keycloak?.tokenParsed?.preferred_username || "User";
 
   const [loyaltyActive, setLoyaltyActive] = useState(true);
+  const [couponActive, setCouponActive] = useState(true);
 
   useEffect(() => {
     apiClient.get('/orders/settings')
       .then(res => {
-        if (res.data && res.data.LOYALTY_PROGRAM_ENABLED === 'false') {
-          setLoyaltyActive(false);
+        if (res.data) {
+          if (res.data.LOYALTY_PROGRAM_ENABLED === 'false') {
+            setLoyaltyActive(false);
+          }
+          if (res.data.COUPON_PROGRAM_ENABLED === 'false') {
+            setCouponActive(false);
+          }
         }
       })
       .catch(err => console.error("Error fetching settings in Account sidebar", err));
@@ -26,7 +32,7 @@ export function Account() {
     { path: "/account", label: "Profile", icon: User },
     { path: "/account/orders", label: "Orders", icon: Package },
     ...(loyaltyActive ? [{ path: "/account/loyalty", label: "Loyalty Points", icon: Star }] : []),
-    { path: "/account/coupons", label: "My Coupons", icon: Tag },
+    ...(couponActive ? [{ path: "/account/coupons", label: "My Coupons", icon: Tag }] : []),
     { path: "/account/wishlist", label: "Wishlist", icon: Heart },
     { path: "/account/addresses", label: "Addresses", icon: MapPin },
   ];

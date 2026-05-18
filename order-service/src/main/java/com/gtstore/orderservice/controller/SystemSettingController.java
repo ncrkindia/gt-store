@@ -29,6 +29,7 @@ public class SystemSettingController {
         settings.put("COD_FIXED_CHARGE", settingRepository.findById("COD_FIXED_CHARGE").map(SystemSetting::getValue).orElse("5"));
         settings.put("LOYALTY_MAX_USAGE_PERCENT", settingRepository.findById("LOYALTY_MAX_USAGE_PERCENT").map(SystemSetting::getValue).orElse("20"));
         settings.put("LOYALTY_PROGRAM_ENABLED", settingRepository.findById("LOYALTY_PROGRAM_ENABLED").map(SystemSetting::getValue).orElse("true"));
+        settings.put("COUPON_PROGRAM_ENABLED", settingRepository.findById("COUPON_PROGRAM_ENABLED").map(SystemSetting::getValue).orElse("true"));
         return ResponseEntity.ok(settings);
     }
 
@@ -43,6 +44,7 @@ public class SystemSettingController {
         updateKeyWithHistory("COD_FIXED_CHARGE", payload, updater, "5");
         updateKeyWithHistory("LOYALTY_MAX_USAGE_PERCENT", payload, updater, "20");
         updateKeyWithHistory("LOYALTY_PROGRAM_ENABLED", payload, updater, "true");
+        updateKeyWithHistory("COUPON_PROGRAM_ENABLED", payload, updater, "true");
 
         return ResponseEntity.ok().build();
     }
