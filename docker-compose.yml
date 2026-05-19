@@ -221,6 +221,8 @@ services:
       context: ./user-service
     container_name: gt-store-user-service
     restart: unless-stopped
+    ports:
+      - "4004:4004"
     depends_on:
       config-server:
         condition: service_healthy

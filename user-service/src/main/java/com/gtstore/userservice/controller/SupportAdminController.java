@@ -87,6 +87,7 @@ public class SupportAdminController {
             String messageText = (String) payload.get("message");
             Boolean isInternal = (Boolean) payload.getOrDefault("isInternal", false);
             Boolean sendEmail = (Boolean) payload.getOrDefault("sendEmail", false);
+            String attachmentUrl = (String) payload.get("attachmentUrl");
             
             if (messageText == null || messageText.trim().isEmpty()) {
                 return ResponseEntity.badRequest().body(Map.of("error", "Message cannot be empty"));
@@ -100,6 +101,7 @@ public class SupportAdminController {
             msg.setSender(sender);
             msg.setInternal(isInternal);
             msg.setEmailSent(sendEmail && !isInternal); // Internal notes should NEVER send emails to customer
+            msg.setAttachmentUrl(attachmentUrl);
             ticket.addMessage(msg);
 
             // 2. Auto transition status if reply sent (from OPEN to IN_PROGRESS or RESPONDED)

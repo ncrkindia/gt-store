@@ -8,19 +8,25 @@ public class SupportRequest {
     private String message;
     private String ticketNumber;
 
+    private String attachmentUrl;
+
     // Default constructor for Jackson
     public SupportRequest() {}
 
-    public SupportRequest(String name, String email, String mobile, String subject, String message, String ticketNumber) {
+    public SupportRequest(String name, String email, String mobile, String subject, String message, String ticketNumber, String attachmentUrl) {
         this.name = name;
         this.email = email;
         this.mobile = mobile;
         this.subject = subject;
         this.message = message;
         this.ticketNumber = ticketNumber;
+        this.attachmentUrl = attachmentUrl;
     }
 
     // Getters and Setters
+    public String getAttachmentUrl() { return attachmentUrl; }
+    public void setAttachmentUrl(String attachmentUrl) { this.attachmentUrl = attachmentUrl; }
+
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
 

@@ -6,8 +6,14 @@ import { toast } from "sonner";
 import { 
   MessageSquare, Clock, CheckCircle2, AlertCircle, Send, Lock, 
   User, Mail, Phone, HelpCircle, RefreshCcw, Calendar, FileText, ShieldAlert,
-  Link2, Link2Off, ShoppingBag, ArrowUpRight
+  Link2, Link2Off, ShoppingBag, ArrowUpRight, X, Paperclip
 } from "lucide-react";
+
+const getImageUrl = (url: string | undefined): string => {
+  if (!url) return '';
+  if (url.startsWith('/')) return `https://gts-api.slpro.in${url}`;
+  return url;
+};
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; icon: any }> = {
   OPEN: { label: "Open", color: "text-amber-700", bg: "bg-amber-50 border-amber-200", icon: AlertCircle },
@@ -29,6 +35,8 @@ export default function SupportPage() {
   const [sendEmail, setSendEmail] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState<"conversation" | "audit" | "orders">("conversation");
+  const [replyAttachmentUrl, setReplyAttachmentUrl] = useState("");
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   // Order linking states
   const [newOrderIdInput, setNewOrderIdInput] = useState("");
@@ -180,6 +188,29 @@ export default function SupportPage() {
     }
   };
 
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    const file = e.target.files[0];
+
+    const form = new FormData();
+    form.append('file', file);
+
+    setUploadingImage(true);
+    try {
+      const res = await apiClient.post('/api/media/upload', form, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setReplyAttachmentUrl(res.data.url);
+      toast.success("Image attached successfully!");
+    } catch (error) {
+      console.error('Upload failed', error);
+      toast.error('Image upload failed');
+    } finally {
+      setUploadingImage(false);
+      e.target.value = ''; // Reset input
+    }
+  };
+
   const submitReply = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!replyText.trim() || !selectedTicket) return;
@@ -190,10 +221,12 @@ export default function SupportPage() {
         message: replyText,
         isInternal: isInternal,
         sendEmail: isInternal ? false : sendEmail,
+        attachmentUrl: replyAttachmentUrl || undefined,
       });
       
       toast.success(isInternal ? "Internal note saved" : "Reply published successfully");
       setReplyText("");
+      setReplyAttachmentUrl("");
       // Maintain the "Send Email" setting but reset internal note flag
       setIsInternal(false);
       fetchTickets(selectedTicket.id);
@@ -399,6 +432,25 @@ export default function SupportPage() {
                         <div className="text-slate-700 text-sm whitespace-pre-wrap font-normal leading-relaxed pl-9">
                           {selectedTicket.description}
                         </div>
+                        {selectedTicket.attachmentUrl && (
+                          <div className="mt-3 pl-9">
+                            <a 
+                              href={getImageUrl(selectedTicket.attachmentUrl)} 
+                              target="_blank" 
+                              rel="noreferrer"
+                              className="inline-block group relative rounded-2xl overflow-hidden border border-slate-200 shadow-sm max-w-[240px] bg-slate-50 transition hover:border-indigo-500"
+                            >
+                              <img 
+                                src={getImageUrl(selectedTicket.attachmentUrl)} 
+                                alt="Attachment" 
+                                className="max-h-48 w-full object-cover group-hover:scale-105 transition duration-300"
+                              />
+                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-bold transition duration-300">
+                                View Full Image
+                              </div>
+                            </a>
+                          </div>
+                        )}
                       </div>
 
                       {/* Follow-up Conversation Messages */}
@@ -432,6 +484,25 @@ export default function SupportPage() {
                             <div className={`text-sm whitespace-pre-wrap leading-relaxed ${isStaff ? 'pr-9 text-slate-800' : 'pl-9 text-slate-700'}`}>
                               {msg.message}
                             </div>
+                            {msg.attachmentUrl && (
+                              <div className={`mt-3 ${isStaff ? 'pr-9 text-right' : 'pl-9 text-left'}`}>
+                                <a 
+                                  href={getImageUrl(msg.attachmentUrl)} 
+                                  target="_blank" 
+                                  rel="noreferrer"
+                                  className="inline-block group relative rounded-2xl overflow-hidden border border-slate-200 shadow-sm max-w-[240px] bg-slate-50 transition hover:border-indigo-500"
+                                >
+                                  <img 
+                                    src={getImageUrl(msg.attachmentUrl)} 
+                                    alt="Attachment" 
+                                    className="max-h-48 w-full object-cover group-hover:scale-105 transition duration-300"
+                                  />
+                                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-bold transition duration-300">
+                                    View Full Image
+                                  </div>
+                                </a>
+                              </div>
+                            )}
 
                             {msg.emailSent && (
                               <div className="mt-2 text-[10px] font-bold text-indigo-600 flex items-center justify-end gap-1 pl-9">
@@ -576,6 +647,19 @@ export default function SupportPage() {
                 {activeTab === "conversation" && (
                   <div className="p-4 border-t border-slate-100 bg-white shrink-0">
                     <form onSubmit={submitReply} className="flex flex-col gap-3">
+                      {replyAttachmentUrl && (
+                        <div className="relative w-24 h-24 bg-slate-50 p-1 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-center overflow-hidden group">
+                          <img src={getImageUrl(replyAttachmentUrl)} className="w-full h-full object-cover rounded-xl" />
+                          <button 
+                            type="button" 
+                            onClick={() => setReplyAttachmentUrl('')} 
+                            className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 shadow-md hover:bg-red-600 transition"
+                          >
+                            <X size={12}/>
+                          </button>
+                        </div>
+                      )}
+                      
                       <textarea
                         value={replyText}
                         onChange={(e) => setReplyText(e.target.value)}
@@ -586,7 +670,27 @@ export default function SupportPage() {
                       />
                       
                       <div className="flex flex-wrap items-center justify-between gap-4 select-none">
-                        <div className="flex flex-wrap gap-4">
+                        <div className="flex flex-wrap items-center gap-4">
+                          <label className="flex items-center gap-2 text-xs font-bold text-slate-500 cursor-pointer hover:text-slate-700 transition">
+                            <input 
+                              type="file"
+                              className="hidden"
+                              accept="image/*"
+                              onChange={handleImageUpload}
+                              disabled={uploadingImage}
+                            />
+                            <span className="flex items-center gap-1.5 bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-xl hover:bg-slate-200 transition">
+                              {uploadingImage ? (
+                                <div className="w-3.5 h-3.5 border-2 border-indigo-600/30 border-t-indigo-600 rounded-full animate-spin" />
+                              ) : (
+                                <Paperclip className="w-3.5 h-3.5 text-slate-500" />
+                              )}
+                              {uploadingImage ? 'Attaching...' : 'Attach Image'}
+                            </span>
+                          </label>
+
+                          <div className="w-px h-6 bg-slate-200" />
+
                           <label className="flex items-center gap-2 text-xs font-bold text-slate-700 cursor-pointer hover:text-slate-900 transition">
                             <input 
                               type="checkbox"

@@ -58,6 +58,7 @@ public class UserController {
         ticket.setMobile(request.getMobile());
         ticket.setSubject(request.getSubject());
         ticket.setDescription(request.getMessage());
+        ticket.setAttachmentUrl(request.getAttachmentUrl());
         
         // Generate initial audit log
         SupportAudit audit = new SupportAudit();

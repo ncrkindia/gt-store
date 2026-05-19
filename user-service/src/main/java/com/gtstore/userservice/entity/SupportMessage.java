@@ -29,6 +29,9 @@ public class SupportMessage {
     @Column(name = "email_sent", nullable = false)
     private boolean emailSent; // true if this message was emailed to user
 
+    @Column(name = "attachment_url")
+    private String attachmentUrl;
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
@@ -55,6 +58,9 @@ public class SupportMessage {
 
     public boolean isEmailSent() { return emailSent; }
     public void setEmailSent(boolean emailSent) { this.emailSent = emailSent; }
+
+    public String getAttachmentUrl() { return attachmentUrl; }
+    public void setAttachmentUrl(String attachmentUrl) { this.attachmentUrl = attachmentUrl; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

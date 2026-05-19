@@ -35,6 +35,9 @@ public class SupportTicket {
     @Column(nullable = false)
     private String status; // OPEN, IN_PROGRESS, RESOLVED, CLOSED
 
+    @Column(name = "attachment_url")
+    private String attachmentUrl;
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
@@ -119,6 +122,9 @@ public class SupportTicket {
 
     public List<SupportAudit> getAudits() { return audits; }
     public void setAudits(List<SupportAudit> audits) { this.audits = audits; }
+
+    public String getAttachmentUrl() { return attachmentUrl; }
+    public void setAttachmentUrl(String attachmentUrl) { this.attachmentUrl = attachmentUrl; }
 
     public List<String> getLinkedOrderIds() { return linkedOrderIds; }
     public void setLinkedOrderIds(List<String> linkedOrderIds) { this.linkedOrderIds = linkedOrderIds; }
