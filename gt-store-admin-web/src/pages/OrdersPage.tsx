@@ -341,17 +341,51 @@ const OrdersPage = () => {
                     }
                 }
                 
-                // Map rows to objects
+                // Map rows to objects containing ONLY fields that will be used for the update
                 const mappedData = rows.map((row) => {
-                    const obj: Record<string, string> = {};
-                    headers.forEach((header, hIdx) => {
-                        obj[header] = row[hIdx] || '';
-                    });
-                    return obj;
+                    const findVal = (aliases: string[]) => {
+                        const idx = headers.findIndex(h => aliases.includes(h.toLowerCase().trim()));
+                        return idx !== -1 ? row[idx] || '' : '';
+                    };
+
+                    if (importMode === 'status_update') {
+                        return {
+                            'orderNumber': findVal(['ordernumber', 'order number', 'id']),
+                            'status': findVal(['status']),
+                            'details': findVal(['details'])
+                        };
+                    } else {
+                        const rawObj = {
+                            'userId': findVal(['userid', 'user email', 'email', 'user_id']),
+                            'customerName': findVal(['customername', 'customer name', 'name', 'customer_name']),
+                            'customerPhone': findVal(['customerphone', 'customer phone', 'phone', 'customer_phone']),
+                            'productId': findVal(['productid', 'sku', 'product id', 'product_id']),
+                            'quantity': findVal(['quantity', 'qty']),
+                            'price': findVal(['price']),
+                            'paymentMethod': findVal(['paymentmethod', 'payment method', 'payment_method']),
+                            'shippingLine1': findVal(['shippingline1', 'address line 1', 'address1', 'shipping_line1']),
+                            'shippingLine2': findVal(['shippingline2', 'address line 2', 'address2', 'shipping_line2']),
+                            'shippingCity': findVal(['shippingcity', 'city', 'shipping_city']),
+                            'shippingState': findVal(['shippingstate', 'state', 'shipping_state']),
+                            'shippingPincode': findVal(['shippingpincode', 'pincode', 'shipping_pincode']),
+                            'shippingCountry': findVal(['shippingcountry', 'country', 'shipping_country']),
+                            'couponCode': findVal(['couponcode', 'coupon code', 'coupon_code'])
+                        };
+                        
+                        // Clean empty optional columns so they don't clutter the display
+                        const cleaned: Record<string, string> = {};
+                        Object.entries(rawObj).forEach(([k, v]) => {
+                            const isMandatory = ['userId', 'productId', 'quantity', 'price', 'shippingLine1', 'shippingCity', 'shippingPincode'].includes(k);
+                            if (v !== '' || isMandatory) {
+                                cleaned[k] = v;
+                            }
+                        });
+                        return cleaned;
+                    }
                 });
                 
                 setParsedRows(mappedData);
-                toast.info(`Successfully parsed ${mappedData.length} records.`);
+                toast.info(`Successfully parsed ${mappedData.length} records matching target fields.`);
             } catch (err) {
                 setValidationError('Failed to parse CSV file. Ensure it is a valid CSV format.');
             }
@@ -1042,30 +1076,28 @@ const OrdersPage = () => {
                                         </div>
                                     )}
 
-                                    {/* Parsed Rows Preview */}
+                                    {/* Parsed Rows Preview - Show All Data! */}
                                     {parsedRows.length > 0 && (
                                         <div className="border border-slate-200/80 rounded-2xl overflow-hidden shadow-3xs bg-white">
                                             <div className="bg-slate-50/80 px-4 py-3 border-b border-slate-100 flex items-center justify-between">
-                                                <span className="text-xs font-black text-slate-700 uppercase tracking-wider">Sheet Data Preview (First 3 rows)</span>
+                                                <span className="text-xs font-black text-slate-700 uppercase tracking-wider">Sheet Data Preview (Full Listing)</span>
                                                 <span className="px-2.5 py-0.5 bg-indigo-50 border border-indigo-100 rounded-full text-indigo-700 text-[10px] font-black">{parsedRows.length} Rows</span>
                                             </div>
-                                            <div className="overflow-x-auto">
+                                            <div className="overflow-x-auto max-h-[300px] overflow-y-auto">
                                                 <table className="w-full text-left text-xs border-collapse">
-                                                    <thead>
-                                                        <tr className="bg-slate-100/30 text-slate-500 border-b border-slate-100 font-bold uppercase">
-                                                            {Object.keys(parsedRows[0]).slice(0, 5).map(h => (
+                                                    <thead className="sticky top-0 bg-white z-10 border-b border-slate-200">
+                                                        <tr className="bg-slate-100/30 text-slate-500 font-bold uppercase">
+                                                            {Object.keys(parsedRows[0]).map(h => (
                                                                 <th key={h} className="px-4 py-2">{h}</th>
                                                             ))}
-                                                            {Object.keys(parsedRows[0]).length > 5 && <th className="px-4 py-2">...</th>}
                                                         </tr>
                                                     </thead>
                                                     <tbody className="divide-y divide-slate-50 font-semibold text-slate-600">
-                                                        {parsedRows.slice(0, 3).map((r, ri) => (
+                                                        {parsedRows.map((r, ri) => (
                                                             <tr key={ri} className="hover:bg-slate-50/50">
-                                                                {Object.keys(parsedRows[0]).slice(0, 5).map(h => (
-                                                                    <td key={h} className="px-4 py-2 font-mono text-[10px] max-w-[150px] truncate">{r[h]}</td>
+                                                                {Object.keys(parsedRows[0]).map(h => (
+                                                                    <td key={h} className="px-4 py-2 font-mono text-[10px] max-w-[180px] truncate">{r[h]}</td>
                                                                 ))}
-                                                                {Object.keys(parsedRows[0]).length > 5 && <td className="px-4 py-2">...</td>}
                                                             </tr>
                                                         ))}
                                                     </tbody>
