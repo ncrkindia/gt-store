@@ -19,16 +19,34 @@ public class InventoryService {
     }
 
     public Integer getStock(String productId) {
-        return inventoryRepository.findByProductId(productId)
-                .map(Inventory::getStock)
-                .orElse(0);
+        return getStock(productId, null);
+    }
+
+    public Integer getStock(String productId, String variantId) {
+        Optional<Inventory> invOpt = Optional.empty();
+        if (variantId != null && !variantId.trim().isEmpty() && !"std".equalsIgnoreCase(variantId)) {
+            invOpt = inventoryRepository.findByProductIdAndVariantId(productId, variantId.trim());
+        }
+        if (!invOpt.isPresent()) {
+            invOpt = inventoryRepository.findByProductId(productId).filter(i -> i.getVariantId() == null || i.getVariantId().trim().isEmpty() || "std".equalsIgnoreCase(i.getVariantId()));
+        }
+        if (!invOpt.isPresent()) {
+            invOpt = inventoryRepository.findByProductId(productId);
+        }
+        return invOpt.map(Inventory::getStock).orElse(0);
     }
 
     @Transactional
     public boolean reserveStock(StockReservationRequest request) {
+        if (request.getQuantity() == null) {
+            request.setQuantity(1); // Default to 1 if null
+        }
         Optional<Inventory> invOpt = Optional.empty();
         if (request.getVariantId() != null && !request.getVariantId().trim().isEmpty() && !"std".equalsIgnoreCase(request.getVariantId())) {
-            invOpt = inventoryRepository.findByProductIdAndVariantId(request.getProductId(), request.getVariantId());
+            invOpt = inventoryRepository.findByProductIdAndVariantId(request.getProductId(), request.getVariantId().trim());
+        }
+        if (!invOpt.isPresent()) {
+            invOpt = inventoryRepository.findByProductId(request.getProductId()).filter(i -> i.getVariantId() == null || i.getVariantId().trim().isEmpty() || "std".equalsIgnoreCase(i.getVariantId()));
         }
         if (!invOpt.isPresent()) {
             invOpt = inventoryRepository.findByProductId(request.getProductId());
@@ -36,7 +54,7 @@ public class InventoryService {
 
         if (invOpt.isPresent()) {
             Inventory inv = invOpt.get();
-            if (inv.getStock() >= request.getQuantity()) {
+            if (inv.getStock() != null && inv.getStock() >= request.getQuantity()) {
                 inv.setStock(inv.getStock() - request.getQuantity());
                 inventoryRepository.save(inv);
                 return true;
@@ -47,9 +65,15 @@ public class InventoryService {
 
     @Transactional
     public void releaseStock(StockReservationRequest request) {
+        if (request.getQuantity() == null) {
+            request.setQuantity(1);
+        }
         Optional<Inventory> invOpt = Optional.empty();
         if (request.getVariantId() != null && !request.getVariantId().trim().isEmpty() && !"std".equalsIgnoreCase(request.getVariantId())) {
-            invOpt = inventoryRepository.findByProductIdAndVariantId(request.getProductId(), request.getVariantId());
+            invOpt = inventoryRepository.findByProductIdAndVariantId(request.getProductId(), request.getVariantId().trim());
+        }
+        if (!invOpt.isPresent()) {
+            invOpt = inventoryRepository.findByProductId(request.getProductId()).filter(i -> i.getVariantId() == null || i.getVariantId().trim().isEmpty() || "std".equalsIgnoreCase(i.getVariantId()));
         }
         if (!invOpt.isPresent()) {
             invOpt = inventoryRepository.findByProductId(request.getProductId());
@@ -57,8 +81,10 @@ public class InventoryService {
 
         if (invOpt.isPresent()) {
             Inventory inv = invOpt.get();
-            inv.setStock(inv.getStock() + request.getQuantity());
-            inventoryRepository.save(inv);
+            if (inv.getStock() != null) {
+                inv.setStock(inv.getStock() + request.getQuantity());
+                inventoryRepository.save(inv);
+            }
         }
     }
 
@@ -67,14 +93,21 @@ public class InventoryService {
     }
 
     @Transactional
-    public Inventory updateStock(String productId, Integer quantity) {
-        Inventory inventory = inventoryRepository.findByProductId(productId)
-                .orElse(new Inventory());
-        
+    public Inventory updateStock(String productId, String variantId, Integer quantity) {
+        Optional<Inventory> invOpt = Optional.empty();
+        if (variantId != null && !variantId.trim().isEmpty() && !"std".equalsIgnoreCase(variantId)) {
+            invOpt = inventoryRepository.findByProductIdAndVariantId(productId, variantId.trim());
+        } else {
+            invOpt = inventoryRepository.findByProductId(productId).filter(i -> i.getVariantId() == null || i.getVariantId().trim().isEmpty() || "std".equalsIgnoreCase(i.getVariantId()));
+        }
+
+        Inventory inventory = invOpt.orElse(new Inventory());
         if (inventory.getProductId() == null) {
             inventory.setProductId(productId);
         }
-        
+        if (variantId != null && !variantId.trim().isEmpty() && !"std".equalsIgnoreCase(variantId)) {
+            inventory.setVariantId(variantId.trim());
+        }
         inventory.setStock(quantity);
         return inventoryRepository.save(inventory);
     }

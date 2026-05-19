@@ -7,6 +7,19 @@ import {
     Download, Upload, FileText, Loader2, Play, Info
 } from 'lucide-react';
 
+interface ProductVariant {
+    variantId: number;
+    name: string;
+    grouping: string;
+    price?: number;
+    salePrice?: number;
+    images?: string[];
+    features?: string[];
+    inStock?: boolean;
+    sequence?: number;
+    priceHistory?: any[];
+}
+
 interface InventoryItem {
     id: string;
     productId: string;
@@ -19,6 +32,7 @@ interface Product {
     name: string;
     brand: string;
     categoryIds: string[];
+    variants?: ProductVariant[];
 }
 
 interface Category {
@@ -27,8 +41,11 @@ interface Category {
 }
 
 interface EnrichedInventoryItem {
+    id: string; // unique row id (productId + (variantId ? "_" + variantId : ""))
     productId: string;
+    variantId?: string;
     productName: string;
+    variantName?: string;
     brand: string;
     categories: string;
     stock: number;
@@ -150,27 +167,60 @@ const InventoryPage = () => {
             const catMap = new Map<string, string>();
             catData.forEach(c => catMap.set(c.id, c.name));
 
-            const invMap = new Map<string, number>();
-            invData.forEach((item: InventoryItem) => invMap.set(item.productId, item.stock));
+            const enrichedInv: EnrichedInventoryItem[] = [];
 
-            const enrichedInv: EnrichedInventoryItem[] = prodData.map((product: Product) => {
-                const stock = invMap.get(product.id) ?? 0;
+            prodData.forEach((product: Product) => {
                 const categories = (product.categoryIds || [])
                     .map(id => catMap.get(id) || id)
                     .join(', ');
 
-                let status: EnrichedInventoryItem['status'] = 'In Stock';
-                if (stock === 0) status = 'Out of Stock';
-                else if (stock < 10) status = 'Low Stock';
+                // If product has variants, map individual rows for stock tracking!
+                if (product.variants && product.variants.length > 0) {
+                    product.variants.forEach((variant) => {
+                        const invItem = invData.find((item: InventoryItem) => 
+                            item.productId === product.id && 
+                            String(item.variantId || '').trim().toLowerCase() === String(variant.variantId || '').trim().toLowerCase()
+                        );
+                        const stock = invItem ? invItem.stock : 0;
+                        let status: EnrichedInventoryItem['status'] = 'In Stock';
+                        if (stock === 0) status = 'Out of Stock';
+                        else if (stock < 10) status = 'Low Stock';
 
-                return {
-                    productId: product.id,
-                    productName: product.name,
-                    brand: product.brand || 'N/A',
-                    categories: categories || 'Uncategorized',
-                    stock: stock,
-                    status: status
-                };
+                        enrichedInv.push({
+                            id: `${product.id}_${variant.variantId}`,
+                            productId: product.id,
+                            variantId: String(variant.variantId),
+                            productName: product.name,
+                            variantName: `${variant.name} (${variant.grouping})`,
+                            brand: product.brand || 'N/A',
+                            categories: categories || 'Uncategorized',
+                            stock: stock,
+                            status: status
+                        });
+                    });
+                } else {
+                    // Standard product row without variants
+                    const invItem = invData.find((item: InventoryItem) => 
+                        item.productId === product.id && 
+                        (!item.variantId || item.variantId.trim() === '' || item.variantId.trim().toLowerCase() === 'std')
+                    );
+                    const stock = invItem ? invItem.stock : 0;
+                    let status: EnrichedInventoryItem['status'] = 'In Stock';
+                    if (stock === 0) status = 'Out of Stock';
+                    else if (stock < 10) status = 'Low Stock';
+
+                    enrichedInv.push({
+                        id: product.id,
+                        productId: product.id,
+                        variantId: undefined,
+                        productName: product.name,
+                        variantName: undefined,
+                        brand: product.brand || 'N/A',
+                        categories: categories || 'Uncategorized',
+                        stock: stock,
+                        status: status
+                    });
+                }
             });
 
             setInventory(enrichedInv);
@@ -196,7 +246,8 @@ const InventoryPage = () => {
     const filteredInventory = useMemo(() => {
         return inventory.filter(item => {
             const matchesId = item.productId.toLowerCase().includes(filterId.toLowerCase());
-            const matchesName = item.productName.toLowerCase().includes(filterName.toLowerCase());
+            const matchesName = item.productName.toLowerCase().includes(filterName.toLowerCase()) || 
+                                (item.variantName && item.variantName.toLowerCase().includes(filterName.toLowerCase()));
             const matchesBrand = item.brand.toLowerCase().includes(filterBrand.toLowerCase());
             const matchesCategory = item.categories.toLowerCase().includes(filterCategory.toLowerCase());
             const matchesStatus = filterStatus === 'All' || item.status === filterStatus;
@@ -205,25 +256,30 @@ const InventoryPage = () => {
         });
     }, [inventory, filterId, filterName, filterBrand, filterCategory, filterStatus]);
 
-    const handleStockChange = (productId: string, value: string) => {
+    const handleStockChange = (key: string, value: string) => {
         setUpdateValues(prev => ({
             ...prev,
-            [productId]: value === '' ? NaN : parseInt(value)
+            [key]: value === '' ? NaN : parseInt(value)
         }));
     };
 
-    const submitUpdate = async (productId: string) => {
-        const newStock = updateValues[productId];
+    const submitUpdate = async (productId: string, variantId?: string) => {
+        const key = variantId ? `${productId}_${variantId}` : productId;
+        const newStock = updateValues[key];
         if (newStock === undefined || isNaN(newStock) || newStock < 0) return;
 
         try {
-            await apiClient.put(`/api/inventory/${productId}/stock?quantity=${newStock}`);
-            toast.success(`Stock updated successfully for Product ${productId}`);
+            let url = `/api/inventory/${productId}/stock?quantity=${newStock}`;
+            if (variantId) {
+                url += `&variantId=${variantId}`;
+            }
+            await apiClient.put(url);
+            toast.success(`Stock updated successfully!`);
             await fetchData();
             // Clear input
             setUpdateValues(prev => {
                 const updated = { ...prev };
-                delete updated[productId];
+                delete updated[key];
                 return updated;
             });
         } catch (error) {
@@ -232,17 +288,19 @@ const InventoryPage = () => {
         }
     };
 
-    // CSV Exporter
+    // CSV Exporter (Export only filtered rows)
     const handleExportCSV = () => {
         if (filteredInventory.length === 0) {
             toast.warning('No inventory records found to export!');
             return;
         }
         
-        const headers = ['productId', 'productName', 'brand', 'categories', 'stock'];
+        const headers = ['productId', 'variantId', 'productName', 'variantName', 'brand', 'categories', 'stock'];
         const rows = filteredInventory.map(item => [
             item.productId,
+            item.variantId || '',
             item.productName,
+            item.variantName || '',
             item.brand,
             item.categories,
             item.stock.toString()
@@ -262,10 +320,10 @@ const InventoryPage = () => {
 
     // Download CSV Import Template
     const handleDownloadTemplate = () => {
-        const headers = ['productId', 'stock'];
+        const headers = ['productId', 'variantId', 'stock'];
         const rows = [
-            ['69d87805ae1526b5a68de669', '500'],
-            ['6a0348626644d06a165cc4ad', '250']
+            ['69d87805ae1526b5a68de669', '', '500'],
+            ['69d87805ae1526b5a68de669', '1', '250']
         ];
         
         const csvContent = generateCSV(headers, rows);
@@ -324,6 +382,7 @@ const InventoryPage = () => {
                 
                 // Identify target fields
                 const productIdKey = headers.find(h => ['productid', 'product_id', 'sku', 'id'].includes(h.toLowerCase().replace(/[^a-z0-9]/g, '')));
+                const variantIdKey = headers.find(h => ['variantid', 'variant_id', 'subid'].includes(h.toLowerCase().replace(/[^a-z0-9]/g, '')));
                 const stockKey = headers.find(h => ['stock', 'quantity', 'stocklevel', 'qty', 'count'].includes(h.toLowerCase().replace(/[^a-z0-9]/g, '')));
                 
                 if (!productIdKey || !stockKey) {
@@ -334,6 +393,7 @@ const InventoryPage = () => {
                 const mappedData = rows.map((row) => {
                     return {
                         'productId': row[headers.indexOf(productIdKey)] || '',
+                        'variantId': variantIdKey ? row[headers.indexOf(variantIdKey)] || '' : '',
                         'stock': row[headers.indexOf(stockKey)] || ''
                     };
                 });
@@ -379,13 +439,9 @@ const InventoryPage = () => {
             const rowNum = i + 1;
             
             try {
-                const getVal = (aliases: string[]) => {
-                    const key = Object.keys(row).find(k => aliases.includes(k.toLowerCase().trim().replace(/[^a-z0-9]/g, '')));
-                    return key ? row[key] : '';
-                };
-                
-                const productId = getVal(['productid', 'product_id', 'sku', 'id']);
-                const stockStr = getVal(['stock', 'quantity', 'stocklevel', 'qty', 'count']);
+                const productId = row['productId'];
+                const variantId = row['variantId'];
+                const stockStr = row['stock'];
                 
                 if (!productId || stockStr === '') {
                     throw new Error(`Missing mandatory fields: productId or stock.`);
@@ -397,16 +453,23 @@ const InventoryPage = () => {
                 }
                 
                 // Sync to Microservice API
-                await apiClient.put(`/api/inventory/${productId.trim()}/stock?quantity=${quantity}`);
+                let url = `/api/inventory/${productId.trim()}/stock?quantity=${quantity}`;
+                if (variantId && variantId.trim() !== '') {
+                    url += `&variantId=${variantId.trim()}`;
+                }
+                await apiClient.put(url);
                 
                 setImportProgress(prev => ({
                     ...prev,
                     current: rowNum,
                     success: prev.success + 1,
-                    logs: [...prev.logs, { type: 'success', message: `Row ${rowNum}: Successfully updated Product ID [${productId}] stock count to ${quantity}.` }]
+                    logs: [...prev.logs, { 
+                        type: 'success', 
+                        message: `Row ${rowNum}: Successfully updated Product ID [${productId}]${variantId ? `, Variant ID [${variantId}]` : ''} stock to ${quantity}.` 
+                    }]
                 }));
             } catch (err: any) {
-                const errMsg = err.response?.data?.message || err.message || 'Verification failure';
+                const errMsg = err.response?.data?.message || err.message || 'Sync failure';
                 setImportProgress(prev => ({
                     ...prev,
                     current: rowNum,
@@ -425,7 +488,7 @@ const InventoryPage = () => {
         fetchData();
     };
 
-    if (loading) return <div className="loading">Loading Inventory...</div>;
+    if (loading) return <div className="p-8 text-center text-slate-500 font-bold">Loading Inventory...</div>;
 
     return (
         <div className="page-container glass-card">
@@ -442,7 +505,7 @@ const InventoryPage = () => {
                 </div>
                 
                 <div className="flex items-center gap-3 self-end md:self-auto">
-                    <div className="status-badge status-pending">{filteredInventory.length} products listed</div>
+                    <div className="status-badge status-pending">{filteredInventory.length} SKUs tracked</div>
                     <button
                         onClick={handleExportCSV}
                         className="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 hover:border-slate-300 text-slate-700 text-xs font-bold rounded-xl transition cursor-pointer"
@@ -528,7 +591,8 @@ const InventoryPage = () => {
                     <thead>
                         <tr>
                             <th>Product ID</th>
-                            <th>Name</th>
+                            <th>Variant ID</th>
+                            <th>Product / Variant Name</th>
                             <th>Brand</th>
                             <th>Category</th>
                             <th className="text-center">Stock</th>
@@ -539,17 +603,23 @@ const InventoryPage = () => {
                     <tbody>
                         {filteredInventory.length === 0 ? (
                             <tr>
-                                <td colSpan={7} className="text-center py-12 text-gray-400 font-bold">
+                                <td colSpan={8} className="text-center py-12 text-gray-400 font-bold">
                                     <AlertCircle className="mx-auto mb-2 opacity-20" size={48} />
                                     No products matching your filters.
                                 </td>
                             </tr>
                         ) : (
                             filteredInventory.map(item => (
-                                <tr key={item.productId} className="hover:bg-slate-50/40 transition-colors">
+                                <tr key={item.id} className="hover:bg-slate-50/40 transition-colors">
                                     <td className="font-mono text-xs text-blue-500 font-bold">{item.productId}</td>
+                                    <td className="font-mono text-xs text-emerald-600 font-bold">{item.variantId || '—'}</td>
                                     <td>
                                         <div className="font-bold text-slate-850">{item.productName}</div>
+                                        {item.variantName && (
+                                            <div className="text-[10px] text-purple-600 font-bold mt-0.5 uppercase tracking-wide">
+                                                {item.variantName}
+                                            </div>
+                                        )}
                                     </td>
                                     <td className="font-semibold text-slate-600">{item.brand}</td>
                                     <td className="text-xs text-slate-400 font-medium max-w-[150px] truncate" title={item.categories}>{item.categories}</td>
@@ -580,13 +650,13 @@ const InventoryPage = () => {
                                                 min="0"
                                                 placeholder={item.stock.toString()}
                                                 className="w-20 px-3 py-1.5 bg-white border border-gray-200 rounded focus:border-blue-500/50 outline-none text-sm transition text-slate-800 font-bold"
-                                                value={isNaN(updateValues[item.productId]) ? '' : updateValues[item.productId] ?? ''}
-                                                onChange={(e) => handleStockChange(item.productId, e.target.value)}
+                                                value={isNaN(updateValues[item.id]) ? '' : updateValues[item.id] ?? ''}
+                                                onChange={(e) => handleStockChange(item.id, e.target.value)}
                                             />
                                             <button
-                                                onClick={() => submitUpdate(item.productId)}
+                                                onClick={() => submitUpdate(item.productId, item.variantId)}
                                                 className="btn-primary py-1.5 px-3 text-xs bg-blue-600 hover:bg-blue-700 font-bold"
-                                                disabled={updateValues[item.productId] === undefined || isNaN(updateValues[item.productId])}
+                                                disabled={updateValues[item.id] === undefined || isNaN(updateValues[item.id])}
                                             >
                                                 Update
                                             </button>
@@ -639,7 +709,7 @@ const InventoryPage = () => {
                                         <div>
                                             <p className="font-bold">Import Directions</p>
                                             <p className="text-xs text-blue-700 mt-1 font-semibold">
-                                                Provide a spreadsheet containing the mandatory product SKU identifiers and their new target inventory counts. 
+                                                Provide a spreadsheet containing the mandatory product ID, optional variant ID, and target inventory stock count.
                                             </p>
                                             
                                             {/* Download sample template */}
@@ -682,12 +752,12 @@ const InventoryPage = () => {
                                         {csvFile ? (
                                             <div>
                                                 <p className="font-extrabold text-slate-800 text-sm">{csvFile.name}</p>
-                                                <p className="text-[11px] font-bold text-slate-400 mt-1">{(csvFile.size / 1024).toFixed(2)} KB • Click or Drag to replace</p>
+                                                <p className="text-[11px] font-bold text-slate-400 mt-1 font-semibold">{(csvFile.size / 1024).toFixed(2)} KB • Click or Drag to replace</p>
                                             </div>
                                         ) : (
                                             <div>
                                                 <p className="font-extrabold text-slate-700 text-sm">Drag and drop your stock list sheet here</p>
-                                                <p className="text-[11px] font-bold text-slate-400 mt-1">or click to browse your desktop directories</p>
+                                                <p className="text-[11px] font-bold text-slate-400 mt-1 font-semibold">or click to browse your desktop directories</p>
                                             </div>
                                         )}
                                     </div>
@@ -702,7 +772,7 @@ const InventoryPage = () => {
 
                                     {/* Parsed Rows FULL DATA Preview */}
                                     {parsedRows.length > 0 && (
-                                        <div className="border border-slate-200/80 rounded-2xl overflow-hidden shadow-3xs bg-white">
+                                        <div className="border border-slate-200/80 rounded-2xl overflow-hidden shadow-3xs bg-white text-left">
                                             <div className="bg-slate-50/80 px-4 py-3 border-b border-slate-100 flex items-center justify-between">
                                                 <span className="text-xs font-black text-slate-700 uppercase tracking-wider">Sheet Data Preview (Full Listing)</span>
                                                 <span className="px-2.5 py-0.5 bg-blue-50 border border-blue-100 rounded-full text-blue-700 text-[10px] font-black">{parsedRows.length} Rows</span>
@@ -789,7 +859,7 @@ const InventoryPage = () => {
                         </div>
 
                         {/* Modal Footer Controls */}
-                        <div className="border-t border-slate-100 pt-6 mt-6 flex items-center justify-between">
+                        <div className="border-t border-slate-100 pt-6 mt-6 flex items-center justify-between shrink-0">
                             <div>
                                 {importProgress.status === 'processing' && (
                                     <span className="text-xs text-slate-400 font-semibold flex items-center gap-2 animate-pulse">

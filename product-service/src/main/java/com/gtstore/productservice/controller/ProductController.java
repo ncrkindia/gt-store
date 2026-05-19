@@ -1,6 +1,8 @@
 package com.gtstore.productservice.controller;
 
 import com.gtstore.productservice.document.Product;
+import com.gtstore.productservice.document.ProductVariant;
+import com.gtstore.productservice.document.PriceHistoryRecord;
 import com.gtstore.productservice.repository.ProductRepository;
 import com.gtstore.productservice.repository.CategoryRepository;
 import com.gtstore.productservice.repository.BrandRepository;
@@ -38,6 +40,9 @@ public class ProductController {
 
     @Autowired
     private org.springframework.kafka.core.KafkaTemplate<String, Object> kafkaTemplate;
+
+    @Autowired
+    private org.springframework.data.mongodb.core.MongoTemplate mongoTemplate;
 
     private static final String TOPIC_UPSERT = "product.upserted";
     private static final String TOPIC_DELETE = "product.deleted";
@@ -166,6 +171,39 @@ public class ProductController {
         return ResponseEntity.ok().build();
     }
 
+    private void ensureStandardVariant(Product product) {
+        if (product.getVariants() == null || product.getVariants().isEmpty()) {
+            ProductVariant std = new ProductVariant();
+            std.setVariantId(1L);
+            std.setName("Standard");
+            std.setGrouping("Option");
+            std.setPrice(product.getPrice());
+            std.setSalePrice(product.getSalePrice());
+            std.setInStock(product.getInStock());
+            std.setSequence(0);
+            product.getVariants().add(std);
+        } else {
+            // Ensure every variant has a sequence. Default to 0 if null.
+            for (ProductVariant v : product.getVariants()) {
+                if (v.getSequence() == null) {
+                    v.setSequence(0);
+                }
+            }
+        }
+        // Sort variants by sequence ascending
+        product.getVariants().sort(java.util.Comparator.comparingInt(ProductVariant::getSequence));
+        // Sync product main price to the first/default variant
+        if (!product.getVariants().isEmpty()) {
+            ProductVariant mainVar = product.getVariants().get(0);
+            if (mainVar.getPrice() != null) {
+                product.setPrice(mainVar.getPrice());
+            }
+            if (mainVar.getSalePrice() != null) {
+                product.setSalePrice(mainVar.getSalePrice());
+            }
+        }
+    }
+
     private void generateSlug(Product product) {
         // Build clean base: brand-name (using brand name and product name only)
         StringBuilder sb = new StringBuilder();
@@ -238,6 +276,7 @@ public class ProductController {
     @PostMapping
     public ResponseEntity<Product> createProduct(@RequestBody Product product) {
         validateProduct(product);
+        ensureStandardVariant(product);
         if (product.getSlug() == null || product.getSlug().trim().isEmpty()) {
             generateSlug(product);
         }
@@ -263,30 +302,48 @@ public class ProductController {
         
         product.setId(id);
         validateProduct(product);
+        ensureStandardVariant(product);
         
-        // Track price modifications
-        java.math.BigDecimal oldPrice = existing.getPrice();
-        java.math.BigDecimal newPrice = product.getPrice();
-        java.math.BigDecimal oldSalePrice = existing.getSalePrice();
-        java.math.BigDecimal newSalePrice = product.getSalePrice();
-        
-        boolean priceChanged = false;
-        if (oldPrice == null && newPrice != null) priceChanged = true;
-        else if (oldPrice != null && newPrice == null) priceChanged = true;
-        else if (oldPrice != null && newPrice != null && oldPrice.compareTo(newPrice) != 0) priceChanged = true;
-        
-        if (oldSalePrice == null && newSalePrice != null) priceChanged = true;
-        else if (oldSalePrice != null && newSalePrice == null) priceChanged = true;
-        else if (oldSalePrice != null && newSalePrice != null && oldSalePrice.compareTo(newSalePrice) != 0) priceChanged = true;
-        
-        if (priceChanged) {
-            String updater = (email != null && !email.isEmpty()) ? email : "Admin";
-            com.gtstore.productservice.document.PriceHistoryRecord record = 
-                new com.gtstore.productservice.document.PriceHistoryRecord(oldPrice, newPrice, oldSalePrice, newSalePrice, updater);
-            if (existing.getPriceHistory() == null) {
-                existing.setPriceHistory(new java.util.ArrayList<>());
+        // Track price history by variants now
+        if (product.getVariants() != null) {
+            for (ProductVariant newVar : product.getVariants()) {
+                ProductVariant oldVar = null;
+                if (existing.getVariants() != null) {
+                    for (ProductVariant v : existing.getVariants()) {
+                        if (v.getVariantId() != null && v.getVariantId().equals(newVar.getVariantId())) {
+                            oldVar = v;
+                            break;
+                        }
+                    }
+                }
+                
+                java.math.BigDecimal oldP = oldVar != null ? oldVar.getPrice() : null;
+                java.math.BigDecimal newP = newVar.getPrice();
+                java.math.BigDecimal oldSP = oldVar != null ? oldVar.getSalePrice() : null;
+                java.math.BigDecimal newSP = newVar.getSalePrice();
+                
+                boolean varPriceChanged = false;
+                if (oldP == null && newP != null) varPriceChanged = true;
+                else if (oldP != null && newP == null) varPriceChanged = true;
+                else if (oldP != null && newP != null && oldP.compareTo(newP) != 0) varPriceChanged = true;
+                
+                if (oldSP == null && newSP != null) varPriceChanged = true;
+                else if (oldSP != null && newSP == null) varPriceChanged = true;
+                else if (oldSP != null && newSP != null && oldSP.compareTo(newSP) != 0) varPriceChanged = true;
+                
+                if (varPriceChanged) {
+                    String updater = (email != null && !email.isEmpty()) ? email : "Admin";
+                    PriceHistoryRecord record = new PriceHistoryRecord(oldP, newP, oldSP, newSP, updater);
+                    java.util.List<PriceHistoryRecord> history = new java.util.ArrayList<>();
+                    if (oldVar != null && oldVar.getPriceHistory() != null) {
+                        history.addAll(oldVar.getPriceHistory());
+                    }
+                    history.add(record);
+                    newVar.setPriceHistory(history);
+                } else if (oldVar != null) {
+                    newVar.setPriceHistory(oldVar.getPriceHistory());
+                }
             }
-            existing.getPriceHistory().add(record);
         }
         
         // Safely copy editable catalog fields to preserve review data and price history list
@@ -300,6 +357,7 @@ public class ProductController {
         existing.setFeatures(product.getFeatures());
         existing.setInStock(product.getInStock());
         existing.setAttributes(product.getAttributes());
+        existing.setVariants(product.getVariants());
         existing.setGstPercentage(product.getGstPercentage());
         existing.setPromoted(product.getPromoted());
         existing.setPromotionPriority(product.getPromotionPriority());
@@ -455,6 +513,95 @@ public class ProductController {
         List<Product> products = productRepository.findAll();
         products.forEach(product -> kafkaTemplate.send(TOPIC_UPSERT, product.getId(), product));
         return ResponseEntity.ok("Synced " + products.size() + " products to Search service.");
+    }
+
+    @org.springframework.context.event.EventListener(org.springframework.boot.context.event.ApplicationReadyEvent.class)
+    public void migrateDatabaseOnStartup() {
+        System.out.println("=== STARTING RAW MONGODB PRODUCTS MIGRATION ===");
+        try {
+            List<org.bson.Document> rawDocs = mongoTemplate.findAll(org.bson.Document.class, "products");
+            int migrated = 0;
+            for (org.bson.Document doc : rawDocs) {
+                String id = doc.get("_id") != null ? doc.get("_id").toString() : null;
+                if (id == null) continue;
+                
+                List<?> variantsList = (List<?>) doc.get("variants");
+                boolean needsMigration = (variantsList == null || variantsList.isEmpty());
+                
+                if (needsMigration) {
+                    System.out.println("Migrating product ID: " + id);
+                    
+                    org.bson.Document std = new org.bson.Document();
+                    std.put("variantId", 1L);
+                    std.put("name", "Standard");
+                    std.put("grouping", "Option");
+                    
+                    std.put("price", doc.get("price"));
+                    std.put("salePrice", doc.get("salePrice"));
+                    
+                    Object inStockVal = doc.get("inStock");
+                    std.put("inStock", inStockVal != null ? inStockVal : true);
+                    std.put("sequence", 0);
+                    
+                    Object rootHistory = doc.get("priceHistory");
+                    std.put("priceHistory", rootHistory != null ? rootHistory : new java.util.ArrayList<>());
+                    
+                    List<org.bson.Document> newVariants = new java.util.ArrayList<>();
+                    newVariants.add(std);
+                    
+                    org.springframework.data.mongodb.core.query.Query query = 
+                        org.springframework.data.mongodb.core.query.Query.query(
+                            org.springframework.data.mongodb.core.query.Criteria.where("_id").is(doc.get("_id"))
+                        );
+                    org.springframework.data.mongodb.core.query.Update update = 
+                        new org.springframework.data.mongodb.core.query.Update()
+                            .set("variants", newVariants)
+                            .unset("price")
+                            .unset("salePrice")
+                            .unset("inStock")
+                            .unset("priceHistory");
+                            
+                    mongoTemplate.updateFirst(query, update, "products");
+                    migrated++;
+                } else {
+                    boolean updatedVariants = false;
+                    List<org.bson.Document> updatedList = new java.util.ArrayList<>();
+                    for (Object vObj : variantsList) {
+                        if (vObj instanceof org.bson.Document) {
+                            org.bson.Document vDoc = (org.bson.Document) vObj;
+                            if (!vDoc.containsKey("sequence") || vDoc.get("sequence") == null) {
+                                vDoc.put("sequence", 0);
+                                updatedVariants = true;
+                            }
+                            if (!vDoc.containsKey("priceHistory") || vDoc.get("priceHistory") == null) {
+                                vDoc.put("priceHistory", new java.util.ArrayList<>());
+                                updatedVariants = true;
+                            }
+                            updatedList.add(vDoc);
+                        }
+                    }
+                    if (updatedVariants || doc.containsKey("price") || doc.containsKey("salePrice") || doc.containsKey("inStock") || doc.containsKey("priceHistory")) {
+                        org.springframework.data.mongodb.core.query.Query query = 
+                            org.springframework.data.mongodb.core.query.Query.query(
+                                org.springframework.data.mongodb.core.query.Criteria.where("_id").is(doc.get("_id"))
+                            );
+                        org.springframework.data.mongodb.core.query.Update update = 
+                            new org.springframework.data.mongodb.core.query.Update()
+                                .set("variants", updatedList)
+                                .unset("price")
+                                .unset("salePrice")
+                                .unset("inStock")
+                                .unset("priceHistory");
+                        mongoTemplate.updateFirst(query, update, "products");
+                        migrated++;
+                    }
+                }
+            }
+            System.out.println("=== RAW MONGODB PRODUCTS MIGRATION COMPLETED: " + migrated + " products updated ===");
+        } catch (Exception e) {
+            System.err.println("=== RAW MONGODB PRODUCTS MIGRATION FAILED: " + e.getMessage() + " ===");
+            e.printStackTrace();
+        }
     }
 
 }

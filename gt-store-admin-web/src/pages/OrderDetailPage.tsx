@@ -104,7 +104,7 @@ export default function OrderDetailPage() {
     
     const [order, setOrder] = useState<Order | null>(null);
     const [shipment, setShipment] = useState<Shipment | null>(null);
-    const [productsMap, setProductsMap] = useState<Record<string, { name: string; slug?: string }>>({});
+    const [productsMap, setProductsMap] = useState<Record<string, { name: string; slug?: string; variants?: any[] }>>({});
     const [loading, setLoading] = useState(true);
     const [updating, setUpdating] = useState(false);
     const [supportTickets, setSupportTickets] = useState<SupportTicket[]>([]);
@@ -117,13 +117,13 @@ export default function OrderDetailPage() {
 
     const fetchProductDetails = async (items: OrderItem[]) => {
         const uniqueIds = Array.from(new Set(items.map(i => i.productId)));
-        const map: Record<string, { name: string; slug?: string }> = {};
+        const map: Record<string, { name: string; slug?: string; variants?: any[] }> = {};
         
         await Promise.all(
             uniqueIds.map(async (pid) => {
                 try {
                     const res = await apiClient.get(`/api/products/${pid}`);
-                    map[pid] = { name: res.data.name, slug: res.data.slug };
+                    map[pid] = { name: res.data.name, slug: res.data.slug, variants: res.data.variants };
                 } catch (err) {
                     map[pid] = { name: 'Unknown GT Product' };
                 }
@@ -374,10 +374,32 @@ export default function OrderDetailPage() {
                                                             <ExternalLink className="w-3 h-3 opacity-70 shrink-0" />
                                                         </a>
                                                     </div>
-                                                    <div className="text-xs text-slate-400 mt-1 font-bold flex items-center gap-1">
-                                                        <span className="w-1.5 h-1.5 rounded-full bg-slate-200" />
-                                                        Variant: {item.variantId || 'Standard'}
-                                                    </div>
+                                                    {(() => {
+                                                        const varIdStr = String(item.variantId || '').trim();
+                                                        if (!varIdStr || varIdStr === 'std') {
+                                                            return (
+                                                                <div className="text-xs text-slate-400 mt-1 font-bold flex items-center gap-1">
+                                                                    <span className="w-1.5 h-1.5 rounded-full bg-slate-200" />
+                                                                    Variant: Standard / Base
+                                                                </div>
+                                                            );
+                                                        }
+                                                        const foundVar = pDetails?.variants?.find((v: any) => String(v.variantId) === varIdStr);
+                                                        if (foundVar) {
+                                                            return (
+                                                                <div className="text-xs text-purple-600 mt-1 font-bold flex items-center gap-1">
+                                                                    <span className="w-1.5 h-1.5 rounded-full bg-purple-400" />
+                                                                    Variant: {foundVar.name} ({foundVar.grouping})
+                                                                </div>
+                                                            );
+                                                        }
+                                                        return (
+                                                            <div className="text-xs text-slate-400 mt-1 font-bold flex items-center gap-1">
+                                                                    <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
+                                                                    Variant ID: {item.variantId}
+                                                            </div>
+                                                        );
+                                                    })()}
                                                 </td>
                                                 <td className="px-6 py-4 text-center font-extrabold text-slate-600 text-sm">
                                                     x{item.quantity}

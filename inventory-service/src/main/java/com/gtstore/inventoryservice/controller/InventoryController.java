@@ -27,8 +27,10 @@ public class InventoryController {
     }
 
     @GetMapping("/{productId}")
-    public ResponseEntity<Integer> getStock(@PathVariable String productId) {
-        return ResponseEntity.ok(inventoryService.getStock(productId));
+    public ResponseEntity<Integer> getStock(
+            @PathVariable String productId,
+            @RequestParam(required = false) String variantId) {
+        return ResponseEntity.ok(inventoryService.getStock(productId, variantId));
     }
 
     @PostMapping("/reserve")
@@ -53,7 +55,10 @@ public class InventoryController {
     }
 
     @PutMapping("/{productId}/stock")
-    public ResponseEntity<Inventory> updateStock(@PathVariable String productId, @RequestParam Integer quantity) {
-        return ResponseEntity.ok(inventoryService.updateStock(productId, quantity));
+    public ResponseEntity<Inventory> updateStock(
+            @PathVariable String productId,
+            @RequestParam(required = false) String variantId,
+            @RequestParam Integer quantity) {
+        return ResponseEntity.ok(inventoryService.updateStock(productId, variantId, quantity));
     }
 }

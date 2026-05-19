@@ -1,3 +1,16 @@
+export interface ProductVariant {
+  variantId: number;
+  name: string;
+  grouping: string;
+  price?: number;
+  salePrice?: number;
+  images?: string[];
+  features?: string[];
+  inStock?: boolean;
+  sequence?: number;
+  priceHistory?: any[];
+}
+
 export interface Product {
   id: string;
   slug?: string;
@@ -20,6 +33,7 @@ export interface Product {
   promoted?: boolean;
   promotionPriority?: number;
   gstPercentage?: number;
+  variants?: ProductVariant[];
 }
 
 export interface Review {

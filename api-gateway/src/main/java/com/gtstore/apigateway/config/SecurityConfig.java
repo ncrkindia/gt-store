@@ -83,7 +83,7 @@ public class SecurityConfig {
 
                                                 // Other public endpoints
                                                 .pathMatchers(HttpMethod.GET, "/api/products/**", "/api/categories/**",
-                                                                "/api/brands/**", "/api/banners/**")
+                                                                "/api/brands/**", "/api/banners/**", "/api/inventory/all")
                                                 .permitAll()
                                                 .pathMatchers(HttpMethod.POST, "/api/products/bulk").permitAll()
                                                 .pathMatchers(HttpMethod.GET, "/api/search/**").permitAll()
@@ -120,7 +120,6 @@ public class SecurityConfig {
                                                 .pathMatchers(HttpMethod.PUT, "/api/orders/*/status")
                                                 .hasRole("GTS_ADMIN")
 
-                                                .pathMatchers(HttpMethod.GET, "/api/inventory/all").hasRole("GTS_ADMIN")
                                                 .pathMatchers(HttpMethod.PUT, "/api/inventory/**").hasRole("GTS_ADMIN")
 
                                                 // All other endpoints require authentication

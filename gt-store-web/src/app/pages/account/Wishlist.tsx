@@ -103,6 +103,11 @@ export function Wishlist() {
 
   const handleMoveToCart = async (e: React.MouseEvent, productId: string) => {
     e.preventDefault();
+    const targetProd = wishlistProducts.find(p => p.id === productId);
+    if (targetProd && targetProd.inStock === false) {
+      toast.error('This product is out of stock.');
+      return;
+    }
     setActionLoading(productId);
     try {
       // 1. Add to Cart
@@ -163,10 +168,14 @@ export function Wishlist() {
               
               <div className="absolute top-4 right-4 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0 z-20">
                 <button
-                  disabled={actionLoading === product.id}
-                  className="bg-white text-indigo-600 hover:bg-indigo-600 hover:text-white p-3 rounded-full shadow-xl transition-all hover:scale-110 disabled:opacity-50"
+                  disabled={actionLoading === product.id || product.inStock === false}
+                  className={`bg-white p-3 rounded-full shadow-xl transition-all hover:scale-110 disabled:opacity-50 ${
+                    product.inStock === false
+                      ? "text-gray-400 hover:bg-white hover:text-gray-400 cursor-not-allowed"
+                      : "text-indigo-600 hover:bg-indigo-600 hover:text-white"
+                  }`}
                   onClick={(e) => handleMoveToCart(e, product.id)}
-                  title="Move to Cart"
+                  title={product.inStock === false ? "Out of Stock" : "Move to Cart"}
                 >
                   <ShoppingCart className="w-5 h-5" />
                 </button>

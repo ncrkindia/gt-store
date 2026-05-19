@@ -23,6 +23,19 @@ interface PriceHistoryRecord {
     updatedAt?: string;
 }
 
+interface ProductVariant {
+    variantId: number;
+    name: string;
+    grouping: string;
+    price?: number;
+    salePrice?: number;
+    images?: string[];
+    features?: string[];
+    inStock?: boolean;
+    sequence?: number;
+    priceHistory?: PriceHistoryRecord[];
+}
+
 interface Product {
     id: string;
     name: string;
@@ -40,6 +53,7 @@ interface Product {
     promotionPriority?: number;
     listed?: boolean;
     priceHistory?: PriceHistoryRecord[];
+    variants?: ProductVariant[];
 }
 
 const getStorefrontUrl = () => {
@@ -128,7 +142,7 @@ const ProductsPage = () => {
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [priceHistory, setPriceHistory] = useState<PriceHistoryRecord[]>([]);
+    const [expandedVariantHistories, setExpandedVariantHistories] = useState<Record<number, boolean>>({});
 
     // Relational Catalog Assets
     const [allBrands, setAllBrands] = useState<Brand[]>([]);
@@ -150,7 +164,8 @@ const ProductsPage = () => {
         gstPercentage: 18,
         promoted: false,
         promotionPriority: 0,
-        listed: false
+        listed: false,
+        variants: []
     };
     const [formData, setFormData] = useState<Omit<Product, 'id'>>(emptyProduct);
     const [featureInput, setFeatureInput] = useState('');
@@ -304,10 +319,11 @@ const ProductsPage = () => {
             gstPercentage: p.gstPercentage || 18,
             promoted: p.promoted !== undefined ? p.promoted : false,
             promotionPriority: p.promotionPriority !== undefined ? p.promotionPriority : 0,
-            listed: p.listed !== undefined ? p.listed : true
+            listed: p.listed !== undefined ? p.listed : true,
+            variants: p.variants || []
         });
         setEditingId(p.id);
-        setPriceHistory(p.priceHistory || []);
+        setExpandedVariantHistories({});
         setIsModalOpen(true);
     };
 
@@ -422,7 +438,7 @@ const ProductsPage = () => {
         const headers = [
             'id', 'name', 'price', 'salePrice', 'brand',
             'categoryIds', 'gstPercentage', 'inStock', 'listed',
-            'promoted', 'promotionPriority', 'description', 'features', 'images'
+            'promoted', 'promotionPriority', 'description', 'features', 'images', 'variants'
         ];
 
         const rows = filteredProducts.map(p => {
@@ -446,7 +462,8 @@ const ProductsPage = () => {
                 p.promotionPriority ? String(p.promotionPriority) : '0',
                 p.description || '',
                 (p.features || []).join('; '),
-                (p.images || []).join(', ')
+                (p.images || []).join(', '),
+                p.variants ? JSON.stringify(p.variants) : '[]'
             ];
         });
 
@@ -564,6 +581,7 @@ const ProductsPage = () => {
                 const descKeyIdx = headers.findIndex(h => ['description', 'desc', 'bio'].includes(h.replace(/[^a-z0-9]/g, '')));
                 const featuresKeyIdx = headers.findIndex(h => ['features', 'specs', 'highlights'].includes(h.replace(/[^a-z0-9]/g, '')));
                 const imagesKeyIdx = headers.findIndex(h => ['images', 'imageurls', 'gallery'].includes(h.replace(/[^a-z0-9]/g, '')));
+                const variantsKeyIdx = headers.findIndex(h => ['variants', 'skus'].includes(h.replace(/[^a-z0-9]/g, '')));
 
                 if (nameKeyIdx === -1) {
                     throw new Error(`Invalid CSV headers. Missing required column 'name'. Found columns: [${rawLines[0].join(', ')}].`);
@@ -585,6 +603,7 @@ const ProductsPage = () => {
                     const descVal = descKeyIdx !== -1 ? row[descKeyIdx] || '' : '';
                     const featuresVal = featuresKeyIdx !== -1 ? row[featuresKeyIdx] || '' : '';
                     const imagesVal = imagesKeyIdx !== -1 ? row[imagesKeyIdx] || '' : '';
+                    const variantsVal = variantsKeyIdx !== -1 ? row[variantsKeyIdx] || '' : '';
 
                     // Resolve dynamic relations
                     const resolvedBrand = allBrands.find(b =>
@@ -601,6 +620,16 @@ const ProductsPage = () => {
                         return matched ? matched.id : ref;
                     });
 
+                    // Safely parse nested variants
+                    let resolvedVariants: any[] = [];
+                    if (variantsVal.trim()) {
+                        try {
+                            resolvedVariants = JSON.parse(variantsVal);
+                        } catch (e) {
+                            resolvedVariants = [];
+                        }
+                    }
+
                     const obj: Record<string, any> = {
                         'id': idVal,
                         'name': nameVal,
@@ -615,7 +644,8 @@ const ProductsPage = () => {
                         'promotionPriority': priorityVal ? (parseInt(priorityVal) || 0) : 0,
                         'description': descVal,
                         'features': featuresVal ? featuresVal.split(';').map((f: string) => f.trim()).filter((f: string) => f) : [],
-                        'images': imagesVal ? imagesVal.split(',').map((img: string) => img.trim()).filter((img: string) => img) : []
+                        'images': imagesVal ? imagesVal.split(',').map((img: string) => img.trim()).filter((img: string) => img) : [],
+                        'variants': resolvedVariants
                     };
 
                     const cleaned: Record<string, any> = {};
@@ -671,6 +701,7 @@ const ProductsPage = () => {
                 const description = row.description || '';
                 const features = row.features || [];
                 const images = row.images || [];
+                const variants = row.variants || [];
 
                 if (!name) {
                     throw new Error(`Missing mandatory product field: name.`);
@@ -691,7 +722,7 @@ const ProductsPage = () => {
                 const payload = {
                     name, description, price, salePrice, brand,
                     categoryIds, features, images, inStock, gstPercentage,
-                    promoted, promotionPriority, listed
+                    promoted, promotionPriority, listed, variants
                 };
 
                 let savedProduct;
@@ -825,75 +856,22 @@ const ProductsPage = () => {
                             </div>
                         </div>
 
-                        {/* Pricing Tiers */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <div className="form-group text-left">
-                                <label className="block text-sm font-bold text-slate-700 mb-2">MRP Base Price (₹)</label>
-                                <input className="w-full" type="number" step="0.01" required value={formData.price} onChange={e => setFormData({ ...formData, price: parseFloat(e.target.value) })} />
-                            </div>
-                            <div className="form-group text-left">
-                                <label className="block text-sm font-bold text-slate-700 mb-2">Sale Price (Optional)</label>
-                                <input className="w-full" type="number" step="0.01" value={formData.salePrice || ''} onChange={e => setFormData({ ...formData, salePrice: e.target.value ? parseFloat(e.target.value) : undefined })} placeholder="e.g. 94999" />
+                        {/* Pricing and Taxation System */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
+                            <div className="md:col-span-2 bg-indigo-50/50 border border-indigo-100/80 rounded-2xl p-4 flex items-center gap-3 text-left">
+                                <span className="text-xl">🏷️</span>
+                                <div>
+                                    <h4 className="text-xs font-black text-indigo-900">Variant-Level Pricing and Inventory Enabled</h4>
+                                    <p className="text-[10px] text-indigo-700/80 font-semibold mt-0.5">MRP, Sale Price, and In-Stock flags are now maintained at the Variant/SKU level in the Variant panel below.</p>
+                                </div>
                             </div>
                             <div className="form-group text-left">
                                 <label className="block text-sm font-bold text-slate-700 mb-2">GST Percentage (%)</label>
-                                <input className="w-full" type="number" min={0} max={100} required value={formData.gstPercentage ?? 18} onChange={e => setFormData({ ...formData, gstPercentage: parseInt(e.target.value) || 0 })} />
+                                <input className="w-full font-bold" type="number" min={0} max={100} required value={formData.gstPercentage ?? 18} onChange={e => setFormData({ ...formData, gstPercentage: parseInt(e.target.value) || 0 })} onWheel={e => e.currentTarget.blur()} />
                             </div>
                         </div>
 
-                        {/* Price History Section */}
-                        {editingId && (
-                            <div className="form-group border border-slate-100 bg-slate-50/30 rounded-2xl p-6 text-left">
-                                <label className="block text-sm font-extrabold text-slate-900 mb-3">🏷️ SKU Price Modification History</label>
-                                <div className="space-y-3 max-h-48 overflow-y-auto pr-2">
-                                    {priceHistory.length === 0 ? (
-                                        <p className="text-xs text-slate-400 italic">No price change history recorded for this catalog item.</p>
-                                    ) : (
-                                        priceHistory.slice().reverse().map((record, index) => {
-                                            const formattedDate = record.updatedAt
-                                                ? new Date(record.updatedAt).toLocaleString('en-IN', {
-                                                    day: '2-digit', month: 'short', year: 'numeric',
-                                                    hour: '2-digit', minute: '2-digit'
-                                                })
-                                                : 'N/A';
-                                            return (
-                                                <div key={index} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-600 shadow-3xs">
-                                                    <div className="flex flex-wrap items-center gap-2">
-                                                        <span className="bg-slate-100 text-slate-700 px-2 py-1 rounded-md text-[10px] font-bold">
-                                                            {record.updatedBy || 'System'}
-                                                        </span>
-                                                        <span className="text-[11px] text-slate-400 font-medium">{formattedDate}</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-3 font-extrabold">
-                                                        <div className="flex flex-col items-end">
-                                                            <span className="text-[10px] text-slate-400 font-medium">MRP</span>
-                                                            <div className="flex items-center gap-1">
-                                                                <span className="line-through text-slate-400">{formatPrice(record.oldPrice ?? 0)}</span>
-                                                                <span className="text-slate-700">→</span>
-                                                                <span className="text-emerald-600">{formatPrice(record.newPrice ?? 0)}</span>
-                                                            </div>
-                                                        </div>
-                                                        {(record.oldSalePrice !== undefined || record.newSalePrice !== undefined) && (
-                                                            <div className="border-l border-slate-200 h-6 mx-1"></div>
-                                                        )}
-                                                        {(record.oldSalePrice !== undefined || record.newSalePrice !== undefined) && (
-                                                            <div className="flex flex-col items-end">
-                                                                <span className="text-[10px] text-slate-400 font-medium">Sale Price</span>
-                                                                <div className="flex items-center gap-1">
-                                                                    <span className="line-through text-slate-400">{formatPrice(record.oldSalePrice ?? 0)}</span>
-                                                                    <span className="text-slate-700">→</span>
-                                                                    <span className="text-red-500">{formatPrice(record.newSalePrice ?? 0)}</span>
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            );
-                                        })
-                                    )}
-                                </div>
-                            </div>
-                        )}
+
 
                         {/* Relational Categories Matrix */}
                         <div className="form-group border border-slate-100 bg-slate-50/30 rounded-2xl p-6 text-left">
@@ -1025,21 +1003,7 @@ const ProductsPage = () => {
                             </div>
                         </div>
 
-                        {/* Lifecycle Details */}
-                        <div className="flex items-center justify-between bg-slate-50/40 p-5 border border-slate-100 rounded-2xl text-left">
-                            <div className="flex flex-col">
-                                <label className="text-sm font-bold text-slate-900">Inventory Warehouse Availability</label>
-                                <span className="text-xs text-slate-500 font-medium">Toggles instant purchase capabilities across the main store.</span>
-                            </div>
-                            <select
-                                className="bg-white border border-slate-200 text-slate-700 font-bold px-4 py-2 rounded-xl shadow-xs focus:ring-indigo-500 outline-none"
-                                value={formData.inStock ? "true" : "false"}
-                                onChange={e => setFormData({ ...formData, inStock: e.target.value === "true" })}
-                            >
-                                <option value="true">🟢 In Stock</option>
-                                <option value="false">🔴 Out of Stock</option>
-                            </select>
-                        </div>
+
 
                         {/* Listing Status Visibility */}
                         <div className="flex items-center justify-between bg-slate-50/40 p-5 border border-slate-100 rounded-2xl text-left">
@@ -1088,9 +1052,257 @@ const ProductsPage = () => {
                                         className="w-24 font-black text-center bg-white border border-amber-200 text-amber-700 h-10 rounded-xl"
                                         value={formData.promotionPriority ?? 0}
                                         onChange={e => setFormData({ ...formData, promotionPriority: parseInt(e.target.value) || 0 })}
+                                        onWheel={e => e.currentTarget.blur()}
                                     />
                                 </div>
                             )}
+                        </div>
+
+                        {/* Variant Subsystem */}
+                        <div className="form-group border border-slate-100 bg-slate-50/30 rounded-2xl p-6 text-left">
+                            <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+                                <div>
+                                    <label className="block text-sm font-extrabold text-slate-900">Product SKU Variants</label>
+                                    <p className="text-[10px] text-slate-500 mt-0.5 font-medium">Configure multiple sizes, colors, or feature options for this product.</p>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[10px] uppercase font-black text-slate-400">Grouping:</span>
+                                    <input 
+                                        type="text" 
+                                        placeholder="e.g. Color or Size" 
+                                        className="px-3 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold w-36 outline-none"
+                                        value={formData.variants?.[0]?.grouping || ''}
+                                        onChange={e => {
+                                            const val = e.target.value;
+                                            const updated = (formData.variants || []).map(v => ({ ...v, grouping: val }));
+                                            setFormData(prev => ({ ...prev, variants: updated }));
+                                        }}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="space-y-4">
+                                {(formData.variants || []).map((variant, idx) => (
+                                    <div key={idx} className="p-4 bg-white border border-slate-200 rounded-xl shadow-2xs relative group">
+                                        <button 
+                                            type="button" 
+                                            onClick={() => {
+                                                const updated = (formData.variants || []).filter((_, i) => i !== idx);
+                                                setFormData(prev => ({ ...prev, variants: updated }));
+                                            }}
+                                            className="absolute top-3 right-3 p-1.5 hover:bg-red-50 text-slate-400 hover:text-red-600 rounded-lg transition"
+                                        >
+                                            <X size={14} />
+                                        </button>
+
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4 text-xs">
+                                            <div>
+                                                <label className="block font-bold text-slate-600 mb-1">Variant ID (Numeric)</label>
+                                                <input 
+                                                    type="number" 
+                                                    className="w-full bg-slate-50/50" 
+                                                    value={variant.variantId} 
+                                                    onChange={e => {
+                                                        const updated = [...(formData.variants || [])];
+                                                        updated[idx] = { ...variant, variantId: parseInt(e.target.value) || 0 };
+                                                        setFormData(prev => ({ ...prev, variants: updated }));
+                                                    }}
+                                                    onWheel={e => e.currentTarget.blur()}
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block font-bold text-slate-600 mb-1">Short English Name</label>
+                                                <input 
+                                                    type="text" 
+                                                    className="w-full bg-slate-50/50" 
+                                                    value={variant.name} 
+                                                    onChange={e => {
+                                                        const updated = [...(formData.variants || [])];
+                                                        updated[idx] = { ...variant, name: e.target.value };
+                                                        setFormData(prev => ({ ...prev, variants: updated }));
+                                                    }}
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block font-bold text-slate-600 mb-1">Sequence</label>
+                                                <input 
+                                                    type="number" 
+                                                    className="w-full bg-slate-50/50" 
+                                                    value={variant.sequence ?? 0} 
+                                                    onChange={e => {
+                                                        const updated = [...(formData.variants || [])];
+                                                        updated[idx] = { ...variant, sequence: parseInt(e.target.value) || 0 };
+                                                        setFormData(prev => ({ ...prev, variants: updated }));
+                                                    }}
+                                                    onWheel={e => e.currentTarget.blur()}
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block font-bold text-slate-600 mb-1">Price override (₹)</label>
+                                                <input 
+                                                    type="number" 
+                                                    step="0.01"
+                                                    className="w-full bg-slate-50/50" 
+                                                    value={variant.price || ''} 
+                                                    onChange={e => {
+                                                        const updated = [...(formData.variants || [])];
+                                                        updated[idx] = { ...variant, price: e.target.value ? parseFloat(e.target.value) : undefined };
+                                                        setFormData(prev => ({ ...prev, variants: updated }));
+                                                    }}
+                                                    onWheel={e => e.currentTarget.blur()}
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block font-bold text-slate-600 mb-1">Sale override (₹)</label>
+                                                <input 
+                                                    type="number" 
+                                                    step="0.01"
+                                                    className="w-full bg-slate-50/50" 
+                                                    value={variant.salePrice || ''} 
+                                                    onChange={e => {
+                                                        const updated = [...(formData.variants || [])];
+                                                        updated[idx] = { ...variant, salePrice: e.target.value ? parseFloat(e.target.value) : undefined };
+                                                        setFormData(prev => ({ ...prev, variants: updated }));
+                                                    }}
+                                                    onWheel={e => e.currentTarget.blur()}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3 text-xs">
+                                            <div>
+                                                <label className="block font-bold text-slate-600 mb-1">Variant Specific Images (comma-separated)</label>
+                                                <input 
+                                                    type="text" 
+                                                    placeholder="e.g. /api/media/files/red1.jpg, /api/media/files/red2.jpg"
+                                                    className="w-full bg-slate-50/50" 
+                                                    value={(variant.images || []).join(', ')} 
+                                                    onChange={e => {
+                                                        const updated = [...(formData.variants || [])];
+                                                        updated[idx] = { ...variant, images: e.target.value.split(',').map(s => s.trim()).filter(Boolean) };
+                                                        setFormData(prev => ({ ...prev, variants: updated }));
+                                                    }}
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block font-bold text-slate-600 mb-1">Variant Specific Features (semicolon-separated)</label>
+                                                <input 
+                                                    type="text" 
+                                                    placeholder="e.g. Special Red finish; 2 Year Extended Warranty"
+                                                    className="w-full bg-slate-50/50" 
+                                                    value={(variant.features || []).join('; ')} 
+                                                    onChange={e => {
+                                                        const updated = [...(formData.variants || [])];
+                                                        updated[idx] = { ...variant, features: e.target.value.split(';').map(s => s.trim()).filter(Boolean) };
+                                                        setFormData(prev => ({ ...prev, variants: updated }));
+                                                    }}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="mt-3 flex items-center justify-between border-t border-slate-50 pt-2 text-xs">
+                                            <div className="flex items-center gap-2">
+                                                <input 
+                                                    type="checkbox" 
+                                                    id={`v-stock-${idx}`}
+                                                    checked={variant.inStock !== false} 
+                                                    onChange={e => {
+                                                        const updated = [...(formData.variants || [])];
+                                                        updated[idx] = { ...variant, inStock: e.target.checked };
+                                                        setFormData(prev => ({ ...prev, variants: updated }));
+                                                    }}
+                                                />
+                                                <label htmlFor={`v-stock-${idx}`} className="font-bold text-slate-600 cursor-pointer">Variant Available in Warehouse</label>
+                                            </div>
+                                        </div>
+
+                                        {/* Variant Price History Expander */}
+                                        {editingId && variant.variantId && (
+                                            <div className="mt-3 pt-2 border-t border-slate-100 text-left">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setExpandedVariantHistories(prev => ({
+                                                            ...prev,
+                                                            [variant.variantId]: !prev[variant.variantId]
+                                                        }));
+                                                    }}
+                                                    className="inline-flex items-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-700 font-extrabold cursor-pointer transition"
+                                                >
+                                                    📜 {expandedVariantHistories[variant.variantId] ? 'Hide' : 'Show'} Price History ({variant.priceHistory?.length || 0})
+                                                </button>
+                                                
+                                                {expandedVariantHistories[variant.variantId] && (
+                                                    <div className="mt-2 space-y-2 bg-slate-50/50 border border-slate-100 rounded-xl p-3 max-h-36 overflow-y-auto">
+                                                        {!variant.priceHistory || variant.priceHistory.length === 0 ? (
+                                                            <p className="text-[10px] text-slate-400 italic">No price change history recorded for this SKU.</p>
+                                                        ) : (
+                                                            variant.priceHistory.slice().reverse().map((record, index) => {
+                                                                const formattedDate = record.updatedAt
+                                                                    ? new Date(record.updatedAt).toLocaleString('en-IN', {
+                                                                        day: '2-digit', month: 'short', year: 'numeric',
+                                                                        hour: '2-digit', minute: '2-digit'
+                                                                    })
+                                                                    : 'N/A';
+                                                                return (
+                                                                    <div key={index} className="flex flex-col gap-1 p-2 bg-white border border-slate-200 rounded-lg text-[10px] text-slate-600 shadow-3xs">
+                                                                        <div className="flex items-center justify-between gap-2 border-b border-slate-50 pb-1">
+                                                                            <span className="bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded text-[8px] font-black">
+                                                                                {record.updatedBy || 'System'}
+                                                                            </span>
+                                                                            <span className="text-slate-400 font-medium">{formattedDate}</span>
+                                                                        </div>
+                                                                        <div className="flex items-center justify-between font-extrabold">
+                                                                            <div className="flex items-center gap-1">
+                                                                                <span className="text-slate-400 font-medium">MRP:</span>
+                                                                                <span className="line-through text-slate-400">{formatPrice(record.oldPrice ?? 0)}</span>
+                                                                                <span className="text-slate-500">→</span>
+                                                                                <span className="text-emerald-600">{formatPrice(record.newPrice ?? 0)}</span>
+                                                                            </div>
+                                                                            {(record.oldSalePrice !== undefined || record.newSalePrice !== undefined) && (
+                                                                                <div className="flex items-center gap-1">
+                                                                                    <span className="text-slate-400 font-medium">Sale:</span>
+                                                                                    <span className="line-through text-slate-400">{formatPrice(record.oldSalePrice ?? 0)}</span>
+                                                                                    <span className="text-slate-500">→</span>
+                                                                                    <span className="text-red-500">{formatPrice(record.newSalePrice ?? 0)}</span>
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+                                                                );
+                                                            })
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+
+                                {/* Add Variant Button */}
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        const nextId = (formData.variants || []).reduce((max, v) => Math.max(max, v.variantId), 0) + 1;
+                                        const grouping = formData.variants?.[0]?.grouping || '';
+                                        const newVar: ProductVariant = {
+                                            variantId: nextId,
+                                            name: '',
+                                            grouping: grouping,
+                                            price: undefined,
+                                            salePrice: undefined,
+                                            images: [],
+                                            features: [],
+                                            inStock: true,
+                                            sequence: (formData.variants || []).length
+                                        };
+                                        setFormData(prev => ({ ...prev, variants: [...(prev.variants || []), newVar] }));
+                                    }}
+                                    className="w-full py-3 bg-white border border-dashed border-slate-300 rounded-xl text-xs font-black text-indigo-600 hover:text-indigo-700 hover:border-indigo-500 hover:bg-indigo-50/10 transition flex items-center justify-center gap-2 cursor-pointer"
+                                >
+                                    <Plus size={14} /> Add Product SKU Variant Option
+                                </button>
+                            </div>
                         </div>
 
                         <div className="flex justify-end items-center gap-3 border-t border-slate-100 pt-6 mt-8">
@@ -1142,7 +1354,7 @@ const ProductsPage = () => {
                         onClick={() => {
                             setEditingId(null);
                             setFormData(emptyProduct);
-                            setPriceHistory([]);
+                            setExpandedVariantHistories({});
                             setIsModalOpen(true);
                         }}
                         className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-md shadow-indigo-100 transition cursor-pointer"

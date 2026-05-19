@@ -47,7 +47,8 @@ const fetchProductsBulk = async (ids: string[]) => {
       category: (p.categoryIds && p.categoryIds.length > 0) ? p.categoryIds[0] : 'all',
       inStock: p.inStock !== undefined ? p.inStock : true,
       features: p.features || [],
-      gstPercentage: p.gstPercentage !== undefined ? p.gstPercentage : 18
+      gstPercentage: p.gstPercentage !== undefined ? p.gstPercentage : 18,
+      variants: p.variants || []
     };
   });
 };
@@ -102,17 +103,75 @@ export function Cart() {
   const enrichedItems = cartItems.map((item: any) => {
     const product = products?.find((p) => p.id === item.productId);
     if (products && !product) return null;
+    
+    const matchedVariant = product?.variants?.find((v: any) => String(v.variantId) === String(item.variantId));
+    
+    let resolvedPrice = product?.price || 0;
+    let resolvedImage = product?.image || '';
+    
+    if (matchedVariant) {
+      if (matchedVariant.price !== undefined) {
+        resolvedPrice = matchedVariant.salePrice && matchedVariant.salePrice < matchedVariant.price
+          ? matchedVariant.salePrice
+          : matchedVariant.price;
+      }
+      if (matchedVariant.images && matchedVariant.images.length > 0) {
+        resolvedImage = matchedVariant.images[0];
+      }
+    }
+    
+    const API_BASE = "https://gts-api.slpro.in";
+    const resolveImg = (img?: string): string => {
+      if (!img) return "";
+      if (img.startsWith("http")) return img;
+      if (img.startsWith("/")) return `${API_BASE}${img}`;
+      return `${API_BASE}/api/media/files/${img}`;
+    };
+
     return {
       ...item,
-      product: product || {
+      product: product ? {
+        ...product,
+        price: resolvedPrice,
+        image: resolveImg(resolvedImage)
+      } : {
         id: item.productId,
         slug: undefined,
         name: 'Loading...',
         price: 0,
         image: ''
-      }
+      },
+      variant: matchedVariant
     };
   }).filter(Boolean) as any[];
+
+  const { data: allInventory = [] } = useQuery<any[]>({
+    queryKey: ['inventory'],
+    queryFn: async () => {
+      try {
+        const res = await apiClient.get('/inventory/all');
+        return Array.isArray(res.data) ? res.data : [];
+      } catch (err) {
+        console.error(err);
+        return [];
+      }
+    }
+  });
+
+  const getVariantStock = (pId: string, vId?: string | number): number => {
+    const vStr = vId !== undefined ? String(vId) : 'std';
+    const match = allInventory.find((inv: any) => 
+      inv.productId === pId && 
+      (inv.variantId === vStr || (vStr === 'std' && (!inv.variantId || inv.variantId === 'std')))
+    );
+    return match ? match.stock : 0;
+  };
+
+  const hasOutOfStockItems = enrichedItems.some((item: any) => {
+    const explicitOos = item.variant ? (item.variant.inStock === false) : (item.product.inStock === false);
+    const stock = getVariantStock(item.productId, item.variant?.variantId);
+    return explicitOos || stock <= 0;
+  });
 
   const { data: calculation, isLoading: isCalculating } = useQuery({
     queryKey: ['orderCalculation', cart?.items, appliedCoupon, appliedPoints, paymentMethod],
@@ -304,10 +363,16 @@ export function Cart() {
       return null;
     }
 
+    if (hasOutOfStockItems) {
+      toast.error('Please remove out of stock items from your cart before placing an order.');
+      return null;
+    }
+
     const itemsWithPrice = cart.items.map((i: any) => {
       const p = products?.find((prod) => prod.id === i.productId);
       return {
         productId: i.productId,
+        variantId: i.variantId,
         quantity: i.quantity,
         price: p?.price || 0
       };
@@ -330,6 +395,19 @@ export function Cart() {
       customerEmail: user.email || '',
       customerPhone: selectedAddress.phone || user.phone || ''
     };
+  };
+
+  const formatOrderError = (error: any): string => {
+    const data = error.response?.data || error.message || '';
+    const errorStr = typeof data === 'object' ? JSON.stringify(data) : String(data);
+
+    if (errorStr.includes('Inventory service unavailable') || errorStr.includes('inventory/reserve') || errorStr.includes('out of stock')) {
+      return 'Some items in your cart might have just run out of stock or our inventory service is temporarily busy. Please refresh the page, verify availability, and try again.';
+    }
+    if (errorStr.includes('Internal Server Error') || errorStr.includes('500')) {
+      return 'We encountered a temporary server error. Please try again in a few moments.';
+    }
+    return errorStr || 'An unexpected error occurred. Please try again.';
   };
 
   const handleRazorpayPayment = async () => {
@@ -363,7 +441,7 @@ export function Cart() {
             queryClient.invalidateQueries({ queryKey: ['cart'] });
             toast.success('Payment Successful! Order Placed.');
           } catch (error: any) {
-            toast.error('Payment verification failed: ' + (error.response?.data || error.message));
+            toast.error('Payment verification failed: ' + formatOrderError(error));
           }
         },
         prefill: {
@@ -378,7 +456,7 @@ export function Cart() {
       const rzp = new (window as any).Razorpay(options);
       rzp.open();
     } catch (error: any) {
-      toast.error('Failed to initiate Razorpay: ' + (error.response?.data || error.message));
+      toast.error('Failed to initiate Online payment: ' + formatOrderError(error));
     }
   };
 
@@ -392,7 +470,7 @@ export function Cart() {
       queryClient.invalidateQueries({ queryKey: ['cart'] });
       toast.success('Order Placed! Please pay Cash on Delivery.');
     } catch (error: any) {
-      toast.error('Failed to place COD order: ' + (error.response?.data || error.message));
+      toast.error('Failed to place COD order: ' + formatOrderError(error));
     }
   };
 
@@ -510,10 +588,13 @@ export function Cart() {
 
             {/* Cart Items Section */}
             <div className="space-y-4">
-              {enrichedItems.map((item: any) => (
-                <div key={item.productId} className="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition border border-gray-100">
-                  <div className="flex gap-4">
-                    <Link to={`/p/${item.product.slug || item.product.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`} className="flex-shrink-0">
+              {enrichedItems.map((item: any) => {
+                const productSlug = item.product.slug || item.product.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+                const detailUrl = `/p/${productSlug}${item.variant?.name ? `?variant=${encodeURIComponent(item.variant.name.toLowerCase())}` : ''}`;
+                return (
+                  <div key={item.productId} className="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition border border-gray-100">
+                    <div className="flex gap-4">
+                      <Link to={detailUrl} className="flex-shrink-0">
                       <img
                         src={item.product.image || 'https://via.placeholder.com/150'}
                         alt={item.product.name}
@@ -524,7 +605,7 @@ export function Cart() {
                     <div className="flex-1">
                       <div className="flex justify-between mb-2">
                         <Link
-                          to={`/p/${item.product.slug || item.product.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
+                          to={detailUrl}
                           className="text-lg font-semibold hover:text-indigo-600 transition"
                         >
                           {item.product.name}
@@ -536,37 +617,56 @@ export function Cart() {
                         >
                           <Trash2 className="w-5 h-5" />
                         </button>
-                      </div>
+                                            {(() => {
+                        const explicitOos = item.variant ? (item.variant.inStock === false) : (item.product.inStock === false);
+                        const isOutOfStock = explicitOos || getVariantStock(item.productId, item.variant?.variantId) <= 0;
+                        return (
+                          <>
+                            <div className="flex flex-wrap items-center gap-2 mb-3">
+                              <span className="text-sm text-gray-600">{item.product.brand}</span>
+                              {item.variant?.name && (
+                                <span className="text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-100 px-2.5 py-0.5 rounded-full capitalize">
+                                  Variant: {item.variant.name}
+                                </span>
+                              )}
+                              {isOutOfStock && (
+                                <span className="text-xs font-bold text-red-600 bg-red-50 border border-red-100 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                                  Out of Stock
+                                </span>
+                              )}
+                            </div>
 
-                      <p className="text-sm text-gray-600 mb-3">{item.product.brand}</p>
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-baseline gap-2">
+                                <span className="text-xl font-bold">{formatPrice(item.product.price)}</span>
+                              </div>
 
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-baseline gap-2">
-                          <span className="text-xl font-bold">{formatPrice(item.product.price)}</span>
-                        </div>
-
-                        <div className="flex items-center gap-3 border-2 border-gray-200 rounded-xl overflow-hidden bg-gray-50">
-                          <button
-                            onClick={() => updateQuantityMutation.mutate({ productId: item.productId, delta: -1 })}
-                            className="px-3 py-1.5 hover:bg-gray-200 transition cursor-pointer border-r border-gray-200"
-                            disabled={updateQuantityMutation.isPending}
-                          >
-                            <Minus className="w-4 h-4" />
-                          </button>
-                          <span className="w-10 text-center font-bold">{item.quantity}</span>
-                          <button
-                            onClick={() => updateQuantityMutation.mutate({ productId: item.productId, delta: 1 })}
-                            className="px-3 py-1.5 hover:bg-gray-200 transition cursor-pointer border-l border-gray-200"
-                            disabled={updateQuantityMutation.isPending}
-                          >
-                            <Plus className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
+                              <div className="flex items-center gap-3 border-2 border-gray-200 rounded-xl overflow-hidden bg-gray-50">
+                                <button
+                                  onClick={() => updateQuantityMutation.mutate({ productId: item.productId, delta: -1 })}
+                                  className="px-3 py-1.5 hover:bg-gray-200 transition cursor-pointer border-r border-gray-200"
+                                  disabled={updateQuantityMutation.isPending}
+                                >
+                                  <Minus className="w-4 h-4" />
+                                </button>
+                                <span className="w-10 text-center font-bold">{item.quantity}</span>
+                                <button
+                                  onClick={() => updateQuantityMutation.mutate({ productId: item.productId, delta: 1 })}
+                                  className="px-3 py-1.5 hover:bg-gray-200 transition cursor-pointer border-l border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                  disabled={updateQuantityMutation.isPending || isOutOfStock}
+                                >
+                                  <Plus className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </div>
+                          </>
+                        );
+                      })()}  </div>
                     </div>
                   </div>
                 </div>
-              ))}
+              );
+            })}
             </div>
           </div>
 
@@ -920,7 +1020,7 @@ export function Cart() {
                 {paymentMethod === 'ONLINE' ? (
                   <button
                     onClick={handleRazorpayPayment}
-                    disabled={!selectedAddress}
+                    disabled={!selectedAddress || hasOutOfStockItems}
                     className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold py-4 px-4 rounded-xl flex items-center justify-center gap-3 hover:from-indigo-700 hover:to-purple-700 transition shadow-lg cursor-pointer text-lg disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <img src="https://razorpay.com/favicon.png" alt="Razorpay" className="w-6 h-6 brightness-0 invert" />
@@ -929,7 +1029,7 @@ export function Cart() {
                 ) : (
                   <button
                     onClick={handleCODPayment}
-                    disabled={!selectedAddress}
+                    disabled={!selectedAddress || hasOutOfStockItems}
                     className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold py-4 px-4 rounded-xl flex items-center justify-center gap-3 hover:from-indigo-700 hover:to-purple-700 transition shadow-lg cursor-pointer text-lg disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Place COD Order

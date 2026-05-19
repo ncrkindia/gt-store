@@ -83,6 +83,7 @@ export function SearchResults() {
 
   const handleAddToCart = async (product: SearchResult) => {
     if (!keycloak.authenticated) { keycloak.login(); return; }
+    if (product.inStock === false) return;
     setAddingCart(product.id);
     try {
       await apiClient.post("/cart/items", { productId: product.id, quantity: 1 });
@@ -313,12 +314,14 @@ export function SearchResults() {
                               isFeedbackCart
                                 ? "bg-green-500 text-white"
                                 : result.inStock === false
-                                ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                                ? "bg-gray-100 text-gray-400 cursor-not-allowed pointer-events-none"
                                 : "bg-indigo-600 hover:bg-indigo-700 text-white"
                             }`}
                           >
                             {isFeedbackCart ? (
                               <><CheckCircle className="w-4 h-4" /> Added!</>
+                            ) : result.inStock === false ? (
+                              "Out of Stock"
                             ) : (
                               <><ShoppingCart className="w-4 h-4" /> Add to Cart</>
                             )}

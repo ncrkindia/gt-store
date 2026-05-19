@@ -1,4 +1,4 @@
-import { useParams, Link } from "react-router";
+import { useParams, Link, useSearchParams } from "react-router";
 import { Star, Heart, ShoppingCart, Truck, Shield, RotateCcw, X, ChevronLeft, ChevronRight, Share2 } from "lucide-react";
 import { ProductCard } from "../components/ProductCard";
 import { useState } from "react";
@@ -72,13 +72,15 @@ const fetchProducts = async () => {
       inStock: p.inStock !== undefined ? p.inStock : true,
       features: p.features || [],
       ratingBreakdown: p.ratingBreakdown || {},
-      reviewsList: p.reviews || []
+      reviewsList: p.reviews || [],
+      variants: p.variants || []
     };
   });
 };
 
 export function ProductView() {
   const { id, slug } = useParams<{ id?: string; slug?: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [sortOption, setSortOption] = useState("newest");
@@ -125,6 +127,19 @@ export function ProductView() {
     enabled: !!keycloak.authenticated
   });
 
+  const { data: allInventory = [] } = useQuery<any[]>({
+    queryKey: ['inventory'],
+    queryFn: async () => {
+      try {
+        const res = await apiClient.get('/inventory/all');
+        return Array.isArray(res.data) ? res.data : [];
+      } catch (err) {
+        console.error(err);
+        return [];
+      }
+    }
+  });
+
   const product = products.find((p) => (id && p.id === id) || (slug && p.slug === slug));
 
   const isWishlisted = wishlist.some((item: any) => item.productId === product?.id);
@@ -144,7 +159,74 @@ export function ProductView() {
     );
   }
 
-  const images = product.images && product.images.length > 0 ? product.images : [product.image];
+  // Active Variant Resolution Subsystem (sorted by sequence ascending)
+  const sortedVariants = [...(product.variants || [])].sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0));
+  const variantParam = searchParams.get('variant')?.toLowerCase();
+
+  const activeVariant = (() => {
+    if (sortedVariants.length === 0) {
+      return {
+        variantId: 1,
+        name: "Standard",
+        grouping: "Option",
+        price: product.price,
+        salePrice: product.originalPrice ? product.price : undefined,
+        images: product.images,
+        features: product.features,
+        inStock: product.inStock,
+        sequence: 0
+      };
+    }
+    if (variantParam) {
+      return sortedVariants.find(v => v.name.toLowerCase() === variantParam) || sortedVariants[0];
+    }
+    return sortedVariants[0];
+  })();
+
+  // 1. Pricing Override
+  let currentPrice = product.price;
+  let currentOriginalPrice = product.originalPrice;
+  let currentDiscount = product.discount;
+
+  if (activeVariant) {
+    if (activeVariant.price !== undefined) {
+      let vPrice = activeVariant.price;
+      let vOriginalPrice = undefined;
+      let vDiscount = undefined;
+      if (activeVariant.salePrice && activeVariant.salePrice < activeVariant.price) {
+        vOriginalPrice = activeVariant.price;
+        vPrice = activeVariant.salePrice;
+        vDiscount = Math.round(((activeVariant.price - activeVariant.salePrice) / activeVariant.price) * 100);
+      }
+      currentPrice = vPrice;
+      currentOriginalPrice = vOriginalPrice;
+      currentDiscount = vDiscount;
+    }
+  }
+
+  // 2. Variant-specific Images (shown first), followed by common images
+  const variantImages = (activeVariant?.images || []).map(resolveImg);
+  const commonImages = product.images && product.images.length > 0 ? product.images : [product.image];
+  const images = [...variantImages, ...commonImages.filter(img => !variantImages.includes(img))];
+
+  // 3. Variant-specific Features (shown first), followed by common features
+  const variantFeatures = activeVariant?.features || [];
+  const commonFeatures = product.features || [];
+  const finalFeatures = [...variantFeatures, ...commonFeatures.filter(f => !variantFeatures.includes(f))];
+
+  // 4. Availability/Stock
+  const getVariantStock = (pId: string, vId?: string | number): number => {
+    const vStr = vId !== undefined ? String(vId) : 'std';
+    const match = allInventory.find((inv: any) => 
+      inv.productId === pId && 
+      (inv.variantId === vStr || (vStr === 'std' && (!inv.variantId || inv.variantId === 'std')))
+    );
+    return match ? match.stock : 0;
+  };
+
+  const currentExplicitStock = activeVariant && activeVariant.inStock !== undefined ? activeVariant.inStock : product.inStock;
+  const currentLiveStock = getVariantStock(product.id, activeVariant?.variantId);
+  const currentInStock = currentExplicitStock !== false && currentLiveStock > 0;
 
   const similarProducts = products
     .filter((p) => p.category === product.category && p.id !== product.id)
@@ -202,10 +284,15 @@ export function ProductView() {
       keycloak.login();
       return;
     }
+    if (!currentInStock) {
+      toast.error('This product SKU is currently out of stock.');
+      return;
+    }
     try {
       await apiClient.post('/cart/items', {
         productId: product.id,
-        quantity: quantity
+        quantity: quantity,
+        variantId: activeVariant ? String(activeVariant.variantId) : 'std'
       });
       toast.success('Added to cart!');
     } catch (err) {
@@ -261,26 +348,37 @@ export function ProductView() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <button 
-                  onClick={handleAddToCart}
-                  className="flex items-center justify-center gap-2 bg-[#ff9f00] text-white py-3 rounded hover:bg-[#e88f00] transition cursor-pointer"
-                >
-                  <ShoppingCart className="w-5 h-5" />
-                  Add to Cart
-                </button>
-                <button 
-                  onClick={() => {
-                    handleAddToCart().then(() => {
-                      if (keycloak.authenticated) window.location.href = '/cart';
-                    });
-                  }}
-                  className="flex items-center justify-center gap-2 bg-[#fb641b] text-white py-3 rounded hover:bg-[#e85408] transition cursor-pointer"
-                >
-                  <ShoppingCart className="w-5 h-5" />
-                  Buy Now
-                </button>
-              </div>
+              {currentInStock ? (
+                <div className="grid grid-cols-2 gap-4">
+                  <button 
+                    onClick={handleAddToCart}
+                    className="flex items-center justify-center gap-2 py-3 rounded-xl transition font-bold bg-[#ff9f00] hover:bg-[#e88f00] text-white shadow-lg hover:shadow-xl cursor-pointer"
+                  >
+                    <ShoppingCart className="w-5 h-5" />
+                    Add to Cart
+                  </button>
+                  <button 
+                    onClick={() => {
+                      handleAddToCart().then(() => {
+                        if (keycloak.authenticated) window.location.href = '/cart';
+                      });
+                    }}
+                    className="flex items-center justify-center gap-2 py-3 rounded-xl transition font-bold bg-[#fb641b] hover:bg-[#e85408] text-white shadow-lg hover:shadow-xl cursor-pointer"
+                  >
+                    <ShoppingCart className="w-5 h-5" />
+                    Buy Now
+                  </button>
+                </div>
+              ) : (
+                <div className="w-full bg-rose-50 border border-rose-200 rounded-xl p-4 text-center">
+                  <span className="text-rose-600 font-extrabold text-lg uppercase tracking-wider block">
+                    Out of Stock
+                  </span>
+                  <span className="text-slate-500 text-xs mt-1 block">
+                    This item is currently unavailable or has insufficient warehouse inventory.
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -304,16 +402,54 @@ export function ProductView() {
               )}
 
               <div className="flex items-baseline gap-3 mb-6">
-                <span className="text-3xl text-gray-900">{formatPrice(product.price)}</span>
-                {product.originalPrice && (
+                <span className="text-3xl font-black text-gray-900">{formatPrice(currentPrice)}</span>
+                {currentOriginalPrice && (
                   <>
                     <span className="text-xl text-gray-400 line-through">
-                      {formatPrice(product.originalPrice)}
+                      {formatPrice(currentOriginalPrice)}
                     </span>
-                    <span className="text-lg text-green-600">{product.discount}% off</span>
+                    <span className="text-lg font-bold text-green-600">{currentDiscount}% off</span>
                   </>
                 )}
               </div>
+
+              {/* SKU Variants Selector Panel */}
+              {sortedVariants && sortedVariants.length > 0 && (
+                <div className="mb-6 border-t border-b border-slate-100 py-4">
+                  <span className="text-sm font-extrabold text-slate-800 block mb-2 capitalize">
+                    Available {sortedVariants[0].grouping || 'Variants'}:
+                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    {sortedVariants.map((v) => {
+                      const isActive = activeVariant ? v.variantId === activeVariant.variantId : false;
+                      const isVariantOutOfStock = v.inStock === false || getVariantStock(product.id, v.variantId) <= 0;
+                      return (
+                        <button
+                          key={v.variantId}
+                          onClick={() => {
+                            setSearchParams({ variant: v.name.toLowerCase() });
+                            setSelectedImage(0); // Reset main image index to variant's first image
+                          }}
+                          className={`px-4 py-2.5 border rounded-xl text-xs font-black tracking-wide transition cursor-pointer flex items-center gap-1.5 ${
+                            isActive 
+                              ? 'border-indigo-600 bg-indigo-50/30 text-indigo-600 shadow-2xs' 
+                              : isVariantOutOfStock
+                                ? 'border-dashed border-rose-200 text-rose-500 bg-rose-50/30 hover:border-rose-300'
+                                : 'border-slate-200 text-slate-700 bg-white hover:border-slate-300'
+                          }`}
+                        >
+                          <span>{v.name}</span>
+                          {isVariantOutOfStock && (
+                            <span className="text-[9px] bg-rose-600 text-white font-extrabold px-1.5 py-0.5 rounded-full uppercase scale-90">
+                              OOS
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               <div className="mb-6">
                 <label className="text-sm text-gray-700 mb-2 block">Quantity:</label>
@@ -431,18 +567,18 @@ export function ProductView() {
                     ))}
                   </span>
                 </div>
-                <div className="flex border-b border-gray-100 pb-2">
+                 <div className="flex border-b border-gray-100 pb-2">
                   <span className="w-32 text-gray-600">In Stock</span>
-                  <span className="text-gray-900">{product.inStock ? "Yes" : "No"}</span>
+                  <span className={`font-semibold ${currentInStock ? "text-green-600" : "text-red-500"}`}>{currentInStock ? "Yes" : "No"}</span>
                 </div>
               </div>
             </div>
 
-            {product.features && product.features.length > 0 && (
+            {finalFeatures && finalFeatures.length > 0 && (
               <div className="bg-white rounded-lg p-6">
                 <h2 className="text-xl mb-4">Key Features</h2>
                 <ul className="list-disc pl-5 space-y-2 text-gray-700">
-                  {product.features.map((feature, idx) => (
+                  {finalFeatures.map((feature, idx) => (
                     <li key={idx}>{feature}</li>
                   ))}
                 </ul>

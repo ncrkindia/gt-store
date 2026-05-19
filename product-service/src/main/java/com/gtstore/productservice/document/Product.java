@@ -27,7 +27,9 @@ public class Product {
     @TextIndexed
     private String description;
 
+    @org.springframework.data.annotation.Transient
     private BigDecimal price;
+    @org.springframework.data.annotation.Transient
     private BigDecimal salePrice;
 
     private List<String> images;
@@ -40,6 +42,7 @@ public class Product {
     private Integer reviewCount;
 
     private List<String> features;
+    @org.springframework.data.annotation.Transient
     private Boolean inStock;
 
     // e.g. "Color": ["Red", "Blue"], "Size": ["M", "L"]
@@ -47,9 +50,9 @@ public class Product {
     
     private Integer gstPercentage = 18; // Default 18% tax
 
+    
     private List<Review> reviews = new java.util.ArrayList<>();
     
-    private List<PriceHistoryRecord> priceHistory = new java.util.ArrayList<>();
     
     /**
      * Flag indicating whether this product is featured in the Storefront Homepage 'Promoted Picks' section.
@@ -73,9 +76,25 @@ public class Product {
     public void setSlug(String slug) { this.slug = slug; }
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
-    public BigDecimal getPrice() { return price; }
+    public BigDecimal getPrice() {
+        if (variants != null && !variants.isEmpty()) {
+            return variants.stream()
+                    .min(java.util.Comparator.comparingInt(v -> v.getSequence() != null ? v.getSequence() : 0))
+                    .map(ProductVariant::getPrice)
+                    .orElse(price);
+        }
+        return price;
+    }
     public void setPrice(BigDecimal price) { this.price = price; }
-    public BigDecimal getSalePrice() { return salePrice; }
+    public BigDecimal getSalePrice() {
+        if (variants != null && !variants.isEmpty()) {
+            return variants.stream()
+                    .min(java.util.Comparator.comparingInt(v -> v.getSequence() != null ? v.getSequence() : 0))
+                    .map(ProductVariant::getSalePrice)
+                    .orElse(salePrice);
+        }
+        return salePrice;
+    }
     public void setSalePrice(BigDecimal salePrice) { this.salePrice = salePrice; }
     public List<String> getImages() { return images; }
     public void setImages(List<String> images) { this.images = images; }
@@ -91,7 +110,15 @@ public class Product {
     public void setAttributes(Map<String, List<String>> attributes) { this.attributes = attributes; }
     public List<String> getFeatures() { return features; }
     public void setFeatures(List<String> features) { this.features = features; }
-    public Boolean getInStock() { return inStock; }
+    public Boolean getInStock() {
+        if (variants != null && !variants.isEmpty()) {
+            return variants.stream()
+                    .min(java.util.Comparator.comparingInt(v -> v.getSequence() != null ? v.getSequence() : 0))
+                    .map(ProductVariant::getInStock)
+                    .orElse(inStock);
+        }
+        return inStock;
+    }
     public void setInStock(Boolean inStock) { this.inStock = inStock; }
     public List<Review> getReviews() { return reviews; }
     public void setReviews(List<Review> reviews) { this.reviews = reviews; }
@@ -122,10 +149,13 @@ public class Product {
     public Map<Integer, Integer> getRatingBreakdown() { return ratingBreakdown; }
     public void setRatingBreakdown(Map<Integer, Integer> ratingBreakdown) { this.ratingBreakdown = ratingBreakdown; }
 
-    public List<PriceHistoryRecord> getPriceHistory() {
-        return priceHistory != null ? priceHistory : new java.util.ArrayList<>();
+
+
+    private List<ProductVariant> variants = new java.util.ArrayList<>();
+    public List<ProductVariant> getVariants() {
+        return variants != null ? variants : new java.util.ArrayList<>();
     }
-    public void setPriceHistory(List<PriceHistoryRecord> priceHistory) {
-        this.priceHistory = priceHistory;
+    public void setVariants(List<ProductVariant> variants) {
+        this.variants = variants;
     }
 }
