@@ -128,7 +128,7 @@ public class OrderController {
 
         // 2. Create Order
         Order order = new Order();
-        order.setUserId(email);
+        order.setUserId(orderRequest.getUserId() != null && !orderRequest.getUserId().trim().isEmpty() ? orderRequest.getUserId() : email);
         
         try {
             Long seqValue = jdbcTemplate.queryForObject("SELECT nextval('order_number_seq')", Long.class);

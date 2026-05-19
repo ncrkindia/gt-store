@@ -39,7 +39,11 @@ public class SecurityConfig {
                 config.setAllowedHeaders(List.of(
                                 HttpHeaders.AUTHORIZATION,
                                 HttpHeaders.CONTENT_TYPE,
-                                HttpHeaders.ACCEPT));
+                                HttpHeaders.ACCEPT,
+                                "X-User-Email",
+                                "X-User-Name",
+                                "x-user-email",
+                                "x-user-name"));
                 config.setAllowCredentials(true);
                 config.setMaxAge(3600L);
 
@@ -64,7 +68,11 @@ public class SecurityConfig {
                                         config.setAllowedHeaders(List.of(
                                                         HttpHeaders.AUTHORIZATION,
                                                         HttpHeaders.CONTENT_TYPE,
-                                                        HttpHeaders.ACCEPT));
+                                                        HttpHeaders.ACCEPT,
+                                                        "X-User-Email",
+                                                        "X-User-Name",
+                                                        "x-user-email",
+                                                        "x-user-name"));
                                         config.setAllowCredentials(true);
                                         config.setMaxAge(3600L);
                                         return config;

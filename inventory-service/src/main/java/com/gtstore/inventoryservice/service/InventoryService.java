@@ -26,9 +26,13 @@ public class InventoryService {
 
     @Transactional
     public boolean reserveStock(StockReservationRequest request) {
-        Optional<Inventory> invOpt = (request.getVariantId() != null)
-                ? inventoryRepository.findByProductIdAndVariantId(request.getProductId(), request.getVariantId())
-                : inventoryRepository.findByProductId(request.getProductId());
+        Optional<Inventory> invOpt = Optional.empty();
+        if (request.getVariantId() != null && !request.getVariantId().trim().isEmpty() && !"std".equalsIgnoreCase(request.getVariantId())) {
+            invOpt = inventoryRepository.findByProductIdAndVariantId(request.getProductId(), request.getVariantId());
+        }
+        if (!invOpt.isPresent()) {
+            invOpt = inventoryRepository.findByProductId(request.getProductId());
+        }
 
         if (invOpt.isPresent()) {
             Inventory inv = invOpt.get();
@@ -43,9 +47,13 @@ public class InventoryService {
 
     @Transactional
     public void releaseStock(StockReservationRequest request) {
-        Optional<Inventory> invOpt = (request.getVariantId() != null)
-                ? inventoryRepository.findByProductIdAndVariantId(request.getProductId(), request.getVariantId())
-                : inventoryRepository.findByProductId(request.getProductId());
+        Optional<Inventory> invOpt = Optional.empty();
+        if (request.getVariantId() != null && !request.getVariantId().trim().isEmpty() && !"std".equalsIgnoreCase(request.getVariantId())) {
+            invOpt = inventoryRepository.findByProductIdAndVariantId(request.getProductId(), request.getVariantId());
+        }
+        if (!invOpt.isPresent()) {
+            invOpt = inventoryRepository.findByProductId(request.getProductId());
+        }
 
         if (invOpt.isPresent()) {
             Inventory inv = invOpt.get();
